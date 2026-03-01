@@ -10,7 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // In-memory wallet storage (in production, use PostgreSQL)
-let wallets = [];
+let wallets = [
+    { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0', valid: true, chains: { ETH: '1.2345', ARB: '2.5678', OP: '0.9876', BASE: '1.4321', MATIC: '5000' }, provider: 'Main Wallet', totalBalance: 6.22 },
+    { address: '0x8ba1f109551bD432803012645Ac136ddd64DBA72', valid: true, chains: { ETH: '0.5432', ARB: '1.2345', OP: '0.3212', BASE: '0.8765', MATIC: '2500' }, provider: 'Trading Wallet', totalBalance: 2.98 },
+    { address: '0xCd3B51D01431a5a84C51d7f0fC3b3f5C3f3f3f3', valid: false, chains: { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' }, provider: 'Unknown', totalBalance: 0 }
+];
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -134,14 +138,23 @@ app.post('/api/engine/strategies/reload', requireAdminAuth, (req, res) => {
  * Get all wallets
  */
 app.get('/api/wallets', (req, res) => {
-    const walletStats = wallets.map(w => ({
+    const walletData = wallets.map(w => ({
         address: w.address,
-        totalProfit: w.totalProfit || 0,
-        tradesCount: w.tradesCount || 0,
-        balances: w.balances || { ETH: '0.00', ARB: '0.00', OP: '0.00', BASE: '0.00', MATIC: '0.00' }
+        valid: w.valid,
+        provider: w.provider,
+        chains: w.chains,
+        totalBalance: w.totalBalance
     }));
-    const totalBalance = walletStats.reduce((sum, w) => sum + w.totalProfit, 0);
-    res.json({ wallets: walletStats, totalBalance: totalBalance.toFixed(4), count: walletStats.length });
+    const totalBalance = walletData.reduce((sum, w) => sum + w.totalBalance, 0);
+    const validCount = walletData.filter(w => w.valid).length;
+    const invalidCount = walletData.filter(w => !w.valid).length;
+    res.json({ 
+        wallets: walletData, 
+        totalBalance: totalBalance.toFixed(4), 
+        count: walletData.length,
+        validCount,
+        invalidCount
+    });
 });
 
 /**
@@ -152,20 +165,77 @@ app.post('/api/wallets/import', (req, res) => {
     if (!addresses || !Array.isArray(addresses)) {
         return res.status(400).json({ error: 'Invalid addresses array' });
     }
-    const newWallets = addresses.map(addr => ({
-        address: addr,
-        totalProfit: Math.random() * 5, // Simulated profit for demo
-        tradesCount: Math.floor(Math.random() * 50),
-        balances: { 
-            ETH: (Math.random() * 2).toFixed(4), 
+    
+    const newWallets = addresses.map((addr, idx) => {
+        // Simulate validation - addresses starting with 0x followed by valid hex
+        const isValid = /^0x[a-fA-F0-9]{40}$/.test(addr);
+        
+        // Simulate different providers
+        let provider = 'Unknown';
+        if (addr.includes('742d') || addr.includes('8ba1')) provider = 'Main Wallet';
+        else if (addr.includes('abcd') || addr.includes('1234')) provider = 'Trading Wallet';
+        else if (isValid) provider = `Wallet #${wallets.length + idx + 1}`;
+        
+        // Simulate balances (in production, fetch from RPC)
+        const chains = isValid ? { 
+            ETH: (Math.random() * 3).toFixed(4), 
             ARB: (Math.random() * 5).toFixed(4), 
             OP: (Math.random() * 3).toFixed(4), 
             BASE: (Math.random() * 4).toFixed(4), 
-            MATIC: (Math.random() * 1000).toFixed(0)
-        }
-    }));
+            MATIC: (Math.floor(Math.random() * 10000)).toString()
+        } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
+        
+        const totalBalance = Object.values(chains).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+        
+        return {
+            address: addr,
+            valid: isValid,
+            provider,
+            chains,
+            totalBalance
+        };
+    });
+    
     wallets = [...wallets, ...newWallets];
     res.json({ success: true, count: newWallets.length });
+});
+
+/**
+ * Delete wallet
+ */
+app.delete('/api/wallets/:address', (req, res) => {
+    const addr = req.params.address;
+    const initialLength = wallets.length;
+    wallets = wallets.filter(w => w.address !== addr);
+    res.json({ success: true, deleted: initialLength - wallets.length });
+});
+
+/**
+ * Add single wallet
+ */
+app.post('/api/wallets/add', (req, res) => {
+    const { address } = req.body;
+    if (!address) return res.status(400).json({ error: 'Address required' });
+    
+    const isValid = /^0x[a-fA-F0-9]{40}$/.test(address);
+    const chains = isValid ? { 
+        ETH: (Math.random() * 3).toFixed(4), 
+        ARB: (Math.random() * 5).toFixed(4), 
+        OP: (Math.random() * 3).toFixed(4), 
+        BASE: (Math.random() * 4).toFixed(4), 
+        MATIC: (Math.floor(Math.random() * 10000)).toString()
+    } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
+    
+    const newWallet = {
+        address,
+        valid: isValid,
+        provider: 'New Wallet',
+        chains,
+        totalBalance: Object.values(chains).reduce((sum, v) => sum + (parseFloat(v) || 0), 0)
+    };
+    
+    wallets.push(newWallet);
+    res.json({ success: true, wallet: newWallet });
 });
 
 /**
