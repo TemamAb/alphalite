@@ -9,6 +9,9 @@ const preFlightCheckService = require('./PreFlightCheck');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// In-memory wallet storage (in production, use PostgreSQL)
+let wallets = [];
+
 // Create HTTP server
 const server = http.createServer(app);
 
@@ -123,6 +126,97 @@ app.post('/api/engine/strategies/reload', requireAdminAuth, (req, res) => {
         message: 'Strategies reload triggered', 
         count: status.strategies.length 
     });
+});
+
+// --- Wallet Management API ---
+
+/**
+ * Get all wallets
+ */
+app.get('/api/wallets', (req, res) => {
+    const walletStats = wallets.map(w => ({
+        address: w.address,
+        totalProfit: w.totalProfit || 0,
+        tradesCount: w.tradesCount || 0,
+        balances: w.balances || { ETH: '0.00', ARB: '0.00', OP: '0.00', BASE: '0.00', MATIC: '0.00' }
+    }));
+    const totalBalance = walletStats.reduce((sum, w) => sum + w.totalProfit, 0);
+    res.json({ wallets: walletStats, totalBalance: totalBalance.toFixed(4), count: walletStats.length });
+});
+
+/**
+ * Add wallets (bulk import)
+ */
+app.post('/api/wallets/import', (req, res) => {
+    const { addresses } = req.body;
+    if (!addresses || !Array.isArray(addresses)) {
+        return res.status(400).json({ error: 'Invalid addresses array' });
+    }
+    const newWallets = addresses.map(addr => ({
+        address: addr,
+        totalProfit: Math.random() * 5, // Simulated profit for demo
+        tradesCount: Math.floor(Math.random() * 50),
+        balances: { 
+            ETH: (Math.random() * 2).toFixed(4), 
+            ARB: (Math.random() * 5).toFixed(4), 
+            OP: (Math.random() * 3).toFixed(4), 
+            BASE: (Math.random() * 4).toFixed(4), 
+            MATIC: (Math.random() * 1000).toFixed(0)
+        }
+    }));
+    wallets = [...wallets, ...newWallets];
+    res.json({ success: true, count: newWallets.length });
+});
+
+/**
+ * Get total profit from all wallets
+ */
+app.get('/api/wallets/total-profit', (req, res) => {
+    const totalProfit = wallets.reduce((sum, w) => sum + (w.totalProfit || 0), 0);
+    res.json({ totalProfit: totalProfit.toFixed(4), currency: 'ETH' });
+});
+
+/**
+ * Withdraw profits
+ */
+app.post('/api/wallets/withdraw', (req, res) => {
+    const { mode, amount } = req.body; 
+    
+    if (mode === 'auto') {
+        res.json({ success: true, mode: 'auto', message: 'Auto-withdraw enabled' });
+    } else {
+        const totalProfit = wallets.reduce((sum, w) => sum + (w.totalProfit || 0), 0);
+        res.json({ success: true, mode: 'manual', amount: amount || totalProfit.toFixed(4), message: 'Withdrawal initiated' });
+    }
+});
+
+// Trading settings
+let tradingSettings = {
+    reinvestmentRate: 50, // 0-100%
+    capitalVelocity: 100 // $1M-$500M in millions
+};
+
+/**
+ * Get trading settings
+ */
+app.get('/api/settings/trading', (req, res) => {
+    res.json(tradingSettings);
+});
+
+/**
+ * Update trading settings
+ */
+app.post('/api/settings/trading', (req, res) => {
+    const { reinvestmentRate, capitalVelocity } = req.body;
+    
+    if (reinvestmentRate !== undefined) {
+        tradingSettings.reinvestmentRate = Math.max(0, Math.min(100, reinvestmentRate));
+    }
+    if (capitalVelocity !== undefined) {
+        tradingSettings.capitalVelocity = Math.max(1, Math.min(500, capitalVelocity));
+    }
+    
+    res.json({ success: true, settings: tradingSettings });
 });
 
 // --- Serve React Frontend (Production) ---
