@@ -11,10 +11,9 @@ const PORT = process.env.PORT || 3000;
 
 // Helper functions for wallet detection
 function detectWalletProvider(address) {
-    // In production, this would use blockchain queries or address lookup
-    // For now, return a non-custodial provider placeholder
-    const providers = ['MetaMask', 'Trust Wallet', 'Coinbase Wallet', 'Rainbow', 'Phantom', 'Rabby'];
-    return providers[Math.floor(Math.random() * providers.length)];
+    // Wallet brand cannot be detected from address alone - would require Etherscan API or user input
+    // In production, integrate with Etherscan API to get address labels
+    return 'Not Detected';
 }
 
 function detectBlockchain(address) {

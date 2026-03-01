@@ -127,7 +127,10 @@ export const DashboardLayout: React.FC = () => {
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-api-key': 'alphapro-secret-key-dev'
+        },
         body: JSON.stringify({ action: 'start' })
       });
       setEngineStatus('running');
@@ -141,7 +144,10 @@ export const DashboardLayout: React.FC = () => {
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-api-key': 'alphapro-secret-key-dev'
+        },
         body: JSON.stringify({ action: 'pause' })
       });
       setEngineStatus('paused');
