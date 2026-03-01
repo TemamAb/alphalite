@@ -1,0 +1,72 @@
+services:
+  # The Brain (Python Sidecar)
+  - name: alphapro-brain
+    runtime: python
+    buildCommand: pip install -r alphapro-brain/requirements.txt
+    startCommand: python alphapro-brain/app.py
+    plan: starter
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # The Core (Node API + React Frontend)
+  - name: alphapro-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard
+    envVars:
+      # Trading Configuration
+      - key: NODE_ENV
+        value: production
+      - key: TRADING_MODE
+        value: LIVE
+      - key: PORT
+        value: 3000
+
+      # Gasless Transaction Configuration (Pimlico)
+      - key: PIMLICO_API_KEY
+        value: pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: WALLET_ADDRESS
+        value: 0x21e6d55cBd4721996a6B483079449cFc279A993a
+      - key: BUNDLER_URL
+        value: https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: PAYMASTER_URL
+        value: https://api.pimlico.io/v2/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: ENTRYPOINT_ADDRESS
+        value: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+
+      # RPC Endpoints
+      - key: ETHEREUM_RPC
+        value: https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: ARBITRUM_RPC
+        value: https://api.pimlico.io/v1/42161/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: OPTIMISM_RPC
+        value: https://api.pimlico.io/v1/10/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - key: POLYGON_RPC
+        value: https://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
+      - key: BASE_RPC
+        value: https://api.pimlico.io/v1/8453/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+
+      # Alchemy WebSocket URLs for Real-time Mempool
+      - key: ETH_WS_URL
+        value: wss://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: ARBITRUM_WS_URL
+        value: wss://arb-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: POLYGON_WS_URL
+        value: wss://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: OPTIMISM_WS_URL
+        value: wss://opt-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: BASE_WS_URL
+        value: wss://base-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+
+      # Brain Service
+      - key: BRAIN_URL
+        value: http://alphapro-brain:5000
+
+      # Admin API Key
+      - key: ADMIN_API_KEY
+        value: alphapro-prod-key-2024
+
+      # Security
+      - key: JWT_SECRET
+        value: alphapro_jwt_secret_prod_2024

@@ -1,0 +1,39 @@
+{
+  "tier1_execution": {
+    "alchemy": {
+      "type": "websocket",
+      "url": "wss://eth-mainnet.g.alchemy.com/v2/",
+      "rate_limit": "300M compute units/month",
+      "priority": 1
+    },
+    "infura": {
+      "type": "websocket",
+      "url": "wss://mainnet.infura.io/ws/v3/",
+      "rate_limit": "100k requests/day",
+      "priority": 2
+    }
+  },
+  "tier2_discovery": {
+    "dexscreener": {
+      "type": "rest",
+      "base_url": "https://api.dexscreener.com/latest/dex",
+      "rate_limit": "300 requests/minute",
+      "endpoints": {
+        "tokens": "/tokens/",
+        "pairs": "/pairs/"
+      }
+    },
+    "birdeye": {
+      "type": "rest",
+      "base_url": "https://public-api.birdeye.so",
+      "rate_limit": "Standard Public Key Limits"
+    }
+  },
+  "tier3_context": {
+    "coingecko": {
+      "type": "rest",
+      "base_url": "https://api.coingecko.com/api/v3",
+      "rate_limit": "30 requests/minute"
+    }
+  }
+}

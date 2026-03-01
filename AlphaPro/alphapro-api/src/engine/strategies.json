@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Flash Loan",
+    "profitMultiplier": 3.0,
+    "risk": "HIGH",
+    "description": "Maximum profit using borrowed funds"
+  },
+  {
+    "name": "Cross-DEX",
+    "profitMultiplier": 2.0,
+    "risk": "MEDIUM",
+    "description": "Price differences across exchanges"
+  },
+  {
+    "name": "Triangular",
+    "profitMultiplier": 1.5,
+    "risk": "LOW",
+    "description": "Price differences within single DEX"
+  },
+  {
+    "name": "LVR",
+    "profitMultiplier": 1.0,
+    "risk": "LOW",
+    "description": "Liquidity Provider Revenue"
+  },
+  {
+    "name": "Sandwich Attack",
+    "profitMultiplier": 2.5,
+    "risk": "HIGH",
+    "description": "Front-running and back-running a victim transaction"
+  },
+  {
+    "name": "JIT Liquidity",
+    "profitMultiplier": 1.8,
+    "risk": "MEDIUM",
+    "description": "Just-In-Time liquidity provision for concentrated AMMs"
+  },
+  {
+    "name": "Liquidations",
+    "profitMultiplier": 2.2,
+    "risk": "MEDIUM",
+    "description": "Profiting from undercollateralized loan liquidations"
+  },
+  {
+    "name": "Spatial Arbitrage",
+    "profitMultiplier": 1.7,
+    "risk": "LOW",
+    "description": "Exploiting price differences between different geographical markets"
+  },
+  {
+    "name": "Statistical Arbitrage",
+    "profitMultiplier": 1.4,
+    "risk": "LOW",
+    "description": "Using statistical models to identify mispricing"
+  },
+  {
+    "name": "Funding Rate Arbitrage",
+    "profitMultiplier": 1.6,
+    "risk": "LOW",
+    "description": "Profiting from funding rate differences between perpetual futures"
+  },
+  {
+    "name": "Basis Trading",
+    "profitMultiplier": 1.3,
+    "risk": "LOW",
+    "description": "Exploiting the difference between spot and futures prices"
+  },
+  {
+    "name": "Volatility Arbitrage",
+    "profitMultiplier": 1.9,
+    "risk": "MEDIUM",
+    "description": "Profiting from the difference between implied and realized volatility"
+  },
+  {
+    "name": "Cross-Chain Arbitrage",
+    "profitMultiplier": 2.8,
+    "risk": "HIGH",
+    "description": "Exploiting price differences across different blockchains"
+  },
+  {
+    "name": "MEV Extract",
+    "profitMultiplier": 2.4,
+    "risk": "HIGH",
+    "description": "Miner Extractable Value extraction from transaction ordering"
+  },
+  {
+    "name": "Dex Aggregator",
+    "profitMultiplier": 1.45,
+    "risk": "LOW",
+    "description": "Optimizing trades across multiple DEX aggregators"
+  },
+  {
+    "name": "Index Rebalance",
+    "profitMultiplier": 1.25,
+    "risk": "LOW",
+    "description": "Profiting from index fund rebalancing events"
+  }
+]

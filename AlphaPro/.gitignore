@@ -1,0 +1,10 @@
+# Dependency directories
+node_modules/
+__pycache__/
+
+# Environment variables
+.env
+
+# Build outputs
+dist/
+build/

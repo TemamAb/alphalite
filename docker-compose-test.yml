@@ -1,0 +1,130 @@
+version: '3.8'
+
+# AlphaPro Test Environment Docker Compose
+# This configuration runs the trading system in TEST mode
+
+services:
+  # --- Core Infrastructure ---
+  
+  # PostgreSQL Database (Test)
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: alphapro-db-test
+    environment:
+      POSTGRES_USER: alphapro_test
+      POSTGRES_PASSWORD: alphapro_test_pass
+      POSTGRES_DB: alphapro_trading_test
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata_test:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - alphapro-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapro_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Pub/Sub (Test)
+  redis-test:
+    image: redis:7-alpine
+    container_name: alphapro-bus-test
+    ports:
+      - "6381:6379"
+    networks:
+      - alphapro-test-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # --- API & Trading Engine (Test) ---
+  
+  api-test:
+    build:
+      context: ./AlphaPro
+      dockerfile: Dockerfile
+    container_name: alphapro-api-test
+    ports:
+      - "3002:3000"
+    environment:
+      # Trading Configuration
+      - NODE_ENV=test
+      - TRADING_MODE=LIVE
+      - PORT=3000
+      
+      # Gasless Transaction Configuration (Pimlico)
+      - PIMLICO_API_KEY=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - ETHEREUM_RPC=https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - ARBITRUM_RPC=https://api.pimlico.io/v1/42161/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - OPTIMISM_RPC=https://api.pimlico.io/v1/10/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - BASE_RPC=https://api.pimlico.io/v1/8453/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - BUNDLER_URL=https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - PAYMASTER_URL=https://api.pimlico.io/v2/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      - ENTRYPOINT_ADDRESS=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+      - WALLET_ADDRESS=0x21e6d55cBd4721996a6B483079449cFc279A993a
+      
+      # Alchemy API Key for Real-time Mempool
+      - ALCHEMY_API_KEY=9v_Ducm70QxIb75p3_wPS
+      - ALCHEMY-API-KEY=9v_Ducm70QxIb75p3_wPS
+      - INFURA_API_KEY=mK2nj6ZSi1mZ2THJMUHcF
+      - ETH_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - ETH_WS_URL=wss://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - ARBITRUM_WS_URL=wss://arb-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - POLYGON_WS_URL=wss://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - OPTIMISM_WS_URL=wss://opt-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - BASE_WS_URL=wss://base-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      
+      # Database Connections
+      - DATABASE_URL=postgresql://alphapro_test:alphapro_test_pass@postgres-test:5432/alphapro_trading_test
+      - REDIS_URL=redis://redis-test:6379
+      
+      # Brain Service
+      - BRAIN_URL=http://alphapro-brain-test:5000
+      
+      # Admin API Key
+      - ADMIN_API_KEY=alphapro-test-key-2024
+      
+      # Security
+      - JWT_SECRET=alphapro_jwt_secret_test_2024
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - alphapro-test-net
+    restart: unless-stopped
+
+  # --- AI Brain Service (Test) ---
+  
+  brain-test:
+    build:
+      context: ./AlphaPro/alphapro-brain
+      dockerfile: Dockerfile
+    container_name: alphapro-brain-test
+    ports:
+      - "5001:5000"
+    environment:
+      - REDIS_URL=redis://redis-test:6379
+      - DATABASE_URL=postgresql://alphapro_test:alphapro_test_pass@postgres-test:5432/alphapro_trading_test
+      - FLASK_ENV=development
+    depends_on:
+      redis-test:
+        condition: service_healthy
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - alphapro-test-net
+    restart: unless-stopped
+
+networks:
+  alphapro-test-net:
+    driver: bridge
+
+volumes:
+  pgdata_test:
+    driver: local

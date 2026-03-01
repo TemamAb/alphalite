@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # 1. AI Optimization Engine
+  alphapro-brain:
+    build:
+      context: ./alphapro-brain
+      dockerfile: Dockerfile
+    container_name: alphapro-brain
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - alphapro-net
+
+  # 2. API Gateway & Frontend
+  alphapro-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alphapro-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - BRAIN_URL=http://alphapro-brain:5000
+    depends_on:
+      - alphapro-brain
+    networks:
+      - alphapro-net
+
+networks:
+  alphapro-net:
+    driver: bridge

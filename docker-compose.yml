@@ -1,0 +1,108 @@
+version: '3.8'
+
+# AlphaPro Live Paper Trading Docker Compose
+# This configuration runs the trading system in PAPER (simulation) mode
+
+services:
+  # --- Core Infrastructure ---
+  
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: alphapro-db
+    environment:
+      POSTGRES_USER: alphapro
+      POSTGRES_PASSWORD: alphapro_secure_pass_2024
+      POSTGRES_DB: alphapro_trading
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro-bus
+    ports:
+      - "6380:6379"
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # --- API & Trading Engine ---
+  
+  api:
+    build:
+      context: ./AlphaPro
+      dockerfile: Dockerfile
+    container_name: alphapro-api
+    ports:
+      - "3001:3000"
+    environment:
+      # Trading Configuration
+      - NODE_ENV=production
+      - TRADING_MODE=PAPER  # Live Paper Trading Mode
+      - PORT=3000
+      
+      # Database Connections
+      - DATABASE_URL=postgresql://alphapro:alphapro_secure_pass_2024@postgres:5432/alphapro_trading
+      - REDIS_URL=redis://redis:6379
+      
+      # Brain Service
+      - BRAIN_URL=http://alphapro-brain:5000
+      
+      # Admin API Key
+      - ADMIN_API_KEY=alphapro-admin-key-2024
+      
+      # Security
+      - JWT_SECRET=alphapro_jwt_secret_production_2024
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+
+  # --- AI Brain Service ---
+  
+  brain:
+    build:
+      context: ./AlphaPro/alphapro-brain
+      dockerfile: Dockerfile
+    container_name: alphapro-brain
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://alphapro:alphapro_secure_pass_2024@postgres:5432/alphapro_trading
+      - FLASK_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+
+networks:
+  alphapro-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
