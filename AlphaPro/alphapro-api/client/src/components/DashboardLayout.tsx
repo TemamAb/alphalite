@@ -20,8 +20,11 @@ type Tab = 'dashboard' | 'benchmark' | 'copilot' | 'strategies' | 'blockchain' |
 
 interface WalletData {
   address: string;
+  name: string;
   valid: boolean;
   provider: string;
+  blockchain: string;
+  balance: number;
   chains: { [key: string]: string };
   totalBalance: number;
 }
@@ -52,6 +55,9 @@ export const DashboardLayout: React.FC = () => {
   });
   const [reinvestmentRate, setReinvestmentRate] = useState(50);
   const [capitalVelocity, setCapitalVelocity] = useState(100);
+  const [autoThreshold, setAutoThreshold] = useState('0.1');
+  const [manualAmount, setManualAmount] = useState('0.01');
+  const [walletTableCollapsed, setWalletTableCollapsed] = useState(false);
 
   const navItems = [
     { id: 'dashboard' as Tab, label: 'Dashboard', icon: Layers },
@@ -325,7 +331,15 @@ export const DashboardLayout: React.FC = () => {
             {/* Wallet Management */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">Wallet Management</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-bold text-white">Wallet Management</h3>
+                  <button 
+                    onClick={() => setWalletTableCollapsed(!walletTableCollapsed)} 
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    {walletTableCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  </button>
+                </div>
                 <div className="flex gap-3 text-xs">
                   <span className="text-green-400">{wallets.filter((w: any) => w.valid).length} valid</span>
                   <span className="text-red-400">{wallets.filter((w: any) => !w.valid).length} invalid</span>
@@ -344,49 +358,80 @@ export const DashboardLayout: React.FC = () => {
                     fetchWallets();
                   }
                 }} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-sm">+ Add</button>
+                <div className="ml-auto flex items-center gap-4 bg-slate-700 px-3 py-2 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Wallets:</span>
+                    <span className="text-sm font-bold text-white">{wallets.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Total:</span>
+                    <span className="text-sm font-bold text-green-400">{wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0).toFixed(4)} ETH</span>
+                  </div>
+                </div>
               </div>
 
-              {wallets.length > 0 && (
+              {wallets.length > 0 && !walletTableCollapsed && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-slate-400 border-b border-slate-700">
-                        <th className="p-2 text-left">Status</th>
-                        <th className="p-2 text-left">Provider</th>
+                        <th className="p-2 text-left">#</th>
+                        <th className="p-2 text-left">Name</th>
                         <th className="p-2 text-left">Address</th>
-                        <th className="p-2 text-right">ETH</th>
-                        <th className="p-2 text-right">ARB</th>
-                        <th className="p-2 text-right">OP</th>
-                        <th className="p-2 text-right">BASE</th>
-                        <th className="p-2 text-right">MATIC</th>
-                        <th className="p-2 text-right">Total</th>
-                        <th className="p-2 text-center">✕</th>
+                        <th className="p-2 text-left">Provider</th>
+                        <th className="p-2 text-left">Blockchain</th>
+                        <th className="p-2 text-right">Balance</th>
+                        <th className="p-2 text-center">Status</th>
+                        <th className="p-2 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {wallets.map((wallet: any, idx: number) => (
                         <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                          <td className="p-2"><span className={`w-2 h-2 rounded-full ${wallet.valid ? 'bg-green-500' : 'bg-red-500'}`}></span></td>
-                          <td className="p-2 text-slate-300">{wallet.provider}</td>
-                          <td className="p-2 font-mono text-slate-400">{wallet.address?.slice(0, 8)}...</td>
-                          <td className="p-2 text-right font-mono">{wallet.chains?.ETH || '0'}</td>
-                          <td className="p-2 text-right font-mono">{wallet.chains?.ARB || '0'}</td>
-                          <td className="p-2 text-right font-mono">{wallet.chains?.OP || '0'}</td>
-                          <td className="p-2 text-right font-mono">{wallet.chains?.BASE || '0'}</td>
-                          <td className="p-2 text-right font-mono">{wallet.chains?.MATIC || '0'}</td>
-                          <td className="p-2 text-right font-mono text-green-400">{(wallet.totalBalance || 0).toFixed(2)}</td>
-                          <td className="p-2 text-center"><button onClick={async () => { await fetch(`/api/wallets/${wallet.address}`, { method: 'DELETE' }); fetchWallets(); }} className="text-red-400 hover:text-red-300">✕</button></td>
+                          <td className="p-2 text-slate-400">{idx + 1}</td>
+                          <td className="p-2 text-slate-300">{wallet.name || `Wallet ${idx + 1}`}</td>
+                          <td className="p-2 font-mono text-slate-400">{wallet.address?.slice(0, 10)}...</td>
+                          <td className="p-2 text-slate-300">{wallet.provider || 'Unknown'}</td>
+                          <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
+                          <td className="p-2 text-right font-mono text-green-400">{(wallet.balance || wallet.totalBalance || 0).toFixed(4)}</td>
+                          <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
+                          <td className="p-2 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={async () => {
+                                  const newAddr = prompt('Edit wallet address:', wallet.address);
+                                  if (newAddr && newAddr !== wallet.address) {
+                                    await fetch(`/api/wallets/${wallet.address}`, { 
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' }, 
+                                      body: JSON.stringify({ address: newAddr }) 
+                                    });
+                                    fetchWallets();
+                                  }
+                                }} 
+                                className="text-blue-400 hover:text-blue-300"
+                              >
+                                ✎
+                              </button>
+                              <button 
+                                onClick={async () => { 
+                                  if (confirm('Are you sure you want to remove this wallet?')) {
+                                    await fetch(`/api/wallets/${wallet.address}`, { method: 'DELETE' }); 
+                                    fetchWallets(); 
+                                  }
+                                }} 
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                       <tr className="bg-slate-700/50 font-bold text-white">
-                        <td colSpan={2} className="p-2">TOTAL</td>
+                        <td colSpan={5} className="p-2">TOTAL</td>
+                        <td className="p-2 text-right text-green-400">{wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0).toFixed(4)}</td>
                         <td className="p-2">{wallets.length} wallets</td>
-                        <td className="p-2 text-right">{wallets.reduce((s: number, w: any) => s + parseFloat(w.chains?.ETH || '0'), 0).toFixed(2)}</td>
-                        <td className="p-2 text-right">{wallets.reduce((s: number, w: any) => s + parseFloat(w.chains?.ARB || '0'), 0).toFixed(2)}</td>
-                        <td className="p-2 text-right">{wallets.reduce((s: number, w: any) => s + parseFloat(w.chains?.OP || '0'), 0).toFixed(2)}</td>
-                        <td className="p-2 text-right">{wallets.reduce((s: number, w: any) => s + parseFloat(w.chains?.BASE || '0'), 0).toFixed(2)}</td>
-                        <td className="p-2 text-right">{wallets.reduce((s: number, w: any) => s + parseFloat(w.chains?.MATIC || '0'), 0).toFixed(0)}</td>
-                        <td className="p-2 text-right text-green-400">{wallets.reduce((s: number, w: any) => s + (w.totalBalance || 0), 0).toFixed(2)}</td>
                         <td></td>
                       </tr>
                     </tbody>
@@ -403,7 +448,7 @@ export const DashboardLayout: React.FC = () => {
                   await fetch('/api/wallets/withdraw', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: 'auto' })
+                    body: JSON.stringify({ mode: 'auto', threshold: autoThreshold })
                   });
                   setProfitMode('auto');
                 }} className={`px-4 py-2 rounded-lg ${profitMode === 'auto' ? 'bg-green-600' : 'bg-slate-700'}`}>
@@ -413,20 +458,40 @@ export const DashboardLayout: React.FC = () => {
                   Manual
                 </button>
               </div>
-              {profitMode === 'manual' && (
-                <button onClick={async () => {
-                  await fetch('/api/wallets/withdraw', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: 'manual' })
-                  });
-                  alert('Withdrawal initiated!');
-                }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold">
-                  Withdraw Now
-                </button>
-              )}
               {profitMode === 'auto' && (
-                <p className="text-green-400 text-sm">Auto-withdraw is enabled - profits will be withdrawn automatically</p>
+                <div className="mb-4">
+                  <label className="text-sm text-slate-400 mb-2 block">Auto-withdraw threshold (ETH)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={autoThreshold}
+                    onChange={(e) => setAutoThreshold(e.target.value)}
+                    className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
+                  />
+                  <p className="text-green-400 text-sm mt-2">Auto-withdraw enabled - profits will be withdrawn when threshold is reached</p>
+                </div>
+              )}
+              {profitMode === 'manual' && (
+                <div className="mb-4">
+                  <label className="text-sm text-slate-400 mb-2 block">Manual withdrawal amount (ETH)</label>
+                  <input 
+                    type="number" 
+                    step="0.001"
+                    value={manualAmount}
+                    onChange={(e) => setManualAmount(e.target.value)}
+                    className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
+                  />
+                  <button onClick={async () => {
+                    await fetch('/api/wallets/withdraw', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ mode: 'manual', amount: manualAmount })
+                    });
+                    alert('Withdrawal initiated!');
+                  }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
+                    Withdraw {manualAmount} ETH
+                  </button>
+                </div>
               )}
             </div>
 
