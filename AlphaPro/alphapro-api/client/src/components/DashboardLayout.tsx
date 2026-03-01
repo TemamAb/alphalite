@@ -246,7 +246,7 @@ export const DashboardLayout: React.FC = () => {
                 Ask Copilot
               </button>
               <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm">
-                Based on current performance, projected monthly profit: +{engineStats.totalProfit * 720:.2f} ETH (assuming continuous operation)
+                {`Based on current performance, projected monthly profit: +${(engineStats.totalProfit * 720).toFixed(2)} ETH (assuming continuous operation)`}
               </div>
             </div>
           </div>
