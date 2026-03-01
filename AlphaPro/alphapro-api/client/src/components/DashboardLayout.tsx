@@ -8,6 +8,7 @@ import {
   Play,
   Pause,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   TrendingUp,
   Layers,
@@ -335,9 +336,14 @@ export const DashboardLayout: React.FC = () => {
                   <h3 className="text-lg font-bold text-white">Wallet Management</h3>
                   <button 
                     onClick={() => setWalletTableCollapsed(!walletTableCollapsed)} 
-                    className="text-slate-400 hover:text-white transition-colors"
+                    className="text-slate-400 hover:text-white transition-colors p-1"
+                    title={walletTableCollapsed ? 'Expand' : 'Collapse'}
                   >
-                    {walletTableCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                    {walletTableCollapsed ? (
+                      <ChevronDown className="w-5 h-5" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
                 <div className="flex gap-3 text-xs">
