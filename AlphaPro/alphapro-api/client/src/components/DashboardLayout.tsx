@@ -267,15 +267,15 @@ export const DashboardLayout: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">Arbitrage</p>
-                  <p className="text-xl font-bold text-green-400">+{(engineStats.totalProfit * 0.5).toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">MEV</p>
-                  <p className="text-xl font-bold text-green-400">+{(engineStats.totalProfit * 0.3).toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">JIT Liquidity</p>
-                  <p className="text-xl font-bold text-green-400">+{(engineStats.totalProfit * 0.2).toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
                 </div>
               </div>
             </div>
@@ -285,7 +285,7 @@ export const DashboardLayout: React.FC = () => {
                 {['Arbitrum', 'Optimism', 'Base', 'Ethereum'].map(chain => (
                   <div key={chain} className="bg-slate-900 p-4 rounded-lg">
                     <p className="text-slate-400 text-xs">{chain}</p>
-                    <p className="text-lg font-bold text-green-400">+{(engineStats.totalProfit * 0.25).toFixed(4)} ETH</p>
+                    <p className="text-lg font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
                   </div>
                 ))}
               </div>
