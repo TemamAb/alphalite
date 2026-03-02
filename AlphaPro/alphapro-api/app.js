@@ -139,6 +139,22 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
+/**
+ * Configuration status endpoint - returns production readiness
+ */
+app.get('/api/config/status', (req, res) => {
+    const configService = require('./config/configService.js');
+    const cfg = configService.getConfig();
+    
+    res.json({
+        pimlicoConfigured: !!(cfg.pimlico?.bundlerUrl && cfg.pimlico?.paymasterUrl),
+        walletConfigured: !!cfg.walletAddress,
+        privateKeyConfigured: !!cfg.privateKey,
+        alchemyConfigured: !!cfg.alchemyApiKey,
+        tradingMode: cfg.tradingMode || 'LIVE'
+    });
+});
+
 // Ranking Engine API
 app.get('/api/rankings', (req, res) => {
     try {

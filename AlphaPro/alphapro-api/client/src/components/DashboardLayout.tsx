@@ -89,7 +89,7 @@ export const DashboardLayout: React.FC = () => {
     const saved = localStorage.getItem('tradingParamsCollapsed');
     return saved !== null ? JSON.parse(saved) : false;
   });
-  const [targetMode, setTargetMode] = useState<'PAPER' | 'LIVE'>('PAPER');
+  const [targetMode, setTargetMode] = useState<'PAPER' | 'LIVE'>('LIVE');
   const [ethPrice, setEthPrice] = useState(3500);
   const [isRefreshingWallets, setIsRefreshingWallets] = useState(false);
   const [withdrawalRecords, setWithdrawalRecords] = useState<WithdrawalRecord[]>([]);
@@ -106,6 +106,7 @@ export const DashboardLayout: React.FC = () => {
     const saved = localStorage.getItem('deploymentRegistryCollapsed');
     return saved !== null ? JSON.parse(saved) : false;
   });
+  const [pimlicoConfigured, setPimlicoConfigured] = useState(false);
 
   // Helper to format values based on selected currency
   const getDisplayValue = (ethValue: number | string) => {
@@ -179,6 +180,17 @@ export const DashboardLayout: React.FC = () => {
     }
   }, []);
 
+  // Fetch Config Status
+  const fetchConfigStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/config/status');
+      const data = await res.json();
+      setPimlicoConfigured(data.pimlicoConfigured || false);
+    } catch (err) {
+      console.error('Failed to fetch config status:', err);
+    }
+  }, []);
+
   // Persist UI preferences
   useEffect(() => {
     localStorage.setItem('walletTableCollapsed', JSON.stringify(walletTableCollapsed));
@@ -210,6 +222,7 @@ export const DashboardLayout: React.FC = () => {
     fetchWallets();
     fetchTradingSettings();
     fetchEthPrice();
+    fetchConfigStatus();
 
     const interval = setInterval(() => {
       fetchEngineStats();
@@ -218,7 +231,7 @@ export const DashboardLayout: React.FC = () => {
 
     const priceInterval = setInterval(fetchEthPrice, 60000); // Update price every minute
     return () => { clearInterval(interval); clearInterval(priceInterval); };
-  }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice]);
+  }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice, fetchConfigStatus]);
 
   const handleStartEngine = async () => {
     if (targetMode === 'LIVE') {
@@ -234,8 +247,8 @@ export const DashboardLayout: React.FC = () => {
         id: deploymentRecords.length + 1,
         deploymentCode: `DEP-${(deploymentRecords.length + 1).toString().padStart(4, '0')}`,
         commitHash: (import.meta as any).env?.VITE_GIT_COMMIT_HASH || 'production',
-        smartWallet: (import.meta as any).env?.VITE_SMART_WALLET || wallets[0]?.address || '0x0000000000000000000000000000000000000000',
-        smartContract: (import.meta as any).env?.VITE_SMART_CONTRACT || '0x0000000000000000000000000000000000000000',
+        smartWallet: (import.meta as any).env?.VITE_SMART_WALLET || wallets[0]?.address || '',
+        smartContract: (import.meta as any).env?.VITE_SMART_CONTRACT || '',
         chains: ['Ethereum', 'Arbitrum'],
         timestamp: new Date(),
         status: 'Active',
@@ -500,10 +513,12 @@ export const DashboardLayout: React.FC = () => {
                   </div>
                 </div>
 
+                {pimlicoConfigured && engineStatus === 'running' && targetMode === 'LIVE' && (
                 <div className="mb-4 bg-blue-900/20 border border-blue-800 rounded p-2 flex items-center justify-center gap-2">
                   <Zap className="w-3 h-3 text-blue-400" />
                   <span className="text-xs text-blue-300 font-mono">Gasless Mode Active (Pimlico) - No Prefunding Required</span>
                 </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Mode Selector */}

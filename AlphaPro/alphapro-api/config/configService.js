@@ -19,6 +19,9 @@ class ConfigService extends EventEmitter {
             maxConcurrentExecutions: parseInt(process.env.MAX_CONCURRENT_EXECUTIONS) || 5,
             minOpportunitySize: parseFloat(process.env.MIN_OPPORTUNITY_SIZE) || 100,
             
+            // Trading Mode
+            tradingMode: process.env.TRADING_MODE || 'LIVE',
+            
             // Risk Management
             maxPositionSize: parseFloat(process.env.MAX_POSITION_SIZE) || 10000,
             stopLossPercentage: parseFloat(process.env.STOP_LOSS_PERCENTAGE) || 5,
@@ -39,7 +42,15 @@ class ConfigService extends EventEmitter {
             },
             
             // Wallet
-            walletAddress: process.env.WALLET_ADDRESS
+            walletAddress: process.env.WALLET_ADDRESS,
+            privateKey: process.env.PRIVATE_KEY,
+            
+            // Pimlico Configuration (for gasless transactions)
+            pimlico: {
+                bundlerUrl: process.env.BUNDLER_URL,
+                paymasterUrl: process.env.PAYMASTER_URL,
+                entryPoint: process.env.ENTRYPOINT_ADDRESS || '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+            }
         };
         
         console.log('[CONFIG] Configuration service initialized');
