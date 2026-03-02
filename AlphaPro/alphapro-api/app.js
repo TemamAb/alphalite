@@ -7,6 +7,7 @@ const WebSocket = require('ws');
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
 const preFlightCheckService = require('./PreFlightCheck');
 const rankingEngine = require('./src/services/RankingEngine');
+const aiOptimizer = require('./src/services/AIAutoOptimizer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -175,11 +176,32 @@ app.get('/api/dashboard', (req, res) => {
                 stats: engineStatus.stats,
                 strategies: engineStatus.strategies
             },
+            aiOptimizer: aiOptimizer.getState(),
             timestamp: Date.now()
         });
     } catch (error) {
         console.error('[DASHBOARD] Error:', error);
         res.status(500).json({ error: 'Failed to get dashboard data' });
+    }
+});
+
+// AI Auto-Optimizer endpoints
+app.get('/api/ai/optimizer', (req, res) => {
+    try {
+        const state = aiOptimizer.getState();
+        res.status(200).json(state);
+    } catch (error) {
+        console.error('[AI-OPTIMIZER] Error:', error);
+        res.status(500).json({ error: 'Failed to get optimizer state' });
+    }
+});
+
+app.post('/api/ai/optimizer/trigger', (req, res) => {
+    try {
+        aiOptimizer.triggerOptimization();
+        res.status(200).json({ status: 'Optimization triggered' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to trigger optimization' });
     }
 });
 
@@ -289,6 +311,13 @@ app.get('/api/copilot', async (req, res) => {
     const engineStatus = profitEngine.getStatus();
     const mode = profitEngine.getMode();
     const stats = engineStatus.stats;
+    
+    // Get AI Optimizer state
+    const optimizerState = aiOptimizer.getState();
+    
+    // Get Rankings
+    const rankings = profitEngine.getRankings();
+    const opportunity = profitEngine.getRankedOpportunity();
     
     // Calculate metrics for projection
     const totalTrades = stats.totalTrades || 0;
