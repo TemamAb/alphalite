@@ -233,9 +233,9 @@ export const DashboardLayout: React.FC = () => {
       const newDeployment: DeploymentRecord = {
         id: deploymentRecords.length + 1,
         deploymentCode: `DEP-${(deploymentRecords.length + 1).toString().padStart(4, '0')}`,
-        commitHash: 'a1b2c3d', // Mock commit hash for demonstration
-        smartWallet: '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        smartContract: '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+        commitHash: (import.meta as any).env?.VITE_GIT_COMMIT_HASH || 'production',
+        smartWallet: (import.meta as any).env?.VITE_SMART_WALLET || wallets[0]?.address || '0x0000000000000000000000000000000000000000',
+        smartContract: (import.meta as any).env?.VITE_SMART_CONTRACT || '0x0000000000000000000000000000000000000000',
         chains: ['Ethereum', 'Arbitrum'],
         timestamp: new Date(),
         status: 'Active',
@@ -807,20 +807,31 @@ export const DashboardLayout: React.FC = () => {
                     const newRecord: WithdrawalRecord = {
                       id: new Date().toISOString(),
                       timestamp: new Date(),
-                      amount: parseFloat(manualAmount),
-                      status: 'Pending',
-                      // Mock transaction hash for demonstration
-                      txHash: '0x' + [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
-                    };
-                    setWithdrawalRecords(prev => [newRecord, ...prev]);
-
-                    // Simulate API call
-                    // await fetch('/api/wallets/withdraw', {
-                    //   method: 'POST',
-                    //   headers: { 'Content-Type': 'application/json' },
-                    //   body: JSON.stringify({ mode: 'manual', amount: manualAmount })
-                    // });
-                    alert('Withdrawal initiated!');
+                    try {
+                      const res = await fetch('/api/wallets/withdraw', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: 'manual', amount: manualAmount })
+                      });
+                      const data = await res.json();
+                      
+                      const newRecord: WithdrawalRecord = {
+                        id: withdrawalRecords.length + 1,
+                        timestamp: new Date(),
+                        amount: parseFloat(manualAmount),
+                        status: data.success ? 'Completed' : 'Failed',
+                        txHash: data.txHash || 'pending'
+                      };
+                      setWithdrawalRecords(prev => [newRecord, ...prev]);
+                      
+                      if (data.success) {
+                        alert(`Withdrawal initiated! Amount: ${manualAmount} ETH`);
+                      } else {
+                        alert(`Withdrawal failed: ${data.message}`);
+                      }
+                    } catch (err) {
+                      console.error('Withdrawal error:', err);
+                      alert('Withdrawal request failed. Please try again.');
                   }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
                     Withdraw {manualAmount} ETH
                   </button>

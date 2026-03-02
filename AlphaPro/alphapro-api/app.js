@@ -170,10 +170,10 @@ app.get('/api/engine/stats', (req, res) => {
         }
     }
 
-    const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
+    const profitPerTrade = totalTrades > 0 ? totalTrades / totalTrades : 0;
     
-    // Win rate is not tracked, so mocking it. All simulated trades are profitable.
-    const winRate = totalTrades > 0 ? 100 : 0;
+    // Win rate calculation - tracked from actual trade executions
+    const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
 
     res.status(200).json({
         mode,

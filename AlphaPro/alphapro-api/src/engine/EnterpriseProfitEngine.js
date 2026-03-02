@@ -1,54 +1,78 @@
 const DataFusionEngine = require('./DataFusionEngine');
 let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
-const configService = require('../../config/configService');
+const configService = require('../../../configService');
 const axios = require('axios');
 const { ethers } = require('ethers');
 const { Client, Presets } = require('userop');
 
 class EnterpriseProfitEngine {
     constructor() {
-        // Load initial configuration from the service
+        // Load initial configuration from the service (includes Render-first, .env fallback)
         this.config = configService.getConfig();
 
         // Default to LIVE mode for production
-        this.mode = process.env.TRADING_MODE || 'LIVE';
-        this.stats = { totalTrades: 0, totalProfit: 0 };
+        this.mode = this.config.tradingMode || 'LIVE';
+        this.stats = { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
 
-        // Gasless configuration via Pimlico
-        this.pimlicoConfig = {
-            apiKey: process.env.PIMLICO_API_KEY || 'pim_UbfKR9ocMe5ibNUCGgB8fE',
-            bundlerUrl: process.env.BUNDLER_URL || 'https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
-            paymasterUrl: process.env.PAYMASTER_URL || 'https://api.pimlico.io/v2/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
-            entryPoint: process.env.ENTRYPOINT_ADDRESS || '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
-            walletAddress: process.env.WALLET_ADDRESS || '0x21e6d55cBd4721996a6B483079449cFc279A993a'
-        };
+        // Gasless configuration via Pimlico - REQUIRES ENV VARIABLES IN PRODUCTION
+        const pimlicoApiKey = this.config.pimlicoApiKey;
+        const privateKey = this.config.privateKey;
+        const walletAddress = this.config.walletAddress;
+        
+        if (!pimlicoApiKey || !privateKey) {
+            console.error('[ENGINE] CRITICAL: Missing required configuration for LIVE trading');
+            console.error('[ENGINE] Required: PIMLICO_API_KEY and PRIVATE_KEY');
+            console.error('[ENGINE] The engine will not be able to execute live trades');
+            // Don't throw - allow engine to start but won't execute trades
+            this.pimlicoConfig = null;
+            this.signer = null;
+        } else {
+            this.pimlicoConfig = {
+                apiKey: pimlicoApiKey,
+                bundlerUrl: this.config.pimlico.bundlerUrl,
+                paymasterUrl: this.config.pimlico.paymasterUrl,
+                entryPoint: this.config.pimlico.entryPoint,
+                walletAddress: walletAddress
+            };
 
-        // This is a MOCK signer for demonstration. In production, this MUST be replaced
-        // with a secure signer (e.g., from AWS KMS, a hardware wallet, or secure enclave).
-        // The private key should be stored securely as an environment variable.
-        this.signer = new ethers.Wallet(process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey);
+            // PRODUCTION: Use secure signer from environment variable
+            this.signer = new ethers.Wallet(privateKey);
+        }
 
-        // RPC endpoints for each chain
-        this.rpcEndpoints = {
-            ethereum: process.env.ETHEREUM_RPC || 'https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
-            arbitrum: process.env.ARBITRUM_RPC || 'https://api.pimlico.io/v1/42161/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
-            optimism: process.env.OPTIMISM_RPC || 'https://api.pimlico.io/v1/10/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
-            polygon: process.env.POLYGON_RPC || 'https://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
-            base: process.env.BASE_RPC || 'https://api.pimlico.io/v1/8453/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE'
-        };
+        // RPC endpoints for each chain - use config service
+        this.rpcEndpoints = this.config.rpcUrls;
+        
+        // Validate RPC endpoints
+        Object.entries(this.rpcEndpoints).forEach(([chain, url]) => {
+            if (!url) {
+                console.warn(`[ENGINE] ⚠️ Missing RPC endpoint for ${chain}`);
+            }
+        });
+        
+        if (this.pimlicoConfig) {
+            console.log(`[ENGINE] 🔐 LIVE Trading Mode Configured:`);
+            console.log(`[ENGINE]   Wallet: ${this.pimlicoConfig.walletAddress}`);
+            console.log(`[ENGINE]   Pimlico API: ${this.pimlicoConfig.apiKey.substring(0, 8)}...`);
+            console.log(`[ENGINE]   EntryPoint: ${this.pimlicoConfig.entryPoint}`);
+            console.log(`[ENGINE]   ⛽ Paymaster: ACTIVE (Sponsorship enabled)`);
+            console.log(`[ENGINE]   Signer Address: ${this.signer.address}`);
+            console.log(`[ENGINE]   💰 Wallet Prefunding: NOT REQUIRED (Gasless)`);
+        } else {
+            console.log(`[ENGINE] ⚠️ Running in READY mode - missing keys for live execution`);
+        }
 
-        console.log(`[ENGINE] 🔐 Gasless Mode Configured:`);
+        console.log(`[ENGINE] 🔐 LIVE Trading Mode Configured:`);
         console.log(`[ENGINE]   Wallet: ${this.pimlicoConfig.walletAddress}`);
         console.log(`[ENGINE]   Pimlico API: ${this.pimlicoConfig.apiKey.substring(0, 8)}...`);
         console.log(`[ENGINE]   EntryPoint: ${this.pimlicoConfig.entryPoint}`);
         console.log(`[ENGINE]   ⛽ Paymaster: ACTIVE (Sponsorship enabled)`);
-        console.log(`[ENGINE]   Mock Signer (EOA): ${this.signer.address}`);
+        console.log(`[ENGINE]   Signer Address: ${this.signer.address}`);
         console.log(`[ENGINE]   💰 Wallet Prefunding: NOT REQUIRED (Gasless)`);
 
-        // Withdrawal mode: MANUAL or AUTO
-        this.withdrawalMode = 'MANUAL';
-        console.log(`[ENGINE]   Withdrawal Mode: ${this.withdrawalMode} (profits accumulated, manual withdrawal)`);
+        // Withdrawal mode: MANUAL or AUTO (configured via environment)
+        this.withdrawalMode = this.config.withdrawalMode || 'MANUAL';
+        console.log(`[ENGINE]   Withdrawal Mode: ${this.withdrawalMode} (profits accumulated)`);
 
         // Subscribe to configuration updates
         configService.on('config_update', (newConfig) => {

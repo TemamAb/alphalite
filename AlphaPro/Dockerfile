@@ -25,6 +25,13 @@ COPY alphapro-api/config ./config
 COPY data_sources.json .
 COPY PreFlightCheck.js .
 
+# Copy config service for environment variable handling
+COPY configService.js .
+
+# Note: .env file is NOT copied to image - environment variables
+# should be provided by Render's environment. For local development,
+# create a .env file in the AlphaPro directory.
+
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist
 

@@ -11,7 +11,9 @@ const ReconnectingWebSocket = require('reconnecting-websocket');
 const axios = require('axios');
 const path = require('path');
 const { setTimeout } = require('timers/promises'); // Using promises version for async/await
-const config = require(path.join(__dirname, '..', '..', 'data_sources.json')); //Fixed: Corrected Path
+const config = require(path.join(__dirname, '..', '..', '..', 'data_sources.json'));
+const configService = require('../../../configService');
+
 class DataFusionEngine extends EventEmitter {
 
     constructor() {
@@ -19,122 +21,136 @@ class DataFusionEngine extends EventEmitter {
         this.connections = new Map(); // Store active WS connections by chain
         this.priceCache = new Map();
         this.isLive = false;
-        this.simulationInterval = null;
 
-        // Load API Keys from Environment
-        this.alchemyKey = process.env.ALCHEMY_API_KEY;
+        // Load configuration from service (Render-first, .env fallback)
+        const appConfig = configService.getConfig();
+        this.alchemyKey = appConfig.alchemyApiKey;
 
-        // Supported chains configuration - Multi-chain support using env vars
+        // Supported chains configuration - use config service with fallback to .env
         this.chains = [
-            { id: 'ethereum', name: 'Ethereum', alchemyUrl: process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/' },
-            { id: 'arbitrum', name: 'Arbitrum', alchemyUrl: process.env.ARBITRUM_WS_URL || 'wss://arb-mainnet.g.alchemy.com/v2/' },
-            { id: 'polygon', name: 'Polygon', alchemyUrl: process.env.POLYGON_WS_URL || 'wss://polygon-mainnet.g.alchemy.com/v2/' },
-            { id: 'optimism', name: 'Optimism', alchemyUrl: process.env.OPTIMISM_WS_URL || 'wss://opt-mainnet.g.alchemy.com/v2/' },
-            { id: 'base', name: 'Base', alchemyUrl: process.env.BASE_WS_URL || 'wss://base-mainnet.g.alchemy.com/v2/' }
+            { id: 'ethereum', name: 'Ethereum', alchemyUrl: appConfig.wsUrls.ethereum || 'wss://eth-mainnet.g.alchemy.com/v2/' },
+            { id: 'arbitrum', name: 'Arbitrum', alchemyUrl: appConfig.wsUrls.arbitrum || 'wss://arb-mainnet.g.alchemy.com/v2/' },
+            { id: 'polygon', name: 'Polygon', alchemyUrl: appConfig.wsUrls.polygon || 'wss://polygon-mainnet.g.alchemy.com/v2/' },
+            { id: 'optimism', name: 'Optimism', alchemyUrl: appConfig.wsUrls.optimism || 'wss://opt-mainnet.g.alchemy.com/v2/' },
+            { id: 'base', name: 'Base', alchemyUrl: appConfig.wsUrls.base || 'wss://base-mainnet.g.alchemy.com/v2/' }
         ];
     }
 
     /**
-     * Starts the fusion engine: Connects to WS and starts polling fallback.
+     * Starts the fusion engine: Connects to WebSocket streams for live data.
      */
     async start() {
         if (!this.alchemyKey) {
-            console.warn("[DATA-FUSION] ⚠️ No WebSocket provider keys. Using simulation mode.");
-           this.startSimulationMode();
-        } else {
-            // Connect to all configured chains concurrently
-            this.chains.forEach(chain => this.connectChain(chain));
+            console.error("[DATA-FUSION] ❌ CRITICAL: No ALCHEMY_API_KEY configured. Cannot start live data streams.");
+            console.error("[DATA-FUSION] Please set ALCHEMY_API_KEY environment variable.");
+            process.exit(1);
+        }
+        
+        // Connect to all configured chains concurrently
+        let connectedCount = 0;
+        this.chains.forEach(chain => {
+            if (this.connectChain(chain)) {
+                connectedCount++;
+            }
+        });
 
-            // Safety fallback: If no connections open within 5 seconds, start simulation
-            setTimeout(() => {
-                const activeConnections = Array.from(this.connections.values()).some(ws => ws.readyState === WebSocket.OPEN);
-                if (!activeConnections) {
-                    console.warn("[DATA-FUSION] ⚠️ Connection timeout. Falling back to simulation mode.");
-                    this.startSimulationMode();
+        // Wait for connections with timeout
+        const connectionTimeout = new Promise((resolve) => {
+            setTimeout(() => resolve(false), 10000);
+        });
+        
+        const connectedPromise = new Promise((resolve) => {
+            const checkConnections = () => {
+                const activeConnections = Array.from(this.connections.values()).filter(ws => ws.readyState === WebSocket.OPEN).length;
+                if (activeConnections > 0) {
+                    resolve(true);
                 }
-            }, 5000);
+            };
+            // Check every second for 10 seconds
+            const interval = setInterval(checkConnections, 1000);
+            setTimeout(() => {
+                clearInterval(interval);
+                resolve(false);
+            }, 10000);
+        });
+        
+        const connected = await Promise.race([connectedPromise, connectionTimeout]);
+        
+        if (!connected) {
+            console.error("[DATA-FUSION] ❌ CRITICAL: Failed to establish any WebSocket connections to blockchain networks.");
+            console.error("[DATA-FUSION] Please check your ALCHEMY_API_KEY and network connectivity.");
+            process.exit(1);
         }
 
         this.isLive = true;
-        console.log("[DATA-FUSION] 🚀 Engine Started.");
+        console.log("[DATA-FUSION] 🚀 LIVE Engine Started - Connected to blockchain networks.");
     }
 
     /**
-     * Start simulation mode for paper trading demo
-     */
-    startSimulationMode() {
-        if (this.simulationInterval) return; // Prevent multiple intervals
-        console.log("[DATA-FUSION] 🎮 Starting simulation mode for paper trading...");
-        // Emit simulated mempool events periodically
-        this.simulationInterval = setInterval(() =>  {
-            const fakeTx = '0x' + Math.random().toString(16).substr(2, 64);
-    
-            console.log(`[BLOCKCHAIN] 🔍 Scanning Mempool... Found ${fakeTx.slice(0,10)}...`);
-
-            this.emit('mempool:pendingTx', { chain: 'ethereum', tx: fakeTx });
-        }, 8000); // Fixed: Every 8 seconds
-    }
-
-    /**
-     * Connect to a specific chain's WebSocket stream
+     * LIVE MODE: Connect to blockchain mempool streams
+     * Returns true if connection initiated successfully
      */
     connectChain(chain) {
-        // Use the URL directly - it already contains the API key from env vars
-        // Check if URL already has key (ends with key) or needs key appended
-        let url = chain.alchemyUrl;
+        if (!this.alchemyKey) {
+            console.error(`[DATA-FUSION] Cannot connect to ${chain.name}: No API key configured`);
+            return false;
+        }
         
-        // If URL doesn't end with the API key, append it
-        if (this.alchemyKey && !url.endsWith(this.alchemyKey) && !url.includes('/v2/')) {
-            url = `${url}${this.alchemyKey}`;
-        } else if (this.alchemyKey && !url.includes('/v2/')) {
-            // For fallback URLs that only have the base path
+        // Build WebSocket URL with API key
+        let url = chain.alchemyUrl;
+        if (this.alchemyKey && !url.includes(this.alchemyKey)) {
             url = `${url}${this.alchemyKey}`;
         }
         
         const self = this;
 
-        console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} stream...`);
-        console.log(`[DATA-FUSION] 📡 URL: ${url.replace(this.alchemyKey, '***')}`); // Log with masked key
-        const ws = new ReconnectingWebSocket(url, [], {
-            WebSocket: WebSocket,
-            connectionTimeout: 10000,
-            maxRetries: 10,
-        });
-        this.connections.set(chain.id, ws);
-
-        ws.addEventListener('open', () => {
-            console.log(`[DATA-FUSION] ✅ Connected to ${chain.name} Tier 1 Stream.`);
-            // Subscribe to pending transactions
-            ws.send(JSON.stringify({
-                jsonrpc: "2.0",
-                id: 1,
-                method: "eth_subscribe",
-                params: ["newPendingTransactions"]
-            }));
-        });
+        console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} mempool stream...`);
+        console.log(`[DATA-FUSION] 📡 URL: ${url.replace(this.alchemyKey, '***')}`);
         
-        ws.addEventListener('message', (data) => {
-            const event = JSON.parse(data.data);
-            if (event.params && event.params.result && typeof event.params.result === 'string') {
-                // Emit event with chain context
-                self.emit('mempool:pendingTx', {
-                    chain: chain.id,
-                    tx: event.params.result
-                });
-            }
-        });
+        try {
+            const ws = new ReconnectingWebSocket(url, [], {
+                WebSocket: WebSocket,
+                connectionTimeout: 15000,
+                maxRetries: 5,
+            });
+            this.connections.set(chain.id, ws);
 
-        ws.addEventListener('error', (err) => {
-            console.error(`[DATA-FUSION] ❌ ${chain.name} WS Error:`, err.message);
+            ws.addEventListener('open', () => {
+                console.log(`[DATA-FUSION] ✅ Connected to ${chain.name} mempool.`);
+                // Subscribe to pending transactions
+                ws.send(JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: 1,
+                    method: "eth_subscribe",
+                    params: ["newPendingTransactions"]
+                }));
+            });
             
-            // If 401/403 auth error, fallback to simulation mode
-            if (err.message && (err.message.includes('401') || err.message.includes('403'))) {
-                console.warn(`[DATA-FUSION] ⚠️ ${chain.name} authentication failed. Starting simulation mode...`);
-                this.startSimulationMode();
-            }
-        });
+            ws.addEventListener('message', (data) => {
+                try {
+                    const event = JSON.parse(data.data);
+                    if (event.params && event.params.result && typeof event.params.result === 'string') {
+                        self.emit('mempool:pendingTx', {
+                            chain: chain.id,
+                            tx: event.params.result
+                        });
+                    }
+                } catch (e) {
+                    // Ignore parse errors
+                }
+            });
+
+            ws.addEventListener('error', (err) => {
+                console.error(`[DATA-FUSION] ❌ ${chain.name} WS Error:`, err.message);
+            });
+            
+            return true;
+        } catch (error) {
+            console.error(`[DATA-FUSION] ❌ Failed to connect to ${chain.name}:`, error.message);
+            return false;
+        }
     }
-    
+
     /**
      * Helper function for exponential backoff
      */
