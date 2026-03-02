@@ -28,9 +28,6 @@ COPY AlphaPro/alphapro-api/config ./config
 COPY AlphaPro/data_sources.json .
 COPY AlphaPro/PreFlightCheck.js .
 
-# Copy .env file for API keys (fallback when Render env vars not set)
-COPY AlphaPro/.env .
-
 # Copy config service for environment variable handling
 COPY AlphaPro/configService.js .
 
