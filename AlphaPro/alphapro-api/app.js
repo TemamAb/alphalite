@@ -563,7 +563,7 @@ app.post('/api/wallets/import', async (req, res) => {
         newWallets.push({
             address: addr,
             name: `Wallet ${wallets.length + i + 1}`,
-            valid: isValid,
+            valid: false, // Will be valid only when private key is added
             provider: providerData.name,
             logo: providerData.logo,
             blockchain,
@@ -707,6 +707,10 @@ app.put('/api/wallets/:address', (req, res) => {
             wallets[walletIndex].privateKey = key;
             wallets[walletIndex].hasKey = true;
             
+            // Wallet is valid only if it has a valid address AND private key
+            const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(wallets[walletIndex].address);
+            wallets[walletIndex].valid = isValidAddr;
+            
             // If no new address provided, use derived address
             if (!newAddr) {
                 wallets[walletIndex].address = wallet.address;
@@ -722,10 +726,13 @@ app.put('/api/wallets/:address', (req, res) => {
         const providerData = detectWalletProvider(newAddr);
         const blockchain = detectBlockchain(newAddr);
         
+        // Wallet is valid only if it has a valid address AND private key
+        const walletIsValid = isValid && !!wallets[walletIndex].privateKey;
+        
         wallets[walletIndex] = {
             ...wallets[walletIndex],
             address: newAddr,
-            valid: isValid,
+            valid: walletIsValid,
             provider: providerData.name,
             logo: providerData.logo,
             blockchain
@@ -817,7 +824,7 @@ app.post('/api/wallets/add', async (req, res) => {
     const newWallet = {
         address,
         name: `Wallet ${wallets.length + 1}`,
-        valid: isValid,
+        valid: false, // Will be valid only when private key is added
         provider: providerData.name,
         logo: providerData.logo,
         blockchain,
