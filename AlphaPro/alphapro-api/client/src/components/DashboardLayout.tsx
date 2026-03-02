@@ -803,10 +803,6 @@ export const DashboardLayout: React.FC = () => {
                     className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
                   />
                   <button onClick={async () => {
-                    // In a real app, the API would return the transaction details
-                    const newRecord: WithdrawalRecord = {
-                      id: new Date().toISOString(),
-                      timestamp: new Date(),
                     try {
                       const res = await fetch('/api/wallets/withdraw', {
                         method: 'POST',
@@ -832,6 +828,7 @@ export const DashboardLayout: React.FC = () => {
                     } catch (err) {
                       console.error('Withdrawal error:', err);
                       alert('Withdrawal request failed. Please try again.');
+                    }
                   }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
                     Withdraw {manualAmount} ETH
                   </button>
