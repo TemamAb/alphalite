@@ -1,7 +1,7 @@
 const DataFusionEngine = require('./DataFusionEngine');
 let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
-const configService = require('../../../configService');
+const configService = require('../../configService');
 const axios = require('axios');
 const { ethers } = require('ethers');
 const { Client, Presets } = require('userop');

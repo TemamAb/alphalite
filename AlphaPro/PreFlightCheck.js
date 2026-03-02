@@ -57,8 +57,7 @@ class PreFlightCheckService {
     async checkDataProviders() {
         // Simple check against DexScreener
         const axios = require('axios');
-        const path = require('path');
-        const config = require(path.join(__dirname, '..', '..', '..', 'data_sources.json')); // AUDIT FIX: Corrected path to project root
+        const config = require('./data_sources.json');
         try {
             await axios.get(`${config.tier2_discovery.dexscreener.base_url}/pairs/eth/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`);
         } catch (error) {
