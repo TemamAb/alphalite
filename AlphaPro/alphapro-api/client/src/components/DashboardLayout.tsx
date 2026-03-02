@@ -485,10 +485,18 @@ export const DashboardLayout: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-bold text-slate-300">Master Switch</span>
                   <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${engineStatus === 'running' ? 'bg-green-500 animate-pulse' : engineStatus === 'paused' ? 'bg-yellow-500' : 'bg-slate-500'}`}></span>
-                    <span className={`text-sm font-mono ${engineStatus === 'running' ? 'text-green-400' : engineStatus === 'paused' ? 'text-yellow-400' : 'text-slate-400'}`}>
-                      {engineStatus.toUpperCase()}
-                    </span>
+                    {engineStatus === 'running' && engineStats.mode === 'LIVE' && (
+                      <><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span><span className="text-sm font-mono text-red-400">LIVE</span></>
+                    )}
+                    {engineStatus === 'running' && engineStats.mode === 'PAPER' && (
+                      <><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-mono text-green-400">PAPER</span></>
+                    )}
+                    {engineStatus === 'paused' && (
+                      <><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span><span className="text-sm font-mono text-yellow-400">PAUSED</span></>
+                    )}
+                    {engineStatus === 'stopped' && (
+                      <><span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span><span className="text-sm font-mono text-slate-400">STOPPED</span></>
+                    )}
                   </div>
                 </div>
                 
@@ -999,10 +1007,18 @@ export const DashboardLayout: React.FC = () => {
 
           {/* Status */}
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${engineStatus === 'running' ? 'bg-green-500 animate-pulse' : engineStatus === 'paused' ? 'bg-yellow-500' : 'bg-slate-500'}`}></span>
-            <span className={`text-xs font-mono ${engineStatus === 'running' ? 'text-green-400' : engineStatus === 'paused' ? 'text-yellow-400' : 'text-slate-400'}`}>
-              {engineStatus.toUpperCase()}
-            </span>
+            {engineStatus === 'running' && engineStats.mode === 'LIVE' && (
+              <><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span><span className="text-xs font-mono text-red-400">LIVE</span></>
+            )}
+            {engineStatus === 'running' && engineStats.mode === 'PAPER' && (
+              <><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span><span className="text-xs font-mono text-green-400">PAPER</span></>
+            )}
+            {engineStatus === 'paused' && (
+              <><span className="w-2 h-2 rounded-full bg-yellow-500"></span><span className="text-xs font-mono text-yellow-400">PAUSED</span></>
+            )}
+            {engineStatus === 'stopped' && (
+              <><span className="w-2 h-2 rounded-full bg-slate-500"></span><span className="text-xs font-mono text-slate-400">STOPPED</span></>
+            )}
           </div>
         </div>
       </header>
