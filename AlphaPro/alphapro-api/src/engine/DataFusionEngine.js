@@ -10,16 +10,30 @@ const axios = require('axios');
 const path = require('path');
 const { setTimeout } = require('timers/promises');
 
-// Try multiple paths for config
+// Try multiple paths for config - prefer the AlphaPro root config
 let configService;
 try {
+    // Try AlphaPro root configService first (reads from process.env)
     configService = require('../../../configService');
 } catch (e) {
     try {
+        // Try alphapro-api/configService as fallback
         configService = require('../../configService');
     } catch (e2) {
         console.error('[DATA-FUSION] Could not load configService:', e2.message);
-        configService = { getConfig: () => ({}) };
+        // Fallback to reading env directly
+        configService = { 
+            getConfig: () => ({ 
+                alchemyApiKey: process.env.ALCHEMY_API_KEY,
+                wsUrls: {
+                    ethereum: process.env.ETH_WS_URL,
+                    arbitrum: process.env.ARBITRUM_WS_URL,
+                    polygon: process.env.POLYGON_WS_URL,
+                    optimism: process.env.OPTIMISM_WS_URL,
+                    base: process.env.BASE_WS_URL
+                }
+            }) 
+        };
     }
 }
 
@@ -37,11 +51,14 @@ class DataFusionEngine extends EventEmitter {
 
         // Supported chains configuration - use config service with fallback to .env
         this.chains = [
-            { id: 'ethereum', name: 'Ethereum', alchemyUrl: appConfig.wsUrls.ethereum || 'wss://eth-mainnet.g.alchemy.com/v2/' },
-            { id: 'arbitrum', name: 'Arbitrum', alchemyUrl: appConfig.wsUrls.arbitrum || 'wss://arb-mainnet.g.alchemy.com/v2/' },
-            { id: 'polygon', name: 'Polygon', alchemyUrl: appConfig.wsUrls.polygon || 'wss://polygon-mainnet.g.alchemy.com/v2/' },
-            { id: 'optimism', name: 'Optimism', alchemyUrl: appConfig.wsUrls.optimism || 'wss://opt-mainnet.g.alchemy.com/v2/' },
-            { id: 'base', name: 'Base', alchemyUrl: appConfig.wsUrls.base || 'wss://base-mainnet.g.alchemy.com/v2/' }
+            { id: 'ethereum', name: 'Ethereum', rpcUrl: appConfig.rpcUrls?.ethereum || process.env.ETH_RPC_URL || 'https://eth.llamarpc.com', wsUrl: appConfig.wsUrls?.ethereum || process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
+            { id: 'arbitrum', name: 'Arbitrum', rpcUrl: appConfig.rpcUrls?.arbitrum || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc', wsUrl: appConfig.wsUrls?.arbitrum || process.env.ARBITRUM_WS_URL || 'wss://arb-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
+            { id: 'polygon', name: 'Polygon', rpcUrl: appConfig.rpcUrls?.polygon || process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com', wsUrl: appConfig.wsUrls?.polygon || process.env.POLYGON_WS_URL || 'wss://polygon-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
+            { id: 'optimism', name: 'Optimism', rpcUrl: appConfig.rpcUrls?.optimism || process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io', wsUrl: appConfig.wsUrls?.optimism || process.env.OPTIMISM_WS_URL || 'wss://opt-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
+            { id: 'base', name: 'Base', rpcUrl: appConfig.rpcUrls?.base || process.env.BASE_RPC_URL || 'https://base.llamarpc.com', wsUrl: appConfig.wsUrls?.base || process.env.BASE_WS_URL || 'wss://base-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
+            { id: 'avalanche', name: 'Avalanche', rpcUrl: appConfig.rpcUrls?.avalanche || process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc', wsUrl: null },
+            { id: 'bsc', name: 'BSC', rpcUrl: appConfig.rpcUrls?.bsc || process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org', wsUrl: null },
+            { id: 'celo', name: 'Celo', rpcUrl: appConfig.rpcUrls?.celo || process.env.CELO_RPC_URL || 'https://forno.celo.org', wsUrl: null }
         ];
     }
 
@@ -108,7 +125,7 @@ class DataFusionEngine extends EventEmitter {
         }
         
         // Build WebSocket URL with API key
-        let url = chain.alchemyUrl;
+        let url = chain.wsUrl || chain.alchemyUrl;
         if (this.alchemyKey && !url.includes(this.alchemyKey)) {
             url = `${url}${this.alchemyKey}`;
         }

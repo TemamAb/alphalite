@@ -1,9 +1,13 @@
  const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const http = require('http');
 const https = require('https');
 const WebSocket = require('ws');
+
+// Load environment variables from .env file
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
 const preFlightCheckService = require('./PreFlightCheck');
 const rankingEngine = require('./src/services/RankingEngine');
