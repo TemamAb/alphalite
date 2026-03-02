@@ -665,6 +665,28 @@ app.delete('/api/wallets/:address', (req, res) => {
 });
 
 /**
+ * Verify private key and get derived address
+ */
+app.post('/api/wallets/verify-key', (req, res) => {
+    const { privateKey } = req.body;
+    
+    if (!privateKey) {
+        return res.status(400).json({ error: 'Private key required' });
+    }
+    
+    try {
+        const { ethers } = require('ethers');
+        let key = privateKey.trim();
+        if (!key.startsWith('0x')) key = '0x' + key;
+        
+        const wallet = new ethers.Wallet(key);
+        res.json({ success: true, address: wallet.address });
+    } catch (error) {
+        res.status(400).json({ error: 'Invalid private key format' });
+    }
+});
+
+/**
  * Update wallet (Edit)
  */
 app.put('/api/wallets/:address', (req, res) => {

@@ -436,10 +436,20 @@ export const DashboardLayout: React.FC = () => {
             let key = keys[0].trim();
             if (!key.startsWith('0x')) key = '0x' + key;
             
-            // Verify key and get address
-            const { ethers } = require('ethers');
-            const wallet = new ethers.Wallet(key);
-            const derivedAddress = wallet.address;
+            // Verify key via API and get derived address
+            const verifyRes = await fetch('/api/wallets/verify-key', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ privateKey: key })
+            });
+            
+            if (!verifyRes.ok) {
+              const errorData = await verifyRes.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Invalid private key');
+            }
+            
+            const verifyData = await verifyRes.json();
+            const derivedAddress = verifyData.address;
             
             // Update the wallet with the private key
             const res = await fetch(`/api/wallets/${wallets[idx].address}`, {
@@ -804,11 +814,11 @@ export const DashboardLayout: React.FC = () => {
               <>
               <div className="flex gap-2 mb-4">
                 <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm">
-                  <Upload className="w-4 h-4" /> Import
+                  <Upload className="w-4 h-4" /> Wallet Address Upload
                   <input type="file" accept=".csv,.json,.txt" onChange={handleWalletUpload} className="hidden" />
                 </label>
                 <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm border border-yellow-500/30">
-                  <Key className="w-4 h-4 text-yellow-400" /> Upload Keys
+                  <Key className="w-4 h-4 text-yellow-400" /> Wallet Keys Upload
                   <input type="file" accept=".txt,.csv" onChange={handleKeyUpload} className="hidden" />
                 </label>
                 <button 
@@ -846,8 +856,34 @@ export const DashboardLayout: React.FC = () => {
                     <thead>
                       <tr className="text-slate-400 border-b border-slate-700">
                         <th className="p-2 text-left">#</th>
-                        <th className="p-2 text-left">Wallet Address</th>
-                        <th className="p-2 text-left">Private Key</th>
+                        <th className="p-2 text-left">
+                          <div className="flex items-center gap-1">
+                            Wallet Address
+                            <label className="cursor-pointer text-blue-400 hover:text-blue-300" title="Upload wallet addresses">
+                              <Upload className="w-3 h-3" />
+                              <input 
+                                type="file" 
+                                accept=".csv,.json,.txt" 
+                                className="hidden" 
+                                onChange={handleWalletUpload}
+                              />
+                            </label>
+                          </div>
+                        </th>
+                        <th className="p-2 text-left">
+                          <div className="flex items-center gap-1">
+                            Private Key
+                            <label className="cursor-pointer text-yellow-400 hover:text-yellow-300" title="Upload private keys">
+                              <Upload className="w-3 h-3" />
+                              <input 
+                                type="file" 
+                                accept=".txt,.csv" 
+                                className="hidden" 
+                                onChange={handleKeyUpload}
+                              />
+                            </label>
+                          </div>
+                        </th>
                         <th className="p-2 text-left">Blockchain</th>
                         <th className="p-2 text-right">Balance</th>
                         <th className="p-2 text-center">Status</th>
