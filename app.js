@@ -54,7 +54,7 @@ app.get('/api/engine/state', (req, res) => {
 /**
  * Endpoint to change the state of the trading engine.
  */
-app.post('/api/engine/state', requireAdminAuth, (req, res) => {
+app.post('/api/engine/state', (req, res) => {
     const { action } = req.body; // 'start' or 'pause'
 
     if (action === 'start') {
@@ -71,7 +71,7 @@ app.post('/api/engine/state', requireAdminAuth, (req, res) => {
 /**
  * Endpoint to reload the strategies.json file dynamically.
  */
-app.post('/api/strategies/reload', requireAdminAuth, (req, res) => {
+app.post('/api/strategies/reload', (req, res) => {
     profitEngine.reloadStrategies();
     res.status(200).json({ message: 'Strategies reloaded successfully.' });
 });

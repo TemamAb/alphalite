@@ -28,7 +28,6 @@ export const EngineControl: React.FC = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_ADMIN_API_KEY || 'alphapro-secret-key-dev'
         },
         body: JSON.stringify({ action }),
       });

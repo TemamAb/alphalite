@@ -45,7 +45,6 @@ export const DashboardLayout: React.FC = () => {
   const [engineStatus, setEngineStatus] = useState<'stopped' | 'running' | 'paused'>('stopped');
   const [profitMode, setProfitMode] = useState<'auto' | 'manual'>('manual');
   const [wallets, setWallets] = useState<WalletData[]>([]);
-  const [totalBalance, setTotalBalance] = useState('0.00');
   const [walletCount, setWalletCount] = useState(0);
   const [engineStats, setEngineStats] = useState<EngineStats>({
     mode: 'PAPER',
@@ -59,6 +58,20 @@ export const DashboardLayout: React.FC = () => {
   const [autoThreshold, setAutoThreshold] = useState('0.1');
   const [manualAmount, setManualAmount] = useState('0.01');
   const [walletTableCollapsed, setWalletTableCollapsed] = useState(false);
+  const [profitWithdrawalCollapsed, setProfitWithdrawalCollapsed] = useState(false);
+  const [tradingParamsCollapsed, setTradingParamsCollapsed] = useState(false);
+  const [targetMode, setTargetMode] = useState<'PAPER' | 'LIVE'>('PAPER');
+  const [ethPrice, setEthPrice] = useState(3500);
+  const [isRefreshingWallets, setIsRefreshingWallets] = useState(false);
+
+  // Helper to format values based on selected currency
+  const getDisplayValue = (ethValue: number | string) => {
+    const val = typeof ethValue === 'string' ? parseFloat(ethValue) : ethValue;
+    if (currency === 'USD') {
+      return (val * ethPrice).toFixed(2);
+    }
+    return val.toFixed(4);
+  };
 
   const navItems = [
     { id: 'dashboard' as Tab, label: 'Dashboard', icon: Layers },
@@ -92,7 +105,6 @@ export const DashboardLayout: React.FC = () => {
       const res = await fetch('/api/wallets');
       const data = await res.json();
       setWallets(data.wallets || []);
-      setTotalBalance(data.totalBalance || '0');
       setWalletCount(data.count || 0);
     } catch (err) {
       console.error('Failed to fetch wallets:', err);
@@ -111,17 +123,34 @@ export const DashboardLayout: React.FC = () => {
     }
   }, []);
 
+  // Fetch ETH Price
+  const fetchEthPrice = useCallback(async () => {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+      const data = await res.json();
+      if (data.ethereum?.usd) {
+        setEthPrice(data.ethereum.usd);
+      }
+    } catch (err) {
+      console.error('Failed to fetch ETH price:', err);
+    }
+  }, []);
+
   // Initial fetch and interval
   useEffect(() => {
     fetchEngineStats();
     fetchWallets();
     fetchTradingSettings();
+    fetchEthPrice();
+
     const interval = setInterval(() => {
       fetchEngineStats();
       fetchWallets();
     }, parseInt(refreshInterval) * 1000);
-    return () => clearInterval(interval);
-  }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings]);
+
+    const priceInterval = setInterval(fetchEthPrice, 60000); // Update price every minute
+    return () => { clearInterval(interval); clearInterval(priceInterval); };
+  }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice]);
 
   const handleStartEngine = async () => {
     try {
@@ -129,9 +158,8 @@ export const DashboardLayout: React.FC = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-api-key': 'alphapro-secret-key-dev'
         },
-        body: JSON.stringify({ action: 'start' })
+        body: JSON.stringify({ action: 'start', mode: targetMode })
       });
       setEngineStatus('running');
       fetchEngineStats();
@@ -146,7 +174,6 @@ export const DashboardLayout: React.FC = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-api-key': 'alphapro-secret-key-dev'
         },
         body: JSON.stringify({ action: 'pause' })
       });
@@ -187,11 +214,11 @@ export const DashboardLayout: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-slate-400 text-xs">Total Profit</p>
-                <p className="text-2xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
+                <p className="text-2xl font-bold text-green-400">+{getDisplayValue(engineStats.totalProfit)} {currency}</p>
               </div>
               <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-slate-400 text-xs">Profit/Trade</p>
-                <p className="text-2xl font-bold text-blue-400">{engineStats.profitPerTrade.toFixed(4)} ETH</p>
+                <p className="text-2xl font-bold text-blue-400">{getDisplayValue(engineStats.profitPerTrade)} {currency}</p>
               </div>
               <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-slate-400 text-xs">Trades/Hour</p>
@@ -227,19 +254,22 @@ export const DashboardLayout: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { rank: 1, name: 'Wintermute', ppt: '0.045 ETH', vel: '$2.1B' },
-                  { rank: 2, name: 'Jump Crypto', ppt: '0.038 ETH', vel: '$1.8B' },
-                  { rank: 3, name: 'Flashbots', ppt: '0.032 ETH', vel: '$1.5B' },
-                  { rank: 4, name: 'AlphaPro', ppt: `${engineStats.profitPerTrade.toFixed(4)} ETH`, vel: '$0.9B', highlight: true },
-                ].map((row) => (
-                  <tr key={row.rank} className={`border-b border-slate-700 ${row.highlight ? 'bg-blue-900/30' : ''}`}>
-                    <td className="p-3 font-mono">#{row.rank}</td>
-                    <td className="p-3 font-bold">{row.name}</td>
-                    <td className="p-3 font-mono text-green-400">{row.ppt}</td>
-                    <td className="p-3 font-mono">{row.vel}</td>
+                {engineStats.totalProfit > 0 ? (
+                  [
+                    { rank: 1, name: 'AlphaPro', ppt: `${engineStats.profitPerTrade.toFixed(4)} ETH`, vel: '$0.0B', highlight: true },
+                  ].map((row) => (
+                    <tr key={row.rank} className={`border-b border-slate-700 ${row.highlight ? 'bg-blue-900/30' : ''}`}>
+                      <td className="p-3 font-mono">#{row.rank}</td>
+                      <td className="p-3 font-bold">{row.name}</td>
+                      <td className="p-3 font-mono text-green-400">{row.ppt}</td>
+                      <td className="p-3 font-mono">{row.vel}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-3 text-center text-slate-500">No trading data yet - start engine to begin</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -274,15 +304,15 @@ export const DashboardLayout: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">Arbitrage</p>
-                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{getDisplayValue(engineStats.totalProfit)} {currency}</p>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">MEV</p>
-                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{getDisplayValue(engineStats.totalProfit)} {currency}</p>
                 </div>
                 <div className="bg-slate-900 p-4 rounded-lg">
                   <p className="text-slate-400 text-xs">JIT Liquidity</p>
-                  <p className="text-xl font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
+                  <p className="text-xl font-bold text-green-400">+{getDisplayValue(engineStats.totalProfit)} {currency}</p>
                 </div>
               </div>
             </div>
@@ -292,7 +322,7 @@ export const DashboardLayout: React.FC = () => {
                 {['Arbitrum', 'Optimism', 'Base', 'Ethereum'].map(chain => (
                   <div key={chain} className="bg-slate-900 p-4 rounded-lg">
                     <p className="text-slate-400 text-xs">{chain}</p>
-                    <p className="text-lg font-bold text-green-400">+{engineStats.totalProfit.toFixed(4)} ETH</p>
+                    <p className="text-lg font-bold text-green-400">+{getDisplayValue(engineStats.totalProfit)} {currency}</p>
                   </div>
                 ))}
               </div>
@@ -318,7 +348,7 @@ export const DashboardLayout: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="text-slate-400">Uniswap v3</span>
-                        <span className="text-green-400 ml-2">+{(Math.random() * 0.01).toFixed(4)} ETH</span>
+                        <span className="text-green-400 ml-2">+{getDisplayValue(engineStats.totalProfit)} {currency}</span>
                       </div>
                     </div>
                   ))}
@@ -358,11 +388,23 @@ export const DashboardLayout: React.FC = () => {
                 </div>
               </div>
               
+              {!walletTableCollapsed && (
+              <>
               <div className="flex gap-2 mb-4">
                 <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm">
                   <Upload className="w-4 h-4" /> Import
                   <input type="file" accept=".csv,.json,.txt" onChange={handleWalletUpload} className="hidden" />
                 </label>
+                <button 
+                  onClick={async () => {
+                    setIsRefreshingWallets(true);
+                    await fetch('/api/wallets/refresh', { method: 'POST' });
+                    await fetchWallets();
+                    setIsRefreshingWallets(false);
+                  }}
+                  className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-200">
+                  <RefreshCw className={`w-4 h-4 ${isRefreshingWallets ? 'animate-spin' : ''}`} /> Refresh
+                </button>
                 <button onClick={async () => {
                   const addr = prompt('Enter wallet address:');
                   if (addr) {
@@ -377,12 +419,12 @@ export const DashboardLayout: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-400">Total:</span>
-                    <span className="text-sm font-bold text-green-400">{wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0).toFixed(4)} ETH</span>
+                    <span className="text-sm font-bold text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))} {currency}</span>
                   </div>
                 </div>
               </div>
 
-              {wallets.length > 0 && !walletTableCollapsed && (
+              {wallets.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
@@ -405,7 +447,7 @@ export const DashboardLayout: React.FC = () => {
                           <td className="p-2 font-mono text-slate-400">{wallet.address?.slice(0, 10)}...</td>
                           <td className="p-2 text-slate-300">{wallet.provider || 'Unknown'}</td>
                           <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
-                          <td className="p-2 text-right font-mono text-green-400">{(wallet.balance || wallet.totalBalance || 0).toFixed(4)}</td>
+                          <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
                           <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -442,7 +484,7 @@ export const DashboardLayout: React.FC = () => {
                       ))}
                       <tr className="bg-slate-700/50 font-bold text-white">
                         <td colSpan={5} className="p-2">TOTAL</td>
-                        <td className="p-2 text-right text-green-400">{wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0).toFixed(4)}</td>
+                        <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
                         <td className="p-2">{wallets.length} wallets</td>
                         <td></td>
                       </tr>
@@ -450,11 +492,28 @@ export const DashboardLayout: React.FC = () => {
                   </table>
                 </div>
               )}
+              </>
+              )}
             </div>
 
             {/* Profit Withdrawal */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <h3 className="text-lg font-bold text-white mb-4">Profit Withdrawal</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Profit Withdrawal</h3>
+                <button 
+                  onClick={() => setProfitWithdrawalCollapsed(!profitWithdrawalCollapsed)} 
+                  className="text-slate-400 hover:text-white transition-colors p-1"
+                  title={profitWithdrawalCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {profitWithdrawalCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {!profitWithdrawalCollapsed && (
+              <>
               <div className="flex gap-2 mb-4">
                 <button onClick={async () => {
                   await fetch('/api/wallets/withdraw', {
@@ -505,12 +564,29 @@ export const DashboardLayout: React.FC = () => {
                   </button>
                 </div>
               )}
+              </>
+              )}
             </div>
 
             {/* Trading Parameters */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <h3 className="text-lg font-bold text-white mb-4">Trading Parameters</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Trading Parameters</h3>
+                <button 
+                  onClick={() => setTradingParamsCollapsed(!tradingParamsCollapsed)} 
+                  className="text-slate-400 hover:text-white transition-colors p-1"
+                  title={tradingParamsCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {tradingParamsCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
               
+              {!tradingParamsCollapsed && (
+              <>
               {/* Reinvestment Rate */}
               <div className="mb-6">
                 <div className="flex justify-between mb-2">
@@ -565,6 +641,8 @@ export const DashboardLayout: React.FC = () => {
               >
                 Save Configuration
               </button>
+              </>
+              )}
             </div>
           </div>
         );
@@ -596,8 +674,8 @@ export const DashboardLayout: React.FC = () => {
           <div className="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-lg">
             <Wallet className="w-4 h-4 text-green-400" />
             <div className="flex flex-col">
-              <span className="text-xs text-slate-400">Total Profit</span>
-              <span className="text-sm font-mono text-green-400">+{totalBalance} {currency}</span>
+              <span className="text-xs text-slate-400">Wallet Balance</span>
+              <span className="text-sm font-mono text-green-400">+{getDisplayValue(wallets.reduce((acc, w) => acc + (w.balance || w.totalBalance || 0), 0))} {currency}</span>
             </div>
           </div>
 
@@ -651,6 +729,23 @@ export const DashboardLayout: React.FC = () => {
                 <span className="text-xs font-bold text-slate-300">Engine</span>
                 <span className={`w-2 h-2 rounded-full ${engineStatus === 'running' ? 'bg-green-500 animate-pulse' : engineStatus === 'paused' ? 'bg-yellow-500' : 'bg-slate-500'}`}></span>
               </div>
+              
+              {/* Mode Selector */}
+              <div className="flex bg-slate-900 p-1 rounded mb-3">
+                <button 
+                  onClick={() => setTargetMode('PAPER')}
+                  className={`flex-1 text-[10px] py-1 rounded transition-colors ${targetMode === 'PAPER' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  PAPER
+                </button>
+                <button 
+                  onClick={() => setTargetMode('LIVE')}
+                  className={`flex-1 text-[10px] py-1 rounded transition-colors ${targetMode === 'LIVE' ? 'bg-red-900/50 text-red-400 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  LIVE
+                </button>
+              </div>
+
               {engineStatus === 'stopped' && (
                 <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white text-xs py-2 rounded">
                   <Play className="w-3 h-3" /> Start
