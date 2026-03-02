@@ -10,7 +10,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
-const preFlightCheckService = require('../PreFlightCheck');
+const preFlightCheckService = require('./PreFlightCheck');
 const rankingEngine = require('./src/services/RankingEngine');
 const aiOptimizer = require('./src/services/AIAutoOptimizer');
 const brainConnector = require('./src/services/BrainConnector');

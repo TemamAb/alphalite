@@ -3,9 +3,9 @@
 FROM node:20-alpine as client-build
 RUN apk add --no-cache python3 make g++
 WORKDIR /app/client
-COPY AlphaPro/alphapro-api/client/package*.json ./
+COPY alphapro-api/client/package*.json ./
 RUN npm install
-COPY AlphaPro/alphapro-api/client/ ./
+COPY alphapro-api/client/ ./
 RUN npm run build
 
 # Stage 2: Build Node.js API - production dependencies only
@@ -13,20 +13,25 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY AlphaPro/alphapro-api/package*.json ./
+COPY alphapro-api/package*.json ./
 RUN npm install --production && npm install dotenv
 
 # Copy source files
-COPY AlphaPro/alphapro-api/src ./src
-COPY AlphaPro/alphapro-api/app.js .
-COPY AlphaPro/alphapro-api/config ./config
+COPY alphapro-api/src ./src
+COPY alphapro-api/app.js .
+
+# Copy config folder
+COPY alphapro-api/config ./config
 
 # Copy data sources and preflight check
-COPY AlphaPro/data_sources.json .
-COPY AlphaPro/PreFlightCheck.js .
+COPY data_sources.json .
+COPY PreFlightCheck.js .
 
 # Copy config service for environment variable handling
-COPY AlphaPro/configService.js .
+COPY configService.js .
+
+# Copy .env file for production
+COPY .env .
 
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist
