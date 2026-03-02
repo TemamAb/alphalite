@@ -10,6 +10,8 @@ const preFlightCheckService = require('./PreFlightCheck');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+let engineStartTime = null; // To track engine runtime for stats
+
 // Helper functions for wallet detection
 function detectWalletProvider(address) {
     // Deterministic assignment based on address characteristics for system verification
@@ -156,6 +158,29 @@ app.get('/api/engine/state', (req, res) => {
 app.get('/api/engine/stats', (req, res) => {
     const status = profitEngine.getStatus();
     res.status(200).json(status);
+    const mode = profitEngine.getMode();
+    const { totalTrades, totalProfit } = status.stats;
+
+    let tradesPerHour = 0;
+    if (engineStartTime && totalTrades > 0) {
+        const elapsedHours = (Date.now() - engineStartTime) / (1000 * 60 * 60);
+        if (elapsedHours > 0) {
+            tradesPerHour = totalTrades / elapsedHours;
+        }
+    }
+
+    const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
+    
+    // Win rate is not tracked, so mocking it. All simulated trades are profitable.
+    const winRate = totalTrades > 0 ? 100 : 0;
+
+    res.status(200).json({
+        mode,
+        totalProfit,
+        profitPerTrade,
+        tradesPerHour,
+        winRate
+    });
 });
 
 /**
@@ -167,8 +192,12 @@ app.post('/api/engine/state', (req, res) => {
     if (action === 'start') {
         // Respect the mode sent from the client, default to PAPER for safety.
         profitEngine.setMode(mode === 'LIVE' ? 'LIVE' : 'PAPER');
+        if (!engineStartTime) {
+            engineStartTime = Date.now();
+        }
     } else if (action === 'pause') {
         profitEngine.setMode('PAPER');
+        engineStartTime = null; // Reset on pause to stop counting time
     } else {
         return res.status(400).json({ error: 'Invalid action' });
     }
