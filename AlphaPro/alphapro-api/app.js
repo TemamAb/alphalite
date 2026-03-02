@@ -123,18 +123,6 @@ setInterval(broadcastStats, 5000);
 app.use(cors());
 app.use(express.json());
 
-// --- Security Middleware ---
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'alphapro-secret-key-dev';
-
-const requireAdminAuth = (req, res, next) => {
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey && apiKey === ADMIN_API_KEY) {
-        return next(); // Authorized
-    }
-    console.warn('[SECURITY] Unauthorized attempt to access admin endpoint.');
-    res.status(401).json({ error: 'Unauthorized' });
-};
-
 
 // --- API Routes ---
 
@@ -174,10 +162,11 @@ app.get('/api/engine/stats', (req, res) => {
  * Endpoint to change the state of the trading engine.
  */
 app.post('/api/engine/state', (req, res) => {
-    const { action } = req.body; // 'start' or 'pause'
+    const { action, mode } = req.body; // 'start' or 'pause', and 'PAPER' or 'LIVE'
 
     if (action === 'start') {
-        profitEngine.setMode('LIVE');
+        // Respect the mode sent from the client, default to PAPER for safety.
+        profitEngine.setMode(mode === 'LIVE' ? 'LIVE' : 'PAPER');
     } else if (action === 'pause') {
         profitEngine.setMode('PAPER');
     } else {

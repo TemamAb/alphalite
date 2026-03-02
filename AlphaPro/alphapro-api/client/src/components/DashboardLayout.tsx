@@ -47,6 +47,17 @@ interface WithdrawalRecord {
   txHash: string;
 }
 
+interface DeploymentRecord {
+  id: number;
+  deploymentCode: string;
+  commitHash: string;
+  smartWallet: string;
+  smartContract: string;
+  chains: string[];
+  timestamp: Date;
+  status: 'Active' | 'Inactive';
+}
+
 export const DashboardLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [currency, setCurrency] = useState('ETH');
@@ -84,6 +95,15 @@ export const DashboardLayout: React.FC = () => {
   const [withdrawalRecords, setWithdrawalRecords] = useState<WithdrawalRecord[]>([]);
   const [withdrawalHistoryCollapsed, setWithdrawalHistoryCollapsed] = useState(() => {
     const saved = localStorage.getItem('withdrawalHistoryCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [engineControlCollapsed, setEngineControlCollapsed] = useState(() => {
+    const saved = localStorage.getItem('engineControlCollapsed');
+    return saved !== null ? JSON.parse(saved) : true; // Default to collapsed
+  });
+  const [deploymentRecords, setDeploymentRecords] = useState<DeploymentRecord[]>([]);
+  const [deploymentRegistryCollapsed, setDeploymentRegistryCollapsed] = useState(() => {
+    const saved = localStorage.getItem('deploymentRegistryCollapsed');
     return saved !== null ? JSON.parse(saved) : false;
   });
 
@@ -176,6 +196,14 @@ export const DashboardLayout: React.FC = () => {
     localStorage.setItem('withdrawalHistoryCollapsed', JSON.stringify(withdrawalHistoryCollapsed));
   }, [withdrawalHistoryCollapsed]);
 
+  useEffect(() => {
+    localStorage.setItem('engineControlCollapsed', JSON.stringify(engineControlCollapsed));
+  }, [engineControlCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('deploymentRegistryCollapsed', JSON.stringify(deploymentRegistryCollapsed));
+  }, [deploymentRegistryCollapsed]);
+
   // Initial fetch and interval
   useEffect(() => {
     fetchEngineStats();
@@ -193,6 +221,29 @@ export const DashboardLayout: React.FC = () => {
   }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice]);
 
   const handleStartEngine = async () => {
+    if (targetMode === 'LIVE') {
+      if (!confirm('WARNING: You are about to start the engine in LIVE mode. This will interact with real assets. Proceed?')) {
+        return; // User cancelled the action
+      }
+
+      // Deactivate all previous deployment records
+      const updatedRecords = deploymentRecords.map(rec => ({ ...rec, status: 'Inactive' as const }));
+
+      // Create a new deployment record for this live session
+      const newDeployment: DeploymentRecord = {
+        id: deploymentRecords.length + 1,
+        deploymentCode: `DEP-${(deploymentRecords.length + 1).toString().padStart(4, '0')}`,
+        commitHash: 'a1b2c3d', // Mock commit hash for demonstration
+        smartWallet: '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+        smartContract: '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+        chains: ['Ethereum', 'Arbitrum'],
+        timestamp: new Date(),
+        status: 'Active',
+      };
+
+      setDeploymentRecords([newDeployment, ...updatedRecords]);
+    }
+
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
@@ -209,6 +260,11 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const handlePauseEngine = async () => {
+    // Mark the currently active deployment as Inactive
+    setDeploymentRecords(prevRecords => 
+      prevRecords.map(rec => rec.status === 'Active' ? { ...rec, status: 'Inactive' } : rec)
+    );
+
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
@@ -405,6 +461,143 @@ export const DashboardLayout: React.FC = () => {
       case 'settings':
         return (
           <div className="space-y-6">
+            {/* Engine Control */}
+            <div className="bg-slate-800 p-6 rounded-xl border border-red-500/50">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-red-400" /> Engine Control
+                </h3>
+                <button 
+                  onClick={() => setEngineControlCollapsed(!engineControlCollapsed)} 
+                  className="text-slate-400 hover:text-white transition-colors p-1"
+                  title={engineControlCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {engineControlCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              
+              {!engineControlCollapsed && (
+              <div className="bg-slate-900/50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-bold text-slate-300">Master Switch</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${engineStatus === 'running' ? 'bg-green-500 animate-pulse' : engineStatus === 'paused' ? 'bg-yellow-500' : 'bg-slate-500'}`}></span>
+                    <span className={`text-sm font-mono ${engineStatus === 'running' ? 'text-green-400' : engineStatus === 'paused' ? 'text-yellow-400' : 'text-slate-400'}`}>
+                      {engineStatus.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Mode Selector */}
+                  <div className="bg-slate-800 p-2 rounded-lg">
+                    <div className="text-xs text-slate-400 mb-2 text-center">MODE</div>
+                    <div className="flex bg-slate-900 p-1 rounded">
+                      <button 
+                        onClick={() => setTargetMode('PAPER')}
+                        className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'PAPER' ? 'bg-slate-700 text-white font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+                      >
+                        PAPER
+                      </button>
+                      <button 
+                        onClick={() => setTargetMode('LIVE')}
+                        className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'LIVE' ? 'bg-red-900/50 text-red-400 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+                      >
+                        LIVE
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="bg-slate-800 p-2 rounded-lg">
+                    <div className="text-xs text-slate-400 mb-2 text-center">ACTION</div>
+                    {engineStatus === 'stopped' && (
+                      <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
+                        <Play className="w-4 h-4" /> Start
+                      </button>
+                    )}
+                    {engineStatus === 'running' && (
+                      <button onClick={handlePauseEngine} className="w-full flex items-center justify-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white text-sm py-2 rounded font-bold">
+                        <Pause className="w-4 h-4" /> Pause
+                      </button>
+                    )}
+                    {engineStatus === 'paused' && (
+                      <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
+                        <Play className="w-4 h-4" /> Resume
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              )}
+            </div>
+
+            {/* Deployment Registry */}
+            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Deployment Registry</h3>
+                <button 
+                  onClick={() => setDeploymentRegistryCollapsed(!deploymentRegistryCollapsed)} 
+                  className="text-slate-400 hover:text-white transition-colors p-1"
+                  title={deploymentRegistryCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {deploymentRegistryCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {!deploymentRegistryCollapsed && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-700">
+                        <th className="p-2 text-left">#</th>
+                        <th className="p-2 text-left">Code</th>
+                        <th className="p-2 text-left">Commit</th>
+                        <th className="p-2 text-left">Smart Wallet</th>
+                        <th className="p-2 text-left">Contract</th>
+                        <th className="p-2 text-left">Chains</th>
+                        <th className="p-2 text-left">Timestamp</th>
+                        <th className="p-2 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deploymentRecords.length > 0 ? (
+                        deploymentRecords.map((rec) => (
+                          <tr key={rec.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                            <td className="p-2 text-slate-400">{rec.id}</td>
+                            <td className="p-2 font-mono text-slate-300">{rec.deploymentCode}</td>
+                            <td className="p-2 font-mono text-blue-400">{rec.commitHash}</td>
+                            <td className="p-2 font-mono text-slate-400">{rec.smartWallet.slice(0, 12)}...</td>
+                            <td className="p-2 font-mono text-slate-400">{rec.smartContract.slice(0, 12)}...</td>
+                            <td className="p-2 text-slate-300">{rec.chains.join(', ')}</td>
+                            <td className="p-2 text-slate-400">{rec.timestamp.toLocaleString()}</td>
+                            <td className="p-2 text-center">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                rec.status === 'Active' ? 'bg-green-500/20 text-green-400 animate-pulse' : 'bg-slate-600/50 text-slate-400'
+                              }`}>
+                                {rec.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={8} className="p-4 text-center text-slate-500">No live deployments have been initiated.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             {/* Wallet Management */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
@@ -836,48 +1029,6 @@ export const DashboardLayout: React.FC = () => {
               );
             })}
           </nav>
-
-          {/* Engine Control at bottom of sidebar */}
-          <div className="px-3 pb-3">
-            <div className="bg-slate-800 p-3 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-300">Engine</span>
-                <span className={`w-2 h-2 rounded-full ${engineStatus === 'running' ? 'bg-green-500 animate-pulse' : engineStatus === 'paused' ? 'bg-yellow-500' : 'bg-slate-500'}`}></span>
-              </div>
-              
-              {/* Mode Selector */}
-              <div className="flex bg-slate-900 p-1 rounded mb-3">
-                <button 
-                  onClick={() => setTargetMode('PAPER')}
-                  className={`flex-1 text-[10px] py-1 rounded transition-colors ${targetMode === 'PAPER' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  PAPER
-                </button>
-                <button 
-                  onClick={() => setTargetMode('LIVE')}
-                  className={`flex-1 text-[10px] py-1 rounded transition-colors ${targetMode === 'LIVE' ? 'bg-red-900/50 text-red-400 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  LIVE
-                </button>
-              </div>
-
-              {engineStatus === 'stopped' && (
-                <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white text-xs py-2 rounded">
-                  <Play className="w-3 h-3" /> Start
-                </button>
-              )}
-              {engineStatus === 'running' && (
-                <button onClick={handlePauseEngine} className="w-full flex items-center justify-center gap-1 bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-2 rounded">
-                  <Pause className="w-3 h-3" /> Pause
-                </button>
-              )}
-              {engineStatus === 'paused' && (
-                <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-1 bg-green-600 hover:bg-green-500 text-white text-xs py-2 rounded">
-                  <Play className="w-3 h-3" /> Resume
-                </button>
-              )}
-            </div>
-          </div>
         </aside>
 
         {/* MAIN CONTENT */}
