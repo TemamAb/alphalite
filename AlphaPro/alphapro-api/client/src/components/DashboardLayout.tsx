@@ -24,6 +24,7 @@ interface WalletData {
   name: string;
   valid: boolean;
   provider: string;
+  logo: string;
   blockchain: string;
   balance: number;
   chains: { [key: string]: string };
@@ -368,8 +369,12 @@ export const DashboardLayout: React.FC = () => {
             {/* Wallet Management */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-bold text-white">Wallet Management</h3>
+                <h3 className="text-lg font-bold text-white">Wallet Management</h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-green-400">{wallets.filter((w: any) => w.valid).length} valid</span>
+                    <span className="text-red-400">{wallets.filter((w: any) => !w.valid).length} invalid</span>
+                  </div>
                   <button 
                     onClick={() => setWalletTableCollapsed(!walletTableCollapsed)} 
                     className="text-slate-400 hover:text-white transition-colors p-1"
@@ -381,10 +386,6 @@ export const DashboardLayout: React.FC = () => {
                       <ChevronUp className="w-5 h-5" />
                     )}
                   </button>
-                </div>
-                <div className="flex gap-3 text-xs">
-                  <span className="text-green-400">{wallets.filter((w: any) => w.valid).length} valid</span>
-                  <span className="text-red-400">{wallets.filter((w: any) => !w.valid).length} invalid</span>
                 </div>
               </div>
               
@@ -432,6 +433,7 @@ export const DashboardLayout: React.FC = () => {
                         <th className="p-2 text-left">#</th>
                         <th className="p-2 text-left">Name</th>
                         <th className="p-2 text-left">Address</th>
+                        <th className="p-2 text-center">Logo</th>
                         <th className="p-2 text-left">Provider</th>
                         <th className="p-2 text-left">Blockchain</th>
                         <th className="p-2 text-right">Balance</th>
@@ -445,6 +447,9 @@ export const DashboardLayout: React.FC = () => {
                           <td className="p-2 text-slate-400">{idx + 1}</td>
                           <td className="p-2 text-slate-300">{wallet.name || `Wallet ${idx + 1}`}</td>
                           <td className="p-2 font-mono text-slate-400">{wallet.address?.slice(0, 10)}...</td>
+                          <td className="p-2 text-center">
+                            {wallet.logo && <img src={wallet.logo} alt={wallet.provider} className="w-6 h-6 mx-auto rounded-full bg-slate-200 p-0.5" />}
+                          </td>
                           <td className="p-2 text-slate-300">{wallet.provider || 'Unknown'}</td>
                           <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
                           <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
@@ -483,7 +488,7 @@ export const DashboardLayout: React.FC = () => {
                         </tr>
                       ))}
                       <tr className="bg-slate-700/50 font-bold text-white">
-                        <td colSpan={5} className="p-2">TOTAL</td>
+                        <td colSpan={6} className="p-2">TOTAL</td>
                         <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
                         <td className="p-2">{wallets.length} wallets</td>
                         <td></td>
