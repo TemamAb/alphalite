@@ -50,9 +50,11 @@ class DataFusionEngine extends EventEmitter {
      */
     async start() {
         if (!this.alchemyKey) {
-            console.error("[DATA-FUSION] ❌ CRITICAL: No ALCHEMY_API_KEY configured. Cannot start live data streams.");
+            // No Alchemy key - REQUIRE production config
+            console.error("[DATA-FUSION] ❌ CRITICAL: ALCHEMY_API_KEY is required for production trading.");
             console.error("[DATA-FUSION] Please set ALCHEMY_API_KEY environment variable.");
-            process.exit(1);
+            console.error("[DATA-FUSION] Get free key at: https://www.alchemy.com/");
+            throw new Error('ALCHEMY_API_KEY required for production');
         }
         
         // Connect to all configured chains concurrently
@@ -86,9 +88,9 @@ class DataFusionEngine extends EventEmitter {
         const connected = await Promise.race([connectedPromise, connectionTimeout]);
         
         if (!connected) {
-            console.error("[DATA-FUSION] ❌ CRITICAL: Failed to establish any WebSocket connections to blockchain networks.");
-            console.error("[DATA-FUSION] Please check your ALCHEMY_API_KEY and network connectivity.");
-            process.exit(1);
+            console.error("[DATA-FUSION] ❌ CRITICAL: Failed to connect to blockchain networks.");
+            console.error("[DATA-FUSION] Please check ALCHEMY_API_KEY and network connectivity.");
+            throw new Error('Failed to connect to blockchain networks');
         }
 
         this.isLive = true;
