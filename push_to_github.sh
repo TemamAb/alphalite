@@ -1,5 +1,4 @@
 #!/bin/bash
 git add .
-git commit -m "Full Integration: Brain Connector, AI Optimizer, Ranking, Copilot, Dashboard"
+git commit -m "fix(wallets): Remove redundant config panel and fix key import balance fetch"
 git push origin master
-

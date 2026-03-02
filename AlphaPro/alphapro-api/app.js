@@ -580,7 +580,7 @@ app.post('/api/wallets/import', async (req, res) => {
 /**
  * Upload private keys and match to wallets (Auto-populate)
  */
-app.post('/api/wallets/upload-keys', (req, res) => {
+app.post('/api/wallets/upload-keys', async (req, res) => {
     const { keys } = req.body;
     if (!keys || !Array.isArray(keys)) {
         return res.status(400).json({ error: 'Invalid keys array' });
@@ -588,33 +588,45 @@ app.post('/api/wallets/upload-keys', (req, res) => {
 
     let matchedCount = 0;
     let newCount = 0;
-    
+
     try {
         const { ethers } = require('ethers');
-        
-        keys.forEach(rawKey => {
-            if (!rawKey) return;
+
+        for (const rawKey of keys) {
+            if (!rawKey) continue;
             let key = rawKey.trim();
             // Ensure 0x prefix
             if (!key.startsWith('0x')) key = '0x' + key;
-            
+
             try {
                 // Verify it's a valid private key by creating a wallet instance
                 const wallet = new ethers.Wallet(key);
                 const address = wallet.address;
-                
+
                 // Check if wallet exists
                 const existingWallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
-                
+
                 if (existingWallet) {
                     existingWallet.privateKey = key;
                     existingWallet.hasKey = true;
                     matchedCount++;
                 } else {
                     // Auto-populate: Create new wallet if it doesn't exist
+                    const isValid = /^0x[a-fA-F0-9]{40}$/.test(address);
                     const providerData = detectWalletProvider(address);
                     const blockchain = detectBlockchain(address);
-                    
+
+                    // Fetch real balance for the new wallet
+                    const realBalance = isValid ? await fetchPublicBalance(address) : 0;
+
+                    const chains = isValid ? {
+                        ETH: realBalance.toFixed(4),
+                        ARB: '0.0000',
+                        OP: '0.0000',
+                        BASE: '0.0000',
+                        MATIC: '0'
+                    } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
+
                     wallets.push({
                         address: address,
                         name: `Wallet ${wallets.length + 1}`,
@@ -622,9 +634,9 @@ app.post('/api/wallets/upload-keys', (req, res) => {
                         provider: providerData.name,
                         logo: providerData.logo,
                         blockchain,
-                        chains: { ETH: '0.0000', ARB: '0', OP: '0', BASE: '0', MATIC: '0' },
-                        balance: 0,
-                        totalBalance: 0,
+                        chains,
+                        balance: realBalance,
+                        totalBalance: realBalance,
                         privateKey: key,
                         hasKey: true
                     });
@@ -633,8 +645,8 @@ app.post('/api/wallets/upload-keys', (req, res) => {
             } catch (e) {
                 // Skip invalid keys
             }
-        });
-        
+        }
+
         res.json({ success: true, matched: matchedCount, new: newCount, total: wallets.length });
     } catch (error) {
         console.error('[WALLET] Key upload error:', error);
