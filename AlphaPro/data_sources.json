@@ -13,6 +13,168 @@
       "priority": 2
     }
   },
+
+  "trading_pairs": {
+    "priority_tiers": {
+      "tier1_crud": {
+        "description": "High liquidity, high volume pairs for maximum arbitrage",
+        "min_liquidity": 1000000,
+        "min_volume_24h": 5000000,
+        "pairs_count": 500
+      },
+      "tier2_gems": {
+        "description": "Mid-cap opportunities with higher spread potential",
+        "min_liquidity": 100000,
+        "min_volume_24h": 100000,
+        "pairs_count": 2000
+      },
+      "tier3_degen": {
+        "description": "High risk, high reward small cap pairs",
+        "min_liquidity": 10000,
+        "min_volume_24h": 10000,
+        "pairs_count": 5000
+      }
+    },
+    
+    "core_tokens": {
+      "ethereum": [
+        {"symbol": "WETH", "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"},
+        {"symbol": "USDC", "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"},
+        {"symbol": "USDT", "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"},
+        {"symbol": "WBTC", "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"},
+        {"symbol": "DAI", "address": "0x6B175474E89094C44Da98b954Eeshort1C3E3F333"},
+        {"symbol": "LINK", "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA"},
+        {"symbol": "UNI", "address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"},
+        {"symbol": "AAVE", "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9"},
+        {"symbol": "MKR", "address": "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2"},
+        {"symbol": "SNX", "address": "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F"},
+        {"symbol": "CRV", "address": "0xD533a949740bb3306d119CC777fa900bA034cd52"},
+        {"symbol": "COMP", "address": "0xc00e94Cb662C3520282E6f5717214004A7f26888"},
+        {"symbol": "SUSHI", "address": "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2"},
+        {"symbol": "ENS", "address": "0xC18359217b533C71FCc7013F4E3f8e04d2c3f27D"},
+        {"symbol": "LDO", "address": "0x5A98FCBeb4f1a7C7C31A34C1fA4eC8b8eD6f3C7A"},
+        {"symbol": "ARB", "address": "0x912CE59144191C1204E64559FEsw3D9e3f3d2C3"},
+        {"symbol": "OP", "address": "0x4200000000000000000000000000000000000042"},
+        {"symbol": "PEPE", "address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933"},
+        {"symbol": "SHIB", "address": "0x95aD61b0a150d79219dCF64E1E76Cc11FD675AD"},
+        {"symbol": "WIF", "address": "0xab52EBBd9b9e7F8C3E0c1B4C6D7A8F9E0D1C2B3A"}
+      ],
+      "polygon": [
+        {"symbol": "WMATIC", "address": "0x0d500B1d8E8aF31DFF1A9aC2A4bC8D6e5F7A8B9C"},
+        {"symbol": "USDC", "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"},
+        {"symbol": "USDT", "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"},
+        {"symbol": "QUICK", "address": "0xb5C064F955D8e7F38Fe0460C556a72987494EE17"},
+        {"symbol": "MATIC", "address": "0x0000000000000000000000000000000000000000"}
+      ],
+      "arbitrum": [
+        {"symbol": "WETH", "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"},
+        {"symbol": "USDC", "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"},
+        {"symbol": "USDT", "address": "0xFd086bC7CD5C481DCC394C643dbEA11d8cAbF3A7"},
+        {"symbol": "ARB", "address": "0x912CE59144191C1204E64559FEsw3D9e3f3d2C3"}
+      ],
+      "optimism": [
+        {"symbol": "WETH", "address": "0x4200000000000000000000000000000000000006"},
+        {"symbol": "USDC", "address": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607"},
+        {"symbol": "USDT", "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58"},
+        {"symbol": "OP", "address": "0x4200000000000000000000000000000000000042"}
+      ],
+      "bsc": [
+        {"symbol": "WBNB", "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"},
+        {"symbol": "USDC", "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"},
+        {"symbol": "USDT", "address": "0x55d398326f99059fF775485246999027B3197955"},
+        {"symbol": "CAKE", "address": "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"},
+        {"symbol": "BUSD", "address": "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"}
+      ],
+      "avalanche": [
+        {"symbol": "WAVAX", "address": "0xB31f66AA3C1e785363F0875A1B74D27b1FDc0F0C"},
+        {"symbol": "USDC", "address": "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664"},
+        {"symbol": "USDT", "address": "0x9702230A8E536e12Dc4cC0e21e1fA3B3b1eB3D2d"},
+        {"symbol": "JOE", "address": "0x6e84A6216eA6dA7138eC52de52eE017BCB00543C"}
+      ]
+    },
+
+    "pairs_by_strategy": {
+      "cross_exchange": {
+        "description": "Same token, different DEXs",
+        "scan_frequency_ms": 500,
+        "min_spread_bps": 5,
+        "max_slippage_bps": 100,
+        "pairs_list": [
+          "ETH/USDC", "BTC/USDC", "ETH/USDT", "BTC/USDT",
+          "ETH/WBTC", "LINK/ETH", "UNI/ETH", "AAVE/ETH",
+          "MKR/ETH", "SNX/ETH", "CRV/ETH", "COMP/ETH",
+          "SUSHI/ETH", "ENS/ETH", "LDO/ETH", "ARB/ETH",
+          "OP/ETH", "PEPE/ETH", "SHIB/ETH", "WIF/ETH"
+        ]
+      },
+      "triangular": {
+        "description": "Three-token cycles for price discrepancies",
+        "scan_frequency_ms": 1000,
+        "min_profit_bps": 10,
+        "max_trade_size_usd": 100000,
+        "cycles": [
+          ["ETH", "USDC", "USDT"],
+          ["ETH", "DAI", "USDC"],
+          ["BTC", "USDC", "USDT"],
+          ["ETH", "WBTC", "USDC"],
+          ["LINK", "ETH", "USDC"],
+          ["UNI", "ETH", "USDC"],
+          ["AAVE", "ETH", "USDC"],
+          ["CRV", "ETH", "USDC"],
+          ["SUSHI", "ETH", "USDC"],
+          ["LDO", "ETH", "USDC"]
+        ]
+      },
+      "flash_loan": {
+        "description": "Flash loan enabled strategies",
+        "scan_frequency_ms": 200,
+        "min_profit_usd": 100,
+        "max_gas_price_gwei": 100,
+        "supported_pairs": [
+          "ETH/USDC", "ETH/USDT", "BTC/USDC", "BTC/USDT",
+          "ETH/WBTC", "STETH/ETH", "WBTC/ETH"
+        ]
+      },
+      "sandwich": {
+        "description": "MEV sandwich opportunities",
+        "scan_frequency_ms": 100,
+        "min_mempool_value_usd": 1000,
+        "front_run_delay_ms": 0,
+        "target_tokens": ["WETH", "USDC", "USDT", "WBTC"]
+      },
+      "cross_chain": {
+        "description": "Arbitrage across different blockchains",
+        "scan_frequency_ms": 2000,
+        "bridge_slots": 15,
+        "chains": ["ethereum", "polygon", "arbitrum", "optimism", "bsc", "avalanche"]
+      }
+    },
+
+    "token_lists": {
+      "defi_prime": {
+        "url": "https://defiprime.com/token-list.json",
+        "description": "Top 500 DeFi tokens by TVL"
+      },
+      "coingecko_trending": {
+        "url": "https://api.coingecko.com/api/v3/search/trending",
+        "description": "Currently trending tokens"
+      },
+      "dexscreener_new": {
+        "url": "https://api.dexscreener.com/dex/pairs/new",
+        "description": "Newly created pairs"
+      }
+    },
+
+    "filters": {
+      "min_liquidity_usd": 10000,
+      "min_24h_volume_usd": 10000,
+      "max_price_impact_bps": 500,
+      "exclude_tokens": [
+        "honeypot", "safe-moon", "squid-game", "elon"
+      ],
+      "whitelist_tokens": []
+    }
+  },
   "dex_aggregators": {
     "1inch": {
       "base_url": "https://api.1inch.io/v5.0",
