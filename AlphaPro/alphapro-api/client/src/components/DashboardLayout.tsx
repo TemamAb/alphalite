@@ -302,15 +302,18 @@ export const DashboardLayout: React.FC = () => {
       reader.onload = async (e) => {
         try {
           const content = e.target?.result as string;
-          const addresses = content.split('\n').map(line => line.trim()).filter(line => line.startsWith('0x'));
+          // Use regex to handle both Windows (\r\n) and Unix (\n) line endings
+          const addresses = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.startsWith('0x'));
           await fetch('/api/wallets/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ addresses })
           });
           fetchWallets();
+          alert(`${addresses.length} wallets imported successfully!`);
         } catch (err) {
           console.error('Failed to import wallets:', err);
+          alert('Failed to import wallets. Please check the file format and console for errors.');
         }
       };
       reader.readAsText(file);
