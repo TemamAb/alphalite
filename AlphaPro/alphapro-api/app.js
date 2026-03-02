@@ -609,6 +609,9 @@ app.post('/api/wallets/upload-keys', async (req, res) => {
                 if (existingWallet) {
                     existingWallet.privateKey = key;
                     existingWallet.hasKey = true;
+                    // Wallet is valid only if it has a valid address AND private key
+                    const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(existingWallet.address);
+                    existingWallet.valid = isValidAddr;
                     matchedCount++;
                 } else {
                     // Auto-populate: Create new wallet if it doesn't exist
