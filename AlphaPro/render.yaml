@@ -1,5 +1,9 @@
+# AlphaPro Production Deployment Configuration for Render.com
+# IMPORTANT: Do NOT hardcode sensitive values!
+# Use Render's Environment Variables and Secrets feature instead.
+
 services:
-  # The Brain (Python Sidecar)
+  # The Brain (Python Sidecar) - AI Analysis
   - name: alphapro-brain
     runtime: python
     buildCommand: pip install -r alphapro-brain/requirements.txt
@@ -7,7 +11,7 @@ services:
     plan: starter
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11"
 
   # The Core (Node API + React Frontend)
   - name: alphapro-api
@@ -16,37 +20,51 @@ services:
     rootDir: .
     plan: standard
     envVars:
+      # ============================================
+      # 🔴 CRITICAL: Set these in Render Secrets!
+      # ============================================
+      
       # Trading Configuration
       - key: NODE_ENV
         value: production
       - key: TRADING_MODE
         value: LIVE
       - key: PORT
-        value: 3000
+        value: "3000"
 
+      # ⚠️ REQUIRED FOR LIVE TRADING - Add your private key
+      # - key: PRIVATE_KEY
+      #   value: your_0x_private_key_here
+      
+      # Wallet Address (Smart Wallet for gasless transactions)
+      - key: WALLET_ADDRESS
+        value: "0x21e6d55cBd4721996a6B483079449cFc279A993a"
+
+      # ============================================
+      # 🔑 API KEYS - Use Render Secrets
+      # ============================================
+      
       # Gasless Transaction Configuration (Pimlico)
       - key: PIMLICO_API_KEY
         value: pim_UbfKR9ocMe5ibNUCGgB8fE
-      - key: WALLET_ADDRESS
-        value: 0x21e6d55cBd4721996a6B483079449cFc279A993a
       - key: BUNDLER_URL
-        value: https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+        value: https://api.pimlico.io/v1/1/rpc
       - key: PAYMASTER_URL
-        value: https://api.pimlico.io/v2/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+        value: https://api.pimlico.io/v2/1/rpc
       - key: ENTRYPOINT_ADDRESS
         value: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
 
-      # RPC Endpoints
-      - key: ETHEREUM_RPC
-        value: https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
-      - key: ARBITRUM_RPC
-        value: https://api.pimlico.io/v1/42161/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
-      - key: OPTIMISM_RPC
-        value: https://api.pimlico.io/v1/10/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
-      - key: POLYGON_RPC
-        value: https://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
-      - key: BASE_RPC
-        value: https://api.pimlico.io/v1/8453/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
+      # Blockchain RPC Endpoints (Primary)
+      - key: ETH_RPC_URL
+        value: https://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: ARBITRUM_RPC_URL
+        value: https://arb1.arbitrum.io/rpc
+      - key: OPTIMISM_RPC_URL
+        value: https://mainnet.optimism.io
+      - key: POLYGON_RPC_URL
+        value: https://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      - key: BASE_RPC_URL
+        value: https://base.llamarpc.com
 
       # Alchemy WebSocket URLs for Real-time Mempool
       - key: ETH_WS_URL
@@ -60,14 +78,32 @@ services:
       - key: BASE_WS_URL
         value: wss://base-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
 
+      # Alchemy API Key
+      - key: ALCHEMY_API_KEY
+        value: 9v_Ducm70QxIb75p3_wPS
+
+      # Infura API Key (Backup)
+      - key: INFURA_API_KEY
+        value: mK2nj6ZSi1mZ2THJMUHcF
+
+      # AI Service
+      - key: OPENAI_API_KEY
+        value: sk-proj-ALPHAPRO_PLACEHOLDER
+
       # Brain Service
       - key: BRAIN_URL
         value: http://alphapro-brain:5000
 
-      # Admin API Key
+      # Security
       - key: ADMIN_API_KEY
         value: alphapro-prod-key-2024
-
-      # Security
       - key: JWT_SECRET
         value: alphapro_jwt_secret_prod_2024
+
+      # Market Data APIs (Free tier)
+      - key: COINGECKO_API_URL
+        value: https://api.coingecko.com/api/v3
+      - key: DEXSCREENER_API_URL
+        value: https://api.dexscreener.com/latest/dex
+      - key: BIRDEYE_API_URL
+        value: https://public-api.birdeye.so
