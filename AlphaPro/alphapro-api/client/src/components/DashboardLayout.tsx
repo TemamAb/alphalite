@@ -499,6 +499,11 @@ export const DashboardLayout: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                <div className="mb-4 bg-blue-900/20 border border-blue-800 rounded p-2 flex items-center justify-center gap-2">
+                  <Zap className="w-3 h-3 text-blue-400" />
+                  <span className="text-xs text-blue-300 font-mono">Gasless Mode Active (Pimlico) - No Prefunding Required</span>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Mode Selector */}

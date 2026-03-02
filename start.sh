@@ -20,7 +20,7 @@ then
  exit 1
 # Define the .env file path
 ENV_FILE="AlphaPro/.env"
-TRADING_MODE="PAPER"
+TRADING_MODE="LIVE"
 # Check if the .env file exists
 if [ ! -f "$ENV_FILE" ]; then
  echo "Error: .env file not found in $ENV_FILE" | tee -a start.log

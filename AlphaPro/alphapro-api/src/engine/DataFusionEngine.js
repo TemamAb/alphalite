@@ -19,6 +19,7 @@ class DataFusionEngine extends EventEmitter {
         this.connections = new Map(); // Store active WS connections by chain
         this.priceCache = new Map();
         this.isLive = false;
+        this.simulationInterval = null;
 
         // Load API Keys from Environment
         this.alchemyKey = process.env.ALCHEMY_API_KEY;
@@ -43,6 +44,15 @@ class DataFusionEngine extends EventEmitter {
         } else {
             // Connect to all configured chains concurrently
             this.chains.forEach(chain => this.connectChain(chain));
+
+            // Safety fallback: If no connections open within 5 seconds, start simulation
+            setTimeout(() => {
+                const activeConnections = Array.from(this.connections.values()).some(ws => ws.readyState === WebSocket.OPEN);
+                if (!activeConnections) {
+                    console.warn("[DATA-FUSION] ⚠️ Connection timeout. Falling back to simulation mode.");
+                    this.startSimulationMode();
+                }
+            }, 5000);
         }
 
         this.isLive = true;
@@ -53,9 +63,10 @@ class DataFusionEngine extends EventEmitter {
      * Start simulation mode for paper trading demo
      */
     startSimulationMode() {
+        if (this.simulationInterval) return; // Prevent multiple intervals
         console.log("[DATA-FUSION] 🎮 Starting simulation mode for paper trading...");
         // Emit simulated mempool events periodically
-        setInterval(() =>  {
+        this.simulationInterval = setInterval(() =>  {
             const fakeTx = '0x' + Math.random().toString(16).substr(2, 64);
     
             console.log(`[BLOCKCHAIN] 🔍 Scanning Mempool... Found ${fakeTx.slice(0,10)}...`);

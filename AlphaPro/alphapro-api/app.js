@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 let engineStartTime = null; // To track engine runtime for stats
+let startTrades = 0; // To track trades at the start of the session
 
 // Helper functions for wallet detection
 function detectWalletProvider(address) {
@@ -157,15 +158,15 @@ app.get('/api/engine/state', (req, res) => {
  */
 app.get('/api/engine/stats', (req, res) => {
     const status = profitEngine.getStatus();
-    res.status(200).json(status);
     const mode = profitEngine.getMode();
     const { totalTrades, totalProfit } = status.stats;
+    const sessionTrades = totalTrades - startTrades;
 
     let tradesPerHour = 0;
-    if (engineStartTime && totalTrades > 0) {
+    if (engineStartTime && sessionTrades > 0) {
         const elapsedHours = (Date.now() - engineStartTime) / (1000 * 60 * 60);
         if (elapsedHours > 0) {
-            tradesPerHour = totalTrades / elapsedHours;
+            tradesPerHour = sessionTrades / elapsedHours;
         }
     }
 
@@ -194,6 +195,8 @@ app.post('/api/engine/state', (req, res) => {
         profitEngine.setMode(mode === 'LIVE' ? 'LIVE' : 'PAPER');
         if (!engineStartTime) {
             engineStartTime = Date.now();
+            const status = profitEngine.getStatus();
+            startTrades = status.stats.totalTrades;
         }
     } else if (action === 'pause') {
         profitEngine.setMode('PAPER');

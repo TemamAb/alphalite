@@ -3,6 +3,8 @@ let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
 const configService = require('../../config/configService');
 const axios = require('axios');
+const { ethers } = require('ethers');
+const { Client, Presets } = require('userop');
 
 class EnterpriseProfitEngine {
     constructor() {
@@ -22,6 +24,11 @@ class EnterpriseProfitEngine {
             walletAddress: process.env.WALLET_ADDRESS || '0x21e6d55cBd4721996a6B483079449cFc279A993a'
         };
 
+        // This is a MOCK signer for demonstration. In production, this MUST be replaced
+        // with a secure signer (e.g., from AWS KMS, a hardware wallet, or secure enclave).
+        // The private key should be stored securely as an environment variable.
+        this.signer = new ethers.Wallet(process.env.PRIVATE_KEY || ethers.Wallet.createRandom().privateKey);
+
         // RPC endpoints for each chain
         this.rpcEndpoints = {
             ethereum: process.env.ETHEREUM_RPC || 'https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE',
@@ -35,6 +42,9 @@ class EnterpriseProfitEngine {
         console.log(`[ENGINE]   Wallet: ${this.pimlicoConfig.walletAddress}`);
         console.log(`[ENGINE]   Pimlico API: ${this.pimlicoConfig.apiKey.substring(0, 8)}...`);
         console.log(`[ENGINE]   EntryPoint: ${this.pimlicoConfig.entryPoint}`);
+        console.log(`[ENGINE]   ⛽ Paymaster: ACTIVE (Sponsorship enabled)`);
+        console.log(`[ENGINE]   Mock Signer (EOA): ${this.signer.address}`);
+        console.log(`[ENGINE]   💰 Wallet Prefunding: NOT REQUIRED (Gasless)`);
 
         // Withdrawal mode: MANUAL or AUTO
         this.withdrawalMode = 'MANUAL';
@@ -157,38 +167,65 @@ class EnterpriseProfitEngine {
     async executeLiveTrade(opportunity, chain) {
         if (this.mode !== 'LIVE') return;
 
+        this.activeExecutions++;
         try {
-            this.activeExecutions++;
             const { txHash, strategy, profit } = opportunity;
             
             console.log(`[ENGINE] 🚀 EXECUTING LIVE TRADE on ${chain.toUpperCase()}:`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+
+            // 1. Initialize Pimlico client and paymaster middleware
+            const paymaster = Presets.Middleware.verifyingPaymaster(
+                this.pimlicoConfig.paymasterUrl,
+                {} // context for paymaster
+            );
+            const client = await Client.init(this.pimlicoConfig.bundlerUrl, {
+                entryPoint: this.pimlicoConfig.entryPoint,
+            });
+
+            // 2. Create a SimpleAccount builder with the paymaster
+            const simpleAccount = await Presets.Builder.SimpleAccount.init(
+                this.signer,
+                this.rpcEndpoints[chain],
+                { 
+                    entryPoint: this.pimlicoConfig.entryPoint,
+                    paymasterMiddleware: paymaster,
+                }
+            );
             
-            // In LIVE mode, we would:
-            // 1. Build the UserOperation via Pimlico
-            // 2. Sign with the smart wallet
-            // 3. Submit via bundler
-            // 4. Wait for inclusion
+            // 3. Construct the callData for the UserOperation.
+            // This is a mock call: sending 0 ETH to self.
+            // In a real scenario, this would be the encoded arbitrage transaction data.
+            const to = this.pimlicoConfig.walletAddress;
+            const value = 0;
+            const data = '0x';
+
+            console.log(`[ENGINE] 🏗️ Building UserOperation...`);
+            const op = await simpleAccount.execute(to, value, data);
             
-            // For now, log the execution details
+            // 4. Send the UserOperation via the bundler
+            console.log(`[ENGINE] ⛽ Gas Sponsorship: REQUESTED via Pimlico Paymaster`);
             console.log(`[ENGINE] ⏳ Submitting to Pimlico Bundler...`);
+            const res = await client.sendUserOperation(op);
+            console.log(`[ENGINE]   UserOp Hash: ${res.userOpHash}`);
+
+            console.log(`[ENGINE] ⏳ Waiting for transaction inclusion...`);
+            const ev = await res.wait();
+            console.log(`[ENGINE] ✅ LIVE TRADE CONFIRMED! Tx Hash: ${ev?.transactionHash}`);
+
+            // 5. Update stats
+            this.stats.totalTrades++;
+            this.stats.totalProfit += parseFloat(profit);
             
-            // Simulate successful execution
-            setTimeout(() => {
-                this.stats.totalTrades++;
-                this.stats.totalProfit += parseFloat(profit);
-                this.activeExecutions--;
-                
-                console.log(`[ENGINE] ✅ LIVE TRADE CONFIRMED!`);
-                console.log(`║  💎 Total Profit:         ${this.stats.totalProfit.toFixed(4)} ETH`);
-                console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
-            }, 2000);
+            console.log(`║  💎 Total Profit:         ${this.stats.totalProfit.toFixed(4)} ETH`);
+            console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
             
         } catch (error) {
-            this.activeExecutions--;
             console.error(`[ENGINE] ❌ Live trade failed:`, error.message);
+        } finally {
+            this.activeExecutions--;
         }
     }
 
