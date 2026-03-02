@@ -62,17 +62,8 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE] ⚠️ Running in READY mode - missing keys for live execution`);
         }
 
-        console.log(`[ENGINE] 🔐 LIVE Trading Mode Configured:`);
-        console.log(`[ENGINE]   Wallet: ${this.pimlicoConfig.walletAddress}`);
-        console.log(`[ENGINE]   Pimlico API: ${this.pimlicoConfig.apiKey.substring(0, 8)}...`);
-        console.log(`[ENGINE]   EntryPoint: ${this.pimlicoConfig.entryPoint}`);
-        console.log(`[ENGINE]   ⛽ Paymaster: ACTIVE (Sponsorship enabled)`);
-        console.log(`[ENGINE]   Signer Address: ${this.signer.address}`);
-        console.log(`[ENGINE]   💰 Wallet Prefunding: NOT REQUIRED (Gasless)`);
-
         // Withdrawal mode: MANUAL or AUTO (configured via environment)
         this.withdrawalMode = this.config.withdrawalMode || 'MANUAL';
-        console.log(`[ENGINE]   Withdrawal Mode: ${this.withdrawalMode} (profits accumulated)`);
 
         // Subscribe to configuration updates
         configService.on('config_update', (newConfig) => {
