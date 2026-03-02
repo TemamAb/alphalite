@@ -370,6 +370,102 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
+  // Handler for uploading individual wallet address per row
+  const handleIndividualWalletUpload = async (idx: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.json,.txt';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const content = event.target?.result as string;
+            const addresses = content.split(/[\r\n]+/).map((line: string) => line.trim()).filter((line: string) => line.startsWith('0x'));
+            
+            if (addresses.length === 0) {
+              alert('No valid wallet address found in file');
+              return;
+            }
+            
+            const newAddr = addresses[0];
+            const res = await fetch(`/api/wallets/${wallets[idx].address}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address: newAddr })
+            });
+            
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({}));
+              throw new Error(errorData.error || `Server error: ${res.status}`);
+            }
+            
+            await fetchWallets();
+            alert(`Wallet address updated to: ${newAddr.slice(0, 10)}...`);
+          } catch (err: any) {
+            console.error('Failed to update wallet address:', err);
+            alert(`Failed to update wallet: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  // Handler for uploading individual private key per row
+  const handleIndividualKeyUpload = async (idx: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.csv';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const content = event.target?.result as string;
+            const keys = content.split(/[\r\n]+/).map((line: string) => line.trim()).filter((line: string) => line.length > 0);
+            
+            if (keys.length === 0) {
+              alert('No private key found in file');
+              return;
+            }
+            
+            let key = keys[0].trim();
+            if (!key.startsWith('0x')) key = '0x' + key;
+            
+            // Verify key and get address
+            const { ethers } = require('ethers');
+            const wallet = new ethers.Wallet(key);
+            const derivedAddress = wallet.address;
+            
+            // Update the wallet with the private key
+            const res = await fetch(`/api/wallets/${wallets[idx].address}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ privateKey: key })
+            });
+            
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({}));
+              throw new Error(errorData.error || `Server error: ${res.status}`);
+            }
+            
+            await fetchWallets();
+            alert(`Private key uploaded for wallet: ${derivedAddress.slice(0, 10)}...`);
+          } catch (err: any) {
+            console.error('Failed to upload private key:', err);
+            alert(`Failed to upload private key: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -750,13 +846,10 @@ export const DashboardLayout: React.FC = () => {
                     <thead>
                       <tr className="text-slate-400 border-b border-slate-700">
                         <th className="p-2 text-left">#</th>
-                        <th className="p-2 text-left">Name</th>
-                        <th className="p-2 text-left">Address</th>
-                        <th className="p-2 text-center">Logo</th>
-                        <th className="p-2 text-left">Provider</th>
+                        <th className="p-2 text-left">Wallet Address</th>
+                        <th className="p-2 text-left">Private Key</th>
                         <th className="p-2 text-left">Blockchain</th>
                         <th className="p-2 text-right">Balance</th>
-                        <th className="p-2 text-center">Key</th>
                         <th className="p-2 text-center">Status</th>
                         <th className="p-2 text-center">Actions</th>
                       </tr>
@@ -765,21 +858,40 @@ export const DashboardLayout: React.FC = () => {
                       {wallets.map((wallet: any, idx: number) => (
                         <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                           <td className="p-2 text-slate-400">{idx + 1}</td>
-                          <td className="p-2 text-slate-300">{wallet.name || `Wallet ${idx + 1}`}</td>
-                          <td className="p-2 font-mono text-slate-400">{wallet.address?.slice(0, 10)}...</td>
-                          <td className="p-2 text-center">
-                            {wallet.logo && <img src={wallet.logo} alt={wallet.provider} className="w-6 h-6 mx-auto rounded-full bg-slate-200 p-0.5" />}
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-300">{wallet.address?.slice(0, 10)}...</span>
+                              <label className="cursor-pointer text-blue-400 hover:text-blue-300">
+                                <Upload className="w-3 h-3" />
+                                <input 
+                                  type="file" 
+                                  accept=".csv,.json,.txt" 
+                                  className="hidden" 
+                                  onChange={() => handleIndividualWalletUpload(idx)}
+                                />
+                              </label>
+                            </div>
                           </td>
-                          <td className="p-2 text-slate-300">{wallet.provider || 'Unknown'}</td>
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              {wallet.hasKey ? (
+                                <Key className="w-4 h-4 text-yellow-400" title="Private Key Configured" />
+                              ) : (
+                                <span className="text-slate-600 text-xs">-</span>
+                              )}
+                              <label className="cursor-pointer text-yellow-400 hover:text-yellow-300">
+                                <Upload className="w-3 h-3" />
+                                <input 
+                                  type="file" 
+                                  accept=".txt,.csv" 
+                                  className="hidden" 
+                                  onChange={() => handleIndividualKeyUpload(idx)}
+                                />
+                              </label>
+                            </div>
+                          </td>
                           <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
                           <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
-                          <td className="p-2 text-center">
-                            {wallet.hasKey ? (
-                              <Key className="w-4 h-4 text-yellow-400 mx-auto" title="Private Key Configured" />
-                            ) : (
-                              <span className="text-slate-600 text-xs">-</span>
-                            )}
-                          </td>
                           <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -815,10 +927,10 @@ export const DashboardLayout: React.FC = () => {
                         </tr>
                       ))}
                       <tr className="bg-slate-700/50 font-bold text-white">
-                        <td colSpan={6} className="p-2">TOTAL</td>
-                        <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
+                        <td colSpan={3} className="p-2">TOTAL</td>
                         <td className="p-2">{wallets.length} wallets</td>
-                        <td></td>
+                        <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
+                        <td colSpan={2}></td>
                       </tr>
                     </tbody>
                   </table>

@@ -669,25 +669,46 @@ app.delete('/api/wallets/:address', (req, res) => {
  */
 app.put('/api/wallets/:address', (req, res) => {
     const oldAddr = req.params.address;
-    const { address: newAddr } = req.body;
-    
-    if (!newAddr) return res.status(400).json({ error: 'New address required' });
+    const { address: newAddr, privateKey } = req.body;
     
     const walletIndex = wallets.findIndex(w => w.address === oldAddr);
     if (walletIndex === -1) return res.status(404).json({ error: 'Wallet not found' });
     
-    const isValid = /^0x[a-fA-F0-9]{40}$/.test(newAddr);
-    const providerData = detectWalletProvider(newAddr);
-    const blockchain = detectBlockchain(newAddr);
+    // If private key is being updated, validate and set it
+    if (privateKey) {
+        try {
+            const { ethers } = require('ethers');
+            let key = privateKey.trim();
+            if (!key.startsWith('0x')) key = '0x' + key;
+            
+            const wallet = new ethers.Wallet(key);
+            wallets[walletIndex].privateKey = key;
+            wallets[walletIndex].hasKey = true;
+            
+            // If no new address provided, use derived address
+            if (!newAddr) {
+                wallets[walletIndex].address = wallet.address;
+            }
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid private key format' });
+        }
+    }
     
-    wallets[walletIndex] = {
-        ...wallets[walletIndex],
-        address: newAddr,
-        valid: isValid,
-        provider: providerData.name,
-        logo: providerData.logo,
-        blockchain
-    };
+    // If address is being updated
+    if (newAddr) {
+        const isValid = /^0x[a-fA-F0-9]{40}$/.test(newAddr);
+        const providerData = detectWalletProvider(newAddr);
+        const blockchain = detectBlockchain(newAddr);
+        
+        wallets[walletIndex] = {
+            ...wallets[walletIndex],
+            address: newAddr,
+            valid: isValid,
+            provider: providerData.name,
+            logo: providerData.logo,
+            blockchain
+        };
+    }
     
     res.json({ success: true, wallet: wallets[walletIndex] });
 });
