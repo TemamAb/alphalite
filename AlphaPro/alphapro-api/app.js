@@ -8,6 +8,7 @@ const profitEngine = require('./src/engine/EnterpriseProfitEngine');
 const preFlightCheckService = require('./PreFlightCheck');
 const rankingEngine = require('./src/services/RankingEngine');
 const aiOptimizer = require('./src/services/AIAutoOptimizer');
+const brainConnector = require('./src/services/BrainConnector');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -202,6 +203,44 @@ app.post('/api/ai/optimizer/trigger', (req, res) => {
         res.status(200).json({ status: 'Optimization triggered' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to trigger optimization' });
+    }
+});
+
+// Brain Connector endpoints
+app.get('/api/brain/status', async (req, res) => {
+    try {
+        const status = await brainConnector.getUnifiedStatus();
+        res.status(200).json(status);
+    } catch (error) {
+        console.error('[BRAIN] Status error:', error);
+        res.status(500).json({ error: 'Failed to get brain status' });
+    }
+});
+
+app.get('/api/brain/theoretical-max', async (req, res) => {
+    try {
+        const max = await brainConnector.getTheoreticalMaximum();
+        res.status(200).json(max);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get theoretical maximum' });
+    }
+});
+
+app.get('/api/brain/regime', async (req, res) => {
+    try {
+        const regime = await brainConnector.detectMarketRegime();
+        res.status(200).json({ regime });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to detect regime' });
+    }
+});
+
+app.post('/api/brain/optimize', async (req, res) => {
+    try {
+        const result = await brainConnector.requestOptimization();
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to request optimization' });
     }
 });
 
