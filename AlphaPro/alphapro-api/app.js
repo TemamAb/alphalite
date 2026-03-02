@@ -6,6 +6,7 @@ const https = require('https');
 const WebSocket = require('ws');
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
 const preFlightCheckService = require('./PreFlightCheck');
+const rankingEngine = require('./src/services/RankingEngine');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -134,6 +135,64 @@ app.use(express.json());
  */
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
+});
+
+// Ranking Engine API
+app.get('/api/rankings', (req, res) => {
+    try {
+        const report = rankingEngine.getRankingReport();
+        res.status(200).json(report);
+    } catch (error) {
+        console.error('[RANKING] Error:', error);
+        res.status(500).json({ error: 'Failed to get rankings' });
+    }
+});
+
+app.get('/api/rankings/chains', (req, res) => {
+    try {
+        const count = parseInt(req.query.count) || 10;
+        const chains = rankingEngine.getTopChains(count);
+        res.status(200).json({ chains });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get chain rankings' });
+    }
+});
+
+app.get('/api/rankings/dexes', (req, res) => {
+    try {
+        const chain = req.query.chain || null;
+        const count = parseInt(req.query.count) || 10;
+        const dexes = chain ? rankingEngine.getTopDexes(chain, count) : rankingEngine.getSortedDexes();
+        res.status(200).json({ dexes });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get DEX rankings' });
+    }
+});
+
+app.get('/api/rankings/pairs', (req, res) => {
+    try {
+        const count = parseInt(req.query.count) || 20;
+        const pairs = rankingEngine.getTopPairs(count);
+        res.status(200).json({ pairs });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get pair rankings' });
+    }
+});
+
+app.get('/api/rankings/opportunity', (req, res) => {
+    try {
+        const opportunity = rankingEngine.getBestOpportunity();
+        const recommendedChain = rankingEngine.getRecommendedChain();
+        const recommendedDex = recommendedChain ? rankingEngine.getRecommendedDex(recommendedChain.id) : null;
+        
+        res.status(200).json({
+            bestOpportunity: opportunity,
+            recommendedChain,
+            recommendedDex
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get opportunity' });
+    }
 });
 
 /**
