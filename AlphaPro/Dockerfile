@@ -3,8 +3,7 @@
 FROM node:20-alpine as client-build
 WORKDIR /app/client
 COPY AlphaPro/alphapro-api/client/package*.json ./
-COPY AlphaPro/alphapro-api/client/tsconfig.json ./
-RUN npm install && npm install -D typescript @types/react @types/react-dom
+RUN npm install
 COPY AlphaPro/alphapro-api/client/ ./
 RUN npm run build
 
