@@ -2,8 +2,8 @@
 REM Add all files
 git add .
 
-REM Create commit with fix message
-git commit -m "Fix module paths: DataFusionEngine and Dockerfile configService"
+REM Create commit with all upgrades
+git commit -m "AlphaPro upgrade: Add Sentinel, MEV Engineer, Oracle optimization, and Database"
 
 REM Push to master branch
 git push origin master

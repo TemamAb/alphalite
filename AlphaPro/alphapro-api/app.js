@@ -185,6 +185,100 @@ app.get('/api/engine/stats', (req, res) => {
 });
 
 /**
+ * Alpha-Copilot: AI-powered analysis and projection engine
+ * Analyzes simulation data and provides production performance projections
+ */
+app.get('/api/copilot', async (req, res) => {
+    const { question } = req.query;
+    
+    // Get engine stats for analysis
+    const engineStatus = profitEngine.getStatus();
+    const mode = profitEngine.getMode();
+    const stats = engineStatus.stats;
+    
+    // Calculate metrics for projection
+    const totalTrades = stats.totalTrades || 0;
+    const totalProfit = stats.totalProfit || 0;
+    const successfulTrades = stats.successfulTrades || 0;
+    const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
+    
+    // Calculate confidence score based on simulation performance
+    let confidenceScore = 0;
+    let projection = "";
+    
+    if (mode === 'PAPER' && totalTrades > 0) {
+        // Paper trading mode - calculate confidence based on performance
+        const profitFactor = totalProfit > 0 ? Math.min(totalProfit / 1000, 100) : 0;
+        const volumeFactor = Math.min(totalTrades / 100, 100);
+        const winRateFactor = winRate;
+        
+        confidenceScore = Math.min(
+            (profitFactor * 0.4) + (volumeFactor * 0.3) + (winRateFactor * 0.3),
+            95
+        );
+        
+        // Calculate projected monthly profit
+        const projectedDailyProfit = (totalProfit / Math.max(totalTrades, 1)) * 24;
+        const projectedMonthlyProfit = projectedDailyProfit * 30;
+        
+        projection = `Based on ${totalTrades} simulated trades with ${winRate.toFixed(1)}% win rate. ` +
+            `Projected monthly profit: ${projectedMonthlyProfit.toFixed(2)}. ` +
+            `Confidence Score: ${confidenceScore.toFixed(1)}%`;
+            
+        if (confidenceScore >= 70) {
+            projection += " Recommendation: READY for production deployment.";
+        } else if (confidenceScore >= 50) {
+            projection += " Recommendation: Continue simulation for better metrics.";
+        } else {
+            projection += " Recommendation: NOT READY. Risk too high.";
+        }
+    } else if (mode === 'LIVE') {
+        confidenceScore = 100;
+        projection = `System is running in LIVE mode. ` +
+            `Total Profit: ${totalProfit.toFixed(2)}. ` +
+            `Total Trades: ${totalTrades}. ` +
+            `Win Rate: ${winRate.toFixed(1)}%. ` +
+            `Warning: Real capital at risk.`;
+    } else {
+        projection = "System not running. Start engine in PAPER or LIVE mode for analysis.";
+    }
+    
+    // Generate answer based on question
+    let answer = projection;
+    
+    if (question && question.toLowerCase().includes('profit')) {
+        const projectedMonthlyProfit = mode === 'PAPER' && totalTrades > 0 
+            ? (totalProfit / totalTrades) * 24 * 30 
+            : 0;
+        answer = `Current total profit: ${totalProfit.toFixed(2)}. ` +
+            `Projected monthly profit: ${projectedMonthlyProfit.toFixed(2)}. ` +
+            `Confidence: ${confidenceScore.toFixed(1)}%`;
+    } else if (question && question.toLowerCase().includes('risk')) {
+        answer = `Risk Analysis: Win Rate ${winRate.toFixed(1)}%, ` +
+            `Total Trades ${totalTrades}, ` +
+            `Successful ${successfulTrades}. ` +
+            `Confidence Score: ${confidenceScore.toFixed(1)}%`;
+    } else if (question && (question.toLowerCase().includes('deploy') || question.toLowerCase().includes('ready'))) {
+        if (confidenceScore >= 70) {
+            answer = `DEPLOYMENT READY - Confidence Score: ${confidenceScore.toFixed(1)}% - Proceed with production deployment`;
+        } else {
+            answer = `NOT READY FOR DEPLOYMENT - Confidence Score: ${confidenceScore.toFixed(1)}% - Continue paper trading to improve metrics`;
+        }
+    }
+    
+    res.json({
+        answer,
+        metrics: {
+            mode,
+            totalTrades,
+            totalProfit,
+            winRate: winRate.toFixed(1),
+            confidenceScore: confidenceScore.toFixed(1)
+        }
+    });
+});
+
+/**
  * Endpoint to change the state of the trading engine.
  */
 app.post('/api/engine/state', (req, res) => {
