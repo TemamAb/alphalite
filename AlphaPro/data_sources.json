@@ -2,15 +2,299 @@
   "tier1_execution": {
     "alchemy": {
       "type": "websocket",
-      "url": "wss://eth-mainnet.g.alchemy.com/v2/",
+      "url": "wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF",
       "rate_limit": "300M compute units/month",
       "priority": 1
     },
     "infura": {
       "type": "websocket",
-      "url": "wss://mainnet.infura.io/ws/v3/",
+      "url": "wss://mainnet.infura.io/ws/v3/mK2nj6ZSi1mZ2THJMUHcF",
       "rate_limit": "100k requests/day",
       "priority": 2
+    }
+  },
+  "dex_aggregators": {
+    "1inch": {
+      "base_url": "https://api.1inch.io/v5.0",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "paraswap": {
+      "base_url": "https://apiv5.paraswap.io",
+      "rate_limit": "100 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom"]
+    },
+    "0x": {
+      "base_url": "https://api.0x.org",
+      "rate_limit": "50 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "kyberswap": {
+      "base_url": "https://aggregator-api.kyberswap.com",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom"]
+    },
+    "odos": {
+      "base_url": "https://api.odos.xyz",
+      "rate_limit": "100 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "openocean": {
+      "base_url": "https://open-api.openocean.finance",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom", "cronos"]
+    }
+  },
+  "dex_protocols": {
+    "ethereum": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+      },
+      "uniswap_v2": {
+        "factory": "0x5C69bEe701ef814a2B6B3cC4e8C1d24e4E8Bd6E2",
+        "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
+      },
+      "sushiswap": {
+        "factory": "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac",
+        "router": "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/v3-ethereum"
+      },
+      "curve": {
+        "factory": "0x90E00ACe048caE8C07E9B85fD8adfCa4Fe3b29F4",
+        "registry": "0x8F73e4C5BEC5F7fC5b60f9E8a82d6b6D29d1a0B0",
+        "graph": "https://api.thegraph.com/subgraphs/name/curvefi/curve-v1"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "graph": "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2"
+      }
+    },
+    "polygon": {
+      "quickswap": {
+        "factory": "0x4112521738B77fbBC9d48e4F805C1F40F6F80b3F",
+        "router": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+        "graph": "https://api.thegraph.com/subgraphs/name/somewhere/quickswap-v3"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/matic"
+      },
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      },
+      "dodo": {
+        "factory": "0xFe9C62a09F72D3d4a73Eb2f12c88c4C1D2E89B77",
+        "router": "0xA867241c8c11cB46d0d3f6F2a3F0e5c7Bb80E5c"
+      }
+    },
+    "arbitrum": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum-one"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/arbitrum"
+      },
+      "camelot": {
+        "factory": "0x6EcCab4227591eB283a65b1Ad87aD7085F2E14b6",
+        "router": "0x8931470215BF8b9Ad2c46A6A88b0C86bC4b28bC1"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      },
+      "dodo": {
+        "factory": "0xA6cc1d4dC9F3eBb9C3Bf4F7c2F8E1f3d2E7f7e7",
+        "router": "0x9b1e3B15eF1d4C0b5c7e8f1a2b3c4d5e6f7a8b9c"
+      }
+    },
+    "optimism": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "velodrome": {
+        "factory": "0x25C602a5Ec28b6d8f2C65eBb2c2A8e5d2E3f4A5b",
+        "router": "0x3d4Cd6E4f3d8E1d7E3f5C9C8E2B1A0d9C8B7A6F5"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      }
+    },
+    "bsc": {
+      "pancakeswap_v3": {
+        "factory": "0x0BFbCF9fa4f9bc9363028a5b3b0Aad7E7F1F0B7E",
+        "router": "0x10ED43C718714eb63D5aA6B0F1Fb6D2e7a0c8D9E",
+        "graph": "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc"
+      },
+      "pancakeswap_v2": {
+        "factory": "0xBCfCcbde45cE874adCB698cC183deBcF17952812",
+        "router": "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "apeswap": {
+        "factory": "0x0841BD0C73492352d2a0E2059fD9fAF0a5eE8b6C",
+        "router": "0xC0788A3aD43d79aa53B09c2Ea3EDF490208645e4"
+      },
+      "biswap": {
+        "factory": "0x858E3312ed3A87694751B0E32cE0e6D40C20D031",
+        "router": "0x3a1D0ea8F3d0e7B4b9b4B4B4B4B4B4B4B4B4B4B4B"
+      },
+      "babyswap": {
+        "factory": "0x2C6EbaF6d3B8A77d8f7A7B8D6c5E4d3C2b1A0F9E",
+        "router": "0x15e6Dff5B4B4e3B2e1D9F8E7C6B5A4D3C2B1E0F9"
+      },
+      "mdex": {
+        "factory": "0x73cAbE9Ee6C71e9d92aF98D0cA8C2c3d4E5F6A7B",
+        "router": "0x7a0d0B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A"
+      }
+    },
+    "avalanche": {
+      "traderjoe": {
+        "factory": "0x9Ad6C38BE94206cA50bb0d90783181662f0C6F10",
+        "router": "0xD53e13D9D4C2e4B5C6D7E8F9A0B1C2D3E4F5A6B"
+      },
+      "pangolin": {
+        "factory": "0xE4e98809E4f4E5C6B7F8B5D9C6A4F3E2D1B0C9A8",
+        "router": "0xB4F4dD4C6A7D8B9C0D1E2F3A4B5C6D7E8F9A0B1C"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+      }
+    },
+    "fantom": {
+      "spiritswap": {
+        "factory": "0xEF45d134b73241eDa7703fa787148D9C9F5350d3",
+        "router": "0x7ac55C94B1D75c8E8e3E4bB4B5C6D7E8F9A0B1C2"
+      },
+      "spookyswap": {
+        "factory": "0x152eE697c2C63de1f1F2B3a4C5D6E7F8A9B0C1D2",
+        "router": "0xF1b3E4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B1"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "beethoven": {
+        "factory": "0x20dd60eDd9441C8C0c740A34C6fD2f17e1B1C8A4",
+        "router": "0xB4F4dD4C6A7D8B9C0D1E2F3A4B5C6D7E8F9A0B1"
+      },
+      "saddle": {
+        "factory": "0x4f3E8b0c2e8B0d1C3A4b5D6E7F8A9B0C1D2E3F4A",
+        "router": "0x5D4D4F5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1"
+      }
+    },
+    "base": {
+      "uniswap_v3": {
+        "factory": "0x33128a8fC17869897dcE245Ed6B8d3C2b8BdC6a",
+        "router": "0x4eDbC1B8C5D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1"
+      },
+      "sushiswap": {
+        "factory": "0x7154F2B3C4d1Ea0f8C9E1B4D5E6F7A8B9C0D1E2F",
+        "router": "0x4A6D4B3C2D1E0F9A8B7C6D5E4F3A2B1C0D9E8F7A"
+      },
+      "aerodrome": {
+        "factory": "0x420DD5b8C7c3A6E6E5f6D7E8F9A0B1C2D3E4F5A6B",
+        "router": "0x789E0C0D1E2F3A4B5C6D7E8F9A0B1C2D3E4F5A6B"
+      }
+    },
+    "scroll": {
+      "zebra": {
+        "factory": "0x69B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4",
+        "router": "0x789ABCDEF0123456789ABCDEF0123456789ABCD"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "linea": {
+      "iziswap": {
+        "factory": "0x2a10db0b60e54f96e4b30bf89c9a1f9c3d0e8b9f",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "mantle": {
+      "cleopatra": {
+        "factory": "0x1234567890abcdef1234567890abcdef12345678",
+        "router": "0xabcdef1234567890abcdef1234567890abcdef12"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "gnosis": {
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      }
+    },
+    "cronos": {
+      "cronaswap": {
+        "factory": "0xD6AbE4D2e6E5B5D4C6D7E8F9A0B1C2D3E4F5A6B",
+        "router": "0x789ABCDEF0123456789ABCDEF0123456789ABCD"
+      },
+      "vvs": {
+        "factory": "0x567ea0BAfA9A4bC6D0c6D7E8F9A0B1C2D3E4F5A6",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      }
+    },
+    "moonbeam": {
+      "stellaswap": {
+        "factory": "0x9876543210abcdef9876543210abcdef98765432",
+        "router": "0xfedcba0987654321fedcba0987654321fedcba09"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "kava": {
+      "eternal": {
+        "factory": "0xabcdef1234567890abcdef1234567890abcdef12",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
     }
   },
   "tier2_discovery": {
@@ -20,20 +304,80 @@
       "rate_limit": "300 requests/minute",
       "endpoints": {
         "tokens": "/tokens/",
-        "pairs": "/pairs/"
+        "pairs": "/pairs/",
+        "orders": "/orders/"
       }
     },
     "birdeye": {
       "type": "rest",
       "base_url": "https://public-api.birdeye.so",
-      "rate_limit": "Standard Public Key Limits"
-    }
-  },
-  "tier3_context": {
+      "rate_limit": "60 requests/minute",
+      "endpoints": {
+        "tokens": "/defi/tokenlist",
+        "price": "/defi/token_overview",
+        "history": "/defi/history"
+      }
+    },
+    "dextools": {
+      "type": "rest",
+      "base_url": "https://api.dextools.io/v2",
+      "rate_limit": "100 requests/minute",
+      "endpoints": {
+        "pairs": "/pairs",
+        "trending": "/trending"
+      }
+    },
     "coingecko": {
       "type": "rest",
       "base_url": "https://api.coingecko.com/api/v3",
-      "rate_limit": "30 requests/minute"
+      "rate_limit": "30 requests/minute",
+      "endpoints": {
+        "coins": "/coins/",
+        "markets": "/coins/markets",
+        "price": "/simple/price"
+      }
+    },
+    "coinmarketcap": {
+      "type": "rest",
+      "base_url": "https://pro-api.coinmarketcap.com/v1",
+      "rate_limit": "333 requests/minute",
+      "endpoints": {
+        "quotes": "/quote",
+        "map": "/cryptocurrency/map"
+      }
+    }
+  },
+  "lending_protocols": {
+    "aave": {
+      "ethereum": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A3",
+      "polygon": "0x8dFf5E27E6FC3A4023753458460F5921B37AbF4D",
+      "arbitrum": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+    },
+    "compound": {
+      "ethereum": "0x3d5A3E70266a40B852A65C7B1c48f12f5B4dE27E"
+    },
+    "makerdao": {
+      "ethereum": "0x35D1b3F3D7966A1DFe207aa2514e8358aF24eB71"
+    },
+    "lido": {
+      "ethereum": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
+    },
+    "yearn": {
+      "ethereum": "0x2f08119C6f07c006675E6DD8282e0746D56cF7c2"
+    }
+  },
+  "nft_aggregators": {
+    "opensea": {
+      "base_url": "https://api.opensea.io/v2",
+      "rate_limit": "5 requests/second"
+    },
+    "blur": {
+      "base_url": "https://api.blur.io/v1",
+      "rate_limit": "10 requests/second"
+    },
+    "looksrare": {
+      "base_url": "https://api.looksrare.org/api/v1",
+      "rate_limit": "10 requests/minute"
     }
   }
 }
