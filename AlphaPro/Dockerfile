@@ -4,7 +4,7 @@ FROM node:20-alpine as client-build
 WORKDIR /app/client
 COPY alphapro-api/client/package*.json ./
 COPY alphapro-api/client/tsconfig.json ./
-RUN npm install
+RUN npm install && npm install -D typescript @types/react @types/react-dom
 COPY alphapro-api/client/ ./
 RUN npm run build
 
@@ -14,7 +14,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY alphapro-api/package*.json ./
-RUN npm install --production
+RUN npm install --production && npm install dotenv
 
 # Copy source files
 COPY alphapro-api/src ./src
