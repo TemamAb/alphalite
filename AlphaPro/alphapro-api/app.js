@@ -606,12 +606,15 @@ app.post('/api/wallets/upload-keys', async (req, res) => {
                 // Check if wallet exists
                 const existingWallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
 
+                // Check if system is in LIVE (production) mode
+                const isLiveMode = profitEngine && profitEngine.getMode() === 'LIVE';
+
                 if (existingWallet) {
                     existingWallet.privateKey = key;
                     existingWallet.hasKey = true;
-                    // Wallet is valid only if it has a valid address AND private key
+                    // Wallet is valid only if it has a valid address AND private key AND system is in LIVE mode
                     const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(existingWallet.address);
-                    existingWallet.valid = isValidAddr;
+                    existingWallet.valid = isValidAddr && isLiveMode;
                     matchedCount++;
                 } else {
                     // Auto-populate: Create new wallet if it doesn't exist
@@ -633,7 +636,7 @@ app.post('/api/wallets/upload-keys', async (req, res) => {
                     wallets.push({
                         address: address,
                         name: `Wallet ${wallets.length + 1}`,
-                        valid: true,
+                        valid: isValid && isLiveMode, // Only valid in LIVE mode
                         provider: providerData.name,
                         logo: providerData.logo,
                         blockchain,
@@ -699,6 +702,9 @@ app.put('/api/wallets/:address', (req, res) => {
     const walletIndex = wallets.findIndex(w => w.address === oldAddr);
     if (walletIndex === -1) return res.status(404).json({ error: 'Wallet not found' });
     
+    // Check if system is in LIVE (production) mode
+    const isLiveMode = profitEngine && profitEngine.getMode() === 'LIVE';
+    
     // If private key is being updated, validate and set it
     if (privateKey) {
         try {
@@ -710,9 +716,9 @@ app.put('/api/wallets/:address', (req, res) => {
             wallets[walletIndex].privateKey = key;
             wallets[walletIndex].hasKey = true;
             
-            // Wallet is valid only if it has a valid address AND private key
+            // Wallet is valid only if it has a valid address AND private key AND system is in LIVE mode
             const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(wallets[walletIndex].address);
-            wallets[walletIndex].valid = isValidAddr;
+            wallets[walletIndex].valid = isValidAddr && isLiveMode;
             
             // If no new address provided, use derived address
             if (!newAddr) {
@@ -729,8 +735,8 @@ app.put('/api/wallets/:address', (req, res) => {
         const providerData = detectWalletProvider(newAddr);
         const blockchain = detectBlockchain(newAddr);
         
-        // Wallet is valid only if it has a valid address AND private key
-        const walletIsValid = isValid && !!wallets[walletIndex].privateKey;
+        // Wallet is valid only if it has a valid address AND private key AND system is in LIVE mode
+        const walletIsValid = isValid && !!wallets[walletIndex].privateKey && isLiveMode;
         
         wallets[walletIndex] = {
             ...wallets[walletIndex],
