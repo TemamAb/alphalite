@@ -1,4 +1,5 @@
 @echo off
-git add .
-git commit -m "feat(wallets): Add private key statistics to table footer"
+cd /d "%~dp0AlphaPro"
+git add -A
+git commit -m "fix: Docker deployment and .env configuration"
 git push origin master

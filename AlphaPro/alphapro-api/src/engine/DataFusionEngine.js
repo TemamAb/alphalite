@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const ReconnectingWebSocket = require('reconnecting-websocket');
 const axios = require('axios');
 const path = require('path');
-const { setTimeout } = require('timers/promises');
+const { setTimeout: setTimeoutPromises } = require('timers/promises');
 
 // Try multiple paths for config - prefer the AlphaPro root config
 let configService;
@@ -76,11 +76,17 @@ class DataFusionEngine extends EventEmitter {
         
         // Connect to all configured chains concurrently
         let connectedCount = 0;
-        this.chains.forEach(chain => {
-            if (this.connectChain(chain)) {
+        const maxConcurrentConnections = 3; // Limit concurrent connections to avoid rate limiting
+        
+        for (let i = 0; i < this.chains.length; i++) {
+            // Add delay between connections to avoid rate limiting
+            if (i > 0) {
+                await setTimeoutPromises(2000);
+            }
+            if (this.connectChain(this.chains[i])) {
                 connectedCount++;
             }
-        });
+        }
 
         // Wait for connections with timeout
         const connectionTimeout = new Promise((resolve) => {
@@ -126,7 +132,11 @@ class DataFusionEngine extends EventEmitter {
         
         // Build WebSocket URL with API key
         let url = chain.wsUrl || chain.alchemyUrl;
-        if (this.alchemyKey && !url.includes(this.alchemyKey)) {
+        if (!url) {
+            console.log(`[DATA-FUSION] ⚠️ ${chain.name}: No WebSocket URL configured, skipping.`);
+            return false;
+        }
+        if (this.alchemyKey && typeof url === 'string' && !url.includes(this.alchemyKey)) {
             url = `${url}${this.alchemyKey}`;
         }
         
@@ -169,7 +179,15 @@ class DataFusionEngine extends EventEmitter {
             });
 
             ws.addEventListener('error', (err) => {
-                console.error(`[DATA-FUSION] ❌ ${chain.name} WS Error:`, err.message);
+                // Handle rate limiting (429) and forbidden (403) errors gracefully
+                const errorMsg = err.message || '';
+                if (errorMsg.includes('429') || errorMsg.includes('Too Many Requests')) {
+                    console.warn(`[DATA-FUSION] ⚠️  ${chain.name} WebSocket rate limited. Will retry automatically.`);
+                } else if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
+                    console.warn(`[DATA-FUSION] ⚠️  ${chain.name} WebSocket access forbidden. Using REST API fallback.`);
+                } else {
+                    console.error(`[DATA-FUSION] ❌ ${chain.name} WS Error:`, err.message);
+                }
             });
             
             return true;
