@@ -1,6 +1,7 @@
 # Multi-stage Build for AlphaPro Unified Service
 # Stage 1: Build React Frontend
 FROM node:20-alpine as client-build
+RUN apk add --no-cache python3 make g++
 WORKDIR /app/client
 COPY AlphaPro/alphapro-api/client/package*.json ./
 RUN npm install
