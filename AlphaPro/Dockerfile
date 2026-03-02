@@ -2,10 +2,10 @@
 # Stage 1: Build React Frontend
 FROM node:20-alpine as client-build
 WORKDIR /app/client
-COPY alphapro-api/client/package*.json ./
-COPY alphapro-api/client/tsconfig.json ./
+COPY AlphaPro/alphapro-api/client/package*.json ./
+COPY AlphaPro/alphapro-api/client/tsconfig.json ./
 RUN npm install && npm install -D typescript @types/react @types/react-dom
-COPY alphapro-api/client/ ./
+COPY AlphaPro/alphapro-api/client/ ./
 RUN npm run build
 
 # Stage 2: Build Node.js API - production dependencies only
@@ -13,24 +13,20 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY alphapro-api/package*.json ./
+COPY AlphaPro/alphapro-api/package*.json ./
 RUN npm install --production && npm install dotenv
 
 # Copy source files
-COPY alphapro-api/src ./src
-COPY alphapro-api/app.js .
-COPY alphapro-api/config ./config
+COPY AlphaPro/alphapro-api/src ./src
+COPY AlphaPro/alphapro-api/app.js .
+COPY AlphaPro/alphapro-api/config ./config
 
 # Copy data sources and preflight check
-COPY data_sources.json .
-COPY PreFlightCheck.js .
+COPY AlphaPro/data_sources.json .
+COPY AlphaPro/PreFlightCheck.js .
 
 # Copy config service for environment variable handling
-COPY configService.js .
-
-# Note: .env file is NOT copied to image - environment variables
-# should be provided by Render's environment. For local development,
-# create a .env file in the AlphaPro directory.
+COPY AlphaPro/configService.js .
 
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist

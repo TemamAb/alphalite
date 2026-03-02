@@ -12,7 +12,8 @@ services:
   # The Core (Node API + React Frontend)
   - name: alphapro-api
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: AlphaPro/Dockerfile
+    rootDir: .
     plan: standard
     envVars:
       # Trading Configuration
