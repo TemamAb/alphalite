@@ -1,6 +1,7 @@
 # Multi-stage Build for AlphaPro Unified Service
 # Stage 1: Build React Frontend
 FROM node:20-alpine as client-build
+RUN apk add --no-cache python3 make g++
 WORKDIR /app/client
 COPY AlphaPro/alphapro-api/client/package*.json ./
 COPY AlphaPro/alphapro-api/client/tsconfig.json ./
@@ -26,6 +27,9 @@ COPY AlphaPro/alphapro-api/config ./config
 # Copy data sources and preflight check
 COPY AlphaPro/data_sources.json .
 COPY AlphaPro/PreFlightCheck.js .
+
+# Copy config service for environment variable handling
+COPY AlphaPro/configService.js .
 
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist

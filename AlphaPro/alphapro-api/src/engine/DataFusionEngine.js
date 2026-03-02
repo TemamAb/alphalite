@@ -11,8 +11,8 @@ const ReconnectingWebSocket = require('reconnecting-websocket');
 const axios = require('axios');
 const path = require('path');
 const { setTimeout } = require('timers/promises'); // Using promises version for async/await
-const config = require(path.join(__dirname, '..', '..', '..', 'data_sources.json'));
-const configService = require('../../../configService');
+const config = require(path.join(__dirname, '..', '..', 'data_sources.json'));
+const configService = require('../../configService');
 
 class DataFusionEngine extends EventEmitter {
 

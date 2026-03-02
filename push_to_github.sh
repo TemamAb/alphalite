@@ -1,15 +1,9 @@
 #!/bin/bash
-# Initialize git repository
-git init
-
 # Add all files
 git add .
 
-# Create initial commit
-git commit -m "Initial commit of Alphalite app"
+# Create commit with fix message
+git commit -m "Fix module paths: DataFusionEngine and Dockerfile configService"
 
-# Add remote origin
-git remote add origin https://github.com/TemamAb/alphalite.git
-
-# Push to main branch
-git push origin main
+# Push to master branch
+git push origin master

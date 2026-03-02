@@ -1,17 +1,9 @@
 @echo off
-REM Initialize git repository
-git init
-
 REM Add all files
 git add .
 
-REM Create initial commit
-git commit -m "Initial commit of Alphalite app"
+REM Create commit with fix message
+git commit -m "Fix module paths: DataFusionEngine and Dockerfile configService"
 
-REM Add remote origin
-git remote add origin https://github.com/TemamAb/alphalite.git
-
-REM Push to main branch
-git push origin main
-
-pause
+REM Push to master branch
+git push origin master
