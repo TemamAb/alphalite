@@ -1,4 +1,4 @@
 @echo off
 git add .
-git commit -m "Fix: Enhanced config service with more env key fallbacks and .env support"
+git commit -m "Fix: Config path resolution, market data APIs, and .env fallback"
 git push origin master

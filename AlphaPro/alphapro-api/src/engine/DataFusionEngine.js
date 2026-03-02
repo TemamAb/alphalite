@@ -5,14 +5,23 @@
 
 const EventEmitter = require('events');
 const WebSocket = require('ws');
-
-
 const ReconnectingWebSocket = require('reconnecting-websocket');
 const axios = require('axios');
 const path = require('path');
-const { setTimeout } = require('timers/promises'); // Using promises version for async/await
-const config = require(path.join(__dirname, '..', '..', 'data_sources.json'));
-const configService = require('../../configService');
+const { setTimeout } = require('timers/promises');
+
+// Try multiple paths for config
+let configService;
+try {
+    configService = require('../../../configService');
+} catch (e) {
+    try {
+        configService = require('../../configService');
+    } catch (e2) {
+        console.error('[DATA-FUSION] Could not load configService:', e2.message);
+        configService = { getConfig: () => ({}) };
+    }
+}
 
 class DataFusionEngine extends EventEmitter {
 

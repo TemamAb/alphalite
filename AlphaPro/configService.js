@@ -146,9 +146,15 @@ class ConfigService extends EventEmitter {
             
             // Market Data APIs
             marketData: {
-                coingeckoUrl: getConfigValue('COINGECKO_API_URL', ['coingecko_api_url', 'coingecko_url'], 'https://api.coingecko.com/api/v3'),
-                dexscreenerUrl: getConfigValue('DEXSCREENER_API_URL', ['dexscreener_api_url'], 'https://api.dexscreener.com/latest/dex'),
-                birdeyeUrl: getConfigValue('BIRDEYE_API_URL', ['birdeye_api_url'], 'https://public-api.birdeye.so'),
+                coingeckoUrl: getConfigValue('COINGECKO_API_URL', ['coingecko_api_url', 'coingecko_url', 'COINGECKO_URL'], 'https://api.coingecko.com/api/v3'),
+                dexscreenerUrl: getConfigValue('DEXSCREENER_API_URL', ['dexscreener_api_url', 'DEXSCREENER_URL', 'DEXSCREENER_API'], 'https://api.dexscreener.com/latest/dex'),
+                birdeyeUrl: getConfigValue('BIRDEYE_API_URL', ['birdeye_api_url', 'BIRDEYE_URL', 'BIRDEYE_API'], 'https://public-api.birdeye.so'),
+            },
+            
+            // Market Data API Keys
+            marketApiKeys: {
+                coingecko: getConfigValue('COINGECKO_API_KEY', ['coingecko_key'], null),
+                birdeye: getConfigValue('BIRDEYE_API_KEY', ['birdeye_key'], null),
             }
         };
         
@@ -177,6 +183,9 @@ class ConfigService extends EventEmitter {
             { name: 'Alchemy API', value: this.config.alchemyApiKey ? 'configured' : 'MISSING' },
             { name: 'ETH RPC', value: this.config.rpcUrls.ethereum ? 'configured' : 'MISSING' },
             { name: 'WebSocket ETH', value: this.config.wsUrls.ethereum ? 'configured' : 'MISSING' },
+            { name: 'Coingecko', value: this.config.marketData.coingeckoUrl ? 'configured' : 'MISSING' },
+            { name: 'DexScreener', value: this.config.marketData.dexscreenerUrl ? 'configured' : 'MISSING' },
+            { name: 'Birdeye', value: this.config.marketData.birdeyeUrl ? 'configured' : 'MISSING' },
         ];
         
         critical.forEach(item => {
