@@ -966,7 +966,10 @@ export const DashboardLayout: React.FC = () => {
                         <td colSpan={3} className="p-2">TOTAL</td>
                         <td className="p-2">{wallets.length} wallets</td>
                         <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
-                        <td colSpan={2}></td>
+                        <td className="p-2 text-center">
+                          <span className="text-yellow-400">{wallets.filter((w: any) => w.hasKey).length} with keys</span>
+                        </td>
+                        <td></td>
                       </tr>
                     </tbody>
                   </table>
