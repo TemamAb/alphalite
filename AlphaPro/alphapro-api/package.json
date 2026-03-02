@@ -17,6 +17,7 @@
     "ws": "^8.14.2",
     "dotenv": "^16.3.1",
     "reconnecting-websocket": "^4.4.0",
-    "undici": "5.28.3"
+    "undici": "5.28.3",
+    "userop": "^0.3.1"
   }
 }

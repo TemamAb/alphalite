@@ -2,8 +2,8 @@
 # Add all files
 git add .
 
-# Create commit with all upgrades
-git commit -m "AlphaPro upgrade: Add Sentinel, MEV Engineer, Oracle optimization, and Database"
+# Create commit with fix
+git commit -m "Fix: Add userop dependency"
 
 # Push to master branch
 git push origin master
