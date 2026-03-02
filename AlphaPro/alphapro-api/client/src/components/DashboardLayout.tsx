@@ -39,6 +39,14 @@ interface EngineStats {
   winRate: number;
 }
 
+interface WithdrawalRecord {
+  id: string;
+  timestamp: Date;
+  amount: number;
+  status: 'Completed' | 'Pending';
+  txHash: string;
+}
+
 export const DashboardLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [currency, setCurrency] = useState('ETH');
@@ -58,12 +66,26 @@ export const DashboardLayout: React.FC = () => {
   const [capitalVelocity, setCapitalVelocity] = useState(100);
   const [autoThreshold, setAutoThreshold] = useState('0.1');
   const [manualAmount, setManualAmount] = useState('0.01');
-  const [walletTableCollapsed, setWalletTableCollapsed] = useState(false);
-  const [profitWithdrawalCollapsed, setProfitWithdrawalCollapsed] = useState(false);
-  const [tradingParamsCollapsed, setTradingParamsCollapsed] = useState(false);
+  const [walletTableCollapsed, setWalletTableCollapsed] = useState(() => {
+    const saved = localStorage.getItem('walletTableCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [profitWithdrawalCollapsed, setProfitWithdrawalCollapsed] = useState(() => {
+    const saved = localStorage.getItem('profitWithdrawalCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [tradingParamsCollapsed, setTradingParamsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('tradingParamsCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
   const [targetMode, setTargetMode] = useState<'PAPER' | 'LIVE'>('PAPER');
   const [ethPrice, setEthPrice] = useState(3500);
   const [isRefreshingWallets, setIsRefreshingWallets] = useState(false);
+  const [withdrawalRecords, setWithdrawalRecords] = useState<WithdrawalRecord[]>([]);
+  const [withdrawalHistoryCollapsed, setWithdrawalHistoryCollapsed] = useState(() => {
+    const saved = localStorage.getItem('withdrawalHistoryCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
 
   // Helper to format values based on selected currency
   const getDisplayValue = (ethValue: number | string) => {
@@ -136,6 +158,23 @@ export const DashboardLayout: React.FC = () => {
       console.error('Failed to fetch ETH price:', err);
     }
   }, []);
+
+  // Persist UI preferences
+  useEffect(() => {
+    localStorage.setItem('walletTableCollapsed', JSON.stringify(walletTableCollapsed));
+  }, [walletTableCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('profitWithdrawalCollapsed', JSON.stringify(profitWithdrawalCollapsed));
+  }, [profitWithdrawalCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('tradingParamsCollapsed', JSON.stringify(tradingParamsCollapsed));
+  }, [tradingParamsCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('withdrawalHistoryCollapsed', JSON.stringify(withdrawalHistoryCollapsed));
+  }, [withdrawalHistoryCollapsed]);
 
   // Initial fetch and interval
   useEffect(() => {
@@ -558,11 +597,23 @@ export const DashboardLayout: React.FC = () => {
                     className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
                   />
                   <button onClick={async () => {
-                    await fetch('/api/wallets/withdraw', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ mode: 'manual', amount: manualAmount })
-                    });
+                    // In a real app, the API would return the transaction details
+                    const newRecord: WithdrawalRecord = {
+                      id: new Date().toISOString(),
+                      timestamp: new Date(),
+                      amount: parseFloat(manualAmount),
+                      status: 'Pending',
+                      // Mock transaction hash for demonstration
+                      txHash: '0x' + [...Array(64)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
+                    };
+                    setWithdrawalRecords(prev => [newRecord, ...prev]);
+
+                    // Simulate API call
+                    // await fetch('/api/wallets/withdraw', {
+                    //   method: 'POST',
+                    //   headers: { 'Content-Type': 'application/json' },
+                    //   body: JSON.stringify({ mode: 'manual', amount: manualAmount })
+                    // });
                     alert('Withdrawal initiated!');
                   }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
                     Withdraw {manualAmount} ETH
@@ -570,6 +621,65 @@ export const DashboardLayout: React.FC = () => {
                 </div>
               )}
               </>
+              )}
+            </div>
+
+            {/* Withdrawal History */}
+            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Withdrawal History</h3>
+                <button 
+                  onClick={() => setWithdrawalHistoryCollapsed(!withdrawalHistoryCollapsed)} 
+                  className="text-slate-400 hover:text-white transition-colors p-1"
+                  title={withdrawalHistoryCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {withdrawalHistoryCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {!withdrawalHistoryCollapsed && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-700">
+                        <th className="p-2 text-left">Date</th>
+                        <th className="p-2 text-right">Amount</th>
+                        <th className="p-2 text-center">Status</th>
+                        <th className="p-2 text-left">Transaction ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {withdrawalRecords.length > 0 ? (
+                        withdrawalRecords.map((record) => (
+                          <tr key={record.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                            <td className="p-2 text-slate-400">{record.timestamp.toLocaleString()}</td>
+                            <td className="p-2 text-right font-mono text-yellow-400">{record.amount.toFixed(4)} ETH</td>
+                            <td className="p-2 text-center">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                record.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 
+                                'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {record.status}
+                              </span>
+                            </td>
+                            <td className="p-2 font-mono text-blue-400 hover:underline">
+                              <a href={`https://etherscan.io/tx/${record.txHash}`} target="_blank" rel="noopener noreferrer" title={record.txHash}>
+                                {record.txHash.slice(0, 10)}...{record.txHash.slice(-8)}
+                              </a>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="p-4 text-center text-slate-500">No withdrawal records found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
