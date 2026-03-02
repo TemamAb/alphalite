@@ -1,4 +1,4 @@
 #!/bin/bash
 git add .
-git commit -m "Fix: Add Alchemy key variants and debug logging for env vars"
+git commit -m "Full Integration: Brain Connector, AI Optimizer, Ranking, Copilot, Dashboard"
 git push origin master
