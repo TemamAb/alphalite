@@ -304,16 +304,29 @@ export const DashboardLayout: React.FC = () => {
           const content = e.target?.result as string;
           // Use regex to handle both Windows (\r\n) and Unix (\n) line endings
           const addresses = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.startsWith('0x'));
-          await fetch('/api/wallets/import', {
+          
+          if (addresses.length === 0) {
+            alert('No valid wallet addresses found. Addresses must start with 0x');
+            return;
+          }
+          
+          const res = await fetch('/api/wallets/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ addresses })
           });
-          fetchWallets();
-          alert(`${addresses.length} wallets imported successfully!`);
-        } catch (err) {
+          
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server error: ${res.status}`);
+          }
+          
+          const data = await res.json();
+          await fetchWallets();
+          alert(`${data.count || addresses.length} wallets imported successfully!`);
+        } catch (err: any) {
           console.error('Failed to import wallets:', err);
-          alert('Failed to import wallets. Please check the file format and console for errors.');
+          alert(`Failed to import wallets: ${err.message}`);
         }
       };
       reader.readAsText(file);
@@ -329,17 +342,28 @@ export const DashboardLayout: React.FC = () => {
           const content = e.target?.result as string;
           const keys = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.length > 0);
           
-          await fetch('/api/wallets/upload-keys', {
+          if (keys.length === 0) {
+            alert('No private keys found in file');
+            return;
+          }
+          
+          const res = await fetch('/api/wallets/upload-keys', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keys })
           });
           
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server error: ${res.status}`);
+          }
+          
+          const data = await res.json();
           await fetchWallets();
-          alert('Private keys processed. Wallets auto-populated successfully.');
-        } catch (err) {
+          alert(`Private keys processed! Matched: ${data.matched || 0}, New: ${data.new || 0}`);
+        } catch (err: any) {
           console.error('Failed to upload keys:', err);
-          alert('Failed to upload keys');
+          alert(`Failed to upload keys: ${err.message}`);
         }
       };
       reader.readAsText(file);
