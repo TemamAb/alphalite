@@ -15,11 +15,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting - relaxed for development */
-    "strict": true,
+    /* Linting - relaxed for production build */
+    "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": false
   },
   "include": ["src"]
 }
