@@ -1,4 +1,5 @@
 const DataFusionEngine = require('./DataFusionEngine');
+const RankingEngine = require('../services/RankingEngine');
 let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
 
@@ -84,7 +85,8 @@ class EnterpriseProfitEngine {
             this.config = newConfig;
         });
 
-
+        // Initialize Ranking Engine integration
+        this.initializeRankingIntegration();
 
         this.activeExecutions = 0;
 
@@ -96,7 +98,12 @@ class EnterpriseProfitEngine {
         this.dataFusionEngine.start().catch(err => {
             console.error("[ENGINE] Failed to start DataFusionEngine:", err);
         });
-
+        
+        // Priority tracking from rankings
+        this.topChains = [];
+        this.topPairs = [];
+        this.bestOpportunity = null;
+        
         console.log(`[ENGINE] Initialized in ${this.mode.toUpperCase()} mode.`);
         console.log(`[ENGINE] 📊 Strategy Rankings Loaded:`);
         this.strategyRankings.forEach((s, i) => {
@@ -104,6 +111,51 @@ class EnterpriseProfitEngine {
         });
 
         this.subscribeToEvents();
+    }
+    
+    // Initialize Ranking Engine integration
+    initializeRankingIntegration() {
+        console.log('[ENGINE] 🎯 Ranking Engine Integration Active');
+        
+        // Listen for ranking updates
+        RankingEngine.on('chainRankingsUpdated', (chains) => {
+            this.topChains = chains.slice(0, 5).map(c => c.id);
+            console.log(`[RANKING] 🔥 Priority Chains: ${this.topChains.join(', ')}`);
+        });
+        
+        RankingEngine.on('pairRankingsUpdated', (pairs) => {
+            this.topPairs = pairs.slice(0, 10).map(p => p.pair);
+            console.log(`[RANKING] 💎 Priority Pairs: ${this.topPairs.join(', ')}`);
+        });
+        
+        RankingEngine.on('autoUpdateComplete', (data) => {
+            if (data.pairs && data.pairs.length > 0) {
+                this.bestOpportunity = data.pairs[0];
+            }
+        });
+    }
+    
+    // Get prioritized opportunity from rankings
+    getRankedOpportunity() {
+        const opportunity = RankingEngine.getBestOpportunity();
+        if (opportunity) {
+            const chain = RankingEngine.getRecommendedChain();
+            const dex = chain ? RankingEngine.getRecommendedDex(chain.id) : null;
+            return {
+                pair: opportunity.pair,
+                chain: chain?.id || 'ethereum',
+                dex: dex?.id || 'uniswap_v3',
+                score: opportunity.score,
+                spread: opportunity.avgSpreadBps,
+                profit24h: opportunity.profit24h
+            };
+        }
+        return null;
+    }
+    
+    // Get full rankings for dashboard
+    getRankings() {
+        return RankingEngine.getRankingReport();
     }
 
     setMode(newMode) {

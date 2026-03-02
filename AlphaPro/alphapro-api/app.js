@@ -148,6 +148,41 @@ app.get('/api/rankings', (req, res) => {
     }
 });
 
+// Engine rankings endpoint (integrated with profit engine)
+app.get('/api/engine/rankings', (req, res) => {
+    try {
+        const report = profitEngine.getRankings();
+        const opportunity = profitEngine.getRankedOpportunity();
+        res.status(200).json({ rankings: report, topOpportunity: opportunity });
+    } catch (error) {
+        console.error('[ENGINE] Rankings error:', error);
+        res.status(500).json({ error: 'Failed to get engine rankings' });
+    }
+});
+
+// Dashboard data endpoint (full overview)
+app.get('/api/dashboard', (req, res) => {
+    try {
+        const rankings = profitEngine.getRankings();
+        const opportunity = profitEngine.getRankedOpportunity();
+        const engineStatus = profitEngine.getStatus();
+        
+        res.status(200).json({
+            rankings: rankings,
+            topOpportunity: opportunity,
+            engine: {
+                mode: engineStatus.config.tradingMode,
+                stats: engineStatus.stats,
+                strategies: engineStatus.strategies
+            },
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        console.error('[DASHBOARD] Error:', error);
+        res.status(500).json({ error: 'Failed to get dashboard data' });
+    }
+});
+
 app.get('/api/rankings/chains', (req, res) => {
     try {
         const count = parseInt(req.query.count) || 10;
