@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const https = require('https');
 const WebSocket = require('ws');
+const path = require('path');
 
 // Load environment variables from .env file
 const dotenv = require('dotenv');
@@ -155,7 +156,8 @@ app.get('/api/config/status', (req, res) => {
         walletConfigured: !!cfg.walletAddress,
         privateKeyConfigured: !!cfg.privateKey,
         alchemyConfigured: !!cfg.alchemyApiKey,
-        tradingMode: cfg.tradingMode || 'LIVE'
+        tradingMode: cfg.tradingMode || 'LIVE',
+        monitoringMode: !cfg.privateKey // True if no private key (monitoring only)
     });
 });
 
@@ -345,7 +347,7 @@ app.get('/api/engine/stats', (req, res) => {
         }
     }
 
-    const profitPerTrade = totalTrades > 0 ? totalTrades / totalTrades : 0;
+    const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
     
     // Win rate calculation - tracked from actual trade executions
     const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
@@ -511,7 +513,8 @@ app.get('/api/wallets', (req, res) => {
         blockchain: w.blockchain || 'Ethereum',
         balance: w.balance || 0,
         chains: w.chains,
-        totalBalance: w.totalBalance || 0
+        totalBalance: w.totalBalance || 0,
+        hasKey: !!w.privateKey
     }));
     const totalBalance = walletData.reduce((sum, w) => sum + (w.balance || w.totalBalance || 0), 0);
     const validCount = walletData.filter(w => w.valid).length;
@@ -575,6 +578,71 @@ app.post('/api/wallets/import', async (req, res) => {
 });
 
 /**
+ * Upload private keys and match to wallets (Auto-populate)
+ */
+app.post('/api/wallets/upload-keys', (req, res) => {
+    const { keys } = req.body;
+    if (!keys || !Array.isArray(keys)) {
+        return res.status(400).json({ error: 'Invalid keys array' });
+    }
+
+    let matchedCount = 0;
+    let newCount = 0;
+    
+    try {
+        const { ethers } = require('ethers');
+        
+        keys.forEach(rawKey => {
+            if (!rawKey) return;
+            let key = rawKey.trim();
+            // Ensure 0x prefix
+            if (!key.startsWith('0x')) key = '0x' + key;
+            
+            try {
+                // Verify it's a valid private key by creating a wallet instance
+                const wallet = new ethers.Wallet(key);
+                const address = wallet.address;
+                
+                // Check if wallet exists
+                const existingWallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
+                
+                if (existingWallet) {
+                    existingWallet.privateKey = key;
+                    existingWallet.hasKey = true;
+                    matchedCount++;
+                } else {
+                    // Auto-populate: Create new wallet if it doesn't exist
+                    const providerData = detectWalletProvider(address);
+                    const blockchain = detectBlockchain(address);
+                    
+                    wallets.push({
+                        address: address,
+                        name: `Wallet ${wallets.length + 1}`,
+                        valid: true,
+                        provider: providerData.name,
+                        logo: providerData.logo,
+                        blockchain,
+                        chains: { ETH: '0.0000', ARB: '0', OP: '0', BASE: '0', MATIC: '0' },
+                        balance: 0,
+                        totalBalance: 0,
+                        privateKey: key,
+                        hasKey: true
+                    });
+                    newCount++;
+                }
+            } catch (e) {
+                // Skip invalid keys
+            }
+        });
+        
+        res.json({ success: true, matched: matchedCount, new: newCount, total: wallets.length });
+    } catch (error) {
+        console.error('[WALLET] Key upload error:', error);
+        res.status(500).json({ error: 'Failed to process keys' });
+    }
+});
+
+/**
  * Delete wallet
  */
 app.delete('/api/wallets/:address', (req, res) => {
@@ -610,6 +678,59 @@ app.put('/api/wallets/:address', (req, res) => {
     };
     
     res.json({ success: true, wallet: wallets[walletIndex] });
+});
+
+/**
+ * Configure wallet with private key for LIVE trading
+ */
+app.post('/api/wallets/configure', (req, res) => {
+    const { walletAddress, privateKey } = req.body;
+    
+    if (!walletAddress || !privateKey) {
+        return res.status(400).json({ error: 'Wallet address and private key required' });
+    }
+    
+    // Validate address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+        return res.status(400).json({ error: 'Invalid wallet address format' });
+    }
+    
+    // Validate private key format
+    if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
+        return res.status(400).json({ error: 'Invalid private key format' });
+    }
+    
+    // Derive address from private key to verify
+    try {
+        const { ethers } = require('ethers');
+        const wallet = new ethers.Wallet(privateKey);
+        
+        if (wallet.address.toLowerCase() !== walletAddress.toLowerCase()) {
+            return res.status(400).json({ error: 'Private key does not match wallet address' });
+        }
+        
+        // Update environment variables for any other services that might read them.
+        // Also, update the running engine instance directly.
+        process.env.PRIVATE_KEY = privateKey;
+        process.env.WALLET_ADDRESS = walletAddress;
+        
+        // Update the profit engine with the new configuration
+        if (profitEngine) {
+            profitEngine.updateWalletConfiguration(privateKey, walletAddress);
+        }
+        
+        console.log(`[WALLET] Configured for LIVE trading: ${walletAddress}`);
+        
+        res.json({ 
+            success: true, 
+            walletAddress: walletAddress,
+            message: 'Wallet configured for LIVE trading'
+        });
+        
+    } catch (error) {
+        console.error('[WALLET] Configuration error:', error);
+        res.status(500).json({ error: 'Failed to configure wallet' });
+    }
 });
 
 /**

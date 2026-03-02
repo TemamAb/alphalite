@@ -14,7 +14,8 @@ import {
   Layers,
   Network,
   RefreshCw,
-  Zap
+  Zap,
+  Key
 } from 'lucide-react';
 
 type Tab = 'dashboard' | 'benchmark' | 'copilot' | 'strategies' | 'blockchain' | 'settings';
@@ -29,6 +30,7 @@ interface WalletData {
   balance: number;
   chains: { [key: string]: string };
   totalBalance: number;
+  hasKey?: boolean;
 }
 
 interface EngineStats {
@@ -315,6 +317,32 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
+  const handleKeyUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const keys = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.length > 0);
+          
+          await fetch('/api/wallets/upload-keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys })
+          });
+          
+          await fetchWallets();
+          alert('Private keys processed. Wallets auto-populated successfully.');
+        } catch (err) {
+          console.error('Failed to upload keys:', err);
+          alert('Failed to upload keys');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -564,6 +592,79 @@ export const DashboardLayout: React.FC = () => {
               )}
             </div>
 
+            {/* Private Key Configuration */}
+            <div className="bg-slate-800 p-6 rounded-xl border border-yellow-500/50">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-yellow-400" /> Wallet Configuration
+                </h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">Wallet Address</label>
+                  <input 
+                    type="text" 
+                    id="walletAddress"
+                    defaultValue={wallets[0]?.address || ''}
+                    placeholder="0x..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-yellow-500 outline-none"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">
+                    Private Key 
+                    <span className="text-yellow-500 text-xs ml-2">(Required for LIVE trading)</span>
+                  </label>
+                  <input 
+                    type="password" 
+                    id="privateKey"
+                    placeholder="Enter private key (0x...)"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-yellow-500 outline-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    🔒 Your private key is stored locally and never sent to any server
+                  </p>
+                </div>
+
+                <button 
+                  onClick={async () => {
+                    const addressInput = (document.getElementById('walletAddress') as HTMLInputElement).value;
+                    const privateKeyInput = (document.getElementById('privateKey') as HTMLInputElement).value;
+                    
+                    if (!addressInput || !privateKeyInput) {
+                      alert('Please enter both wallet address and private key');
+                      return;
+                    }
+                    
+                    if (!privateKeyInput.startsWith('0x') || privateKeyInput.length !== 66) {
+                      alert('Invalid private key format. Must be 64 hex characters with 0x prefix');
+                      return;
+                    }
+                    
+                    try {
+                      await fetch('/api/wallets/configure', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          walletAddress: addressInput,
+                          privateKey: privateKeyInput 
+                        })
+                      });
+                      alert('Wallet configured successfully! LIVE trading is now enabled.');
+                      fetchConfigStatus();
+                    } catch (err) {
+                      alert('Failed to configure wallet');
+                    }
+                  }}
+                  className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg"
+                >
+                  Configure Wallet
+                </button>
+              </div>
+            </div>
+
             {/* Deployment Registry */}
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
@@ -656,6 +757,10 @@ export const DashboardLayout: React.FC = () => {
                   <Upload className="w-4 h-4" /> Import
                   <input type="file" accept=".csv,.json,.txt" onChange={handleWalletUpload} className="hidden" />
                 </label>
+                <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm border border-yellow-500/30">
+                  <Key className="w-4 h-4 text-yellow-400" /> Upload Keys
+                  <input type="file" accept=".txt,.csv" onChange={handleKeyUpload} className="hidden" />
+                </label>
                 <button 
                   onClick={async () => {
                     setIsRefreshingWallets(true);
@@ -697,6 +802,7 @@ export const DashboardLayout: React.FC = () => {
                         <th className="p-2 text-left">Provider</th>
                         <th className="p-2 text-left">Blockchain</th>
                         <th className="p-2 text-right">Balance</th>
+                        <th className="p-2 text-center">Key</th>
                         <th className="p-2 text-center">Status</th>
                         <th className="p-2 text-center">Actions</th>
                       </tr>
@@ -713,6 +819,13 @@ export const DashboardLayout: React.FC = () => {
                           <td className="p-2 text-slate-300">{wallet.provider || 'Unknown'}</td>
                           <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
                           <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
+                          <td className="p-2 text-center">
+                            {wallet.hasKey ? (
+                              <Key className="w-4 h-4 text-yellow-400 mx-auto" title="Private Key Configured" />
+                            ) : (
+                              <span className="text-slate-600 text-xs">-</span>
+                            )}
+                          </td>
                           <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center gap-2">

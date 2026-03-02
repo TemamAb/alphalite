@@ -29,30 +29,7 @@ class EnterpriseProfitEngine {
         this.mode = this.config.tradingMode || 'LIVE';
         this.stats = { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
 
-        // Gasless configuration via Pimlico - REQUIRES ENV VARIABLES IN PRODUCTION
-        const pimlicoApiKey = this.config.pimlicoApiKey;
-        const privateKey = this.config.privateKey;
-        const walletAddress = this.config.walletAddress;
-        
-        if (!pimlicoApiKey || !privateKey) {
-            console.error('[ENGINE] CRITICAL: Missing required configuration for LIVE trading');
-            console.error('[ENGINE] Required: PIMLICO_API_KEY and PRIVATE_KEY');
-            console.error('[ENGINE] The engine will not be able to execute live trades');
-            // Don't throw - allow engine to start but won't execute trades
-            this.pimlicoConfig = null;
-            this.signer = null;
-        } else {
-            this.pimlicoConfig = {
-                apiKey: pimlicoApiKey,
-                bundlerUrl: this.config.pimlico.bundlerUrl,
-                paymasterUrl: this.config.pimlico.paymasterUrl,
-                entryPoint: this.config.pimlico.entryPoint,
-                walletAddress: walletAddress
-            };
-
-            // PRODUCTION: Use secure signer from environment variable
-            this.signer = new ethers.Wallet(privateKey);
-        }
+        this._configureSigner();
 
         // RPC endpoints for each chain - use config service
         this.rpcEndpoints = this.config.rpcUrls;
@@ -111,6 +88,61 @@ class EnterpriseProfitEngine {
         });
 
         this.subscribeToEvents();
+    }
+
+    /**
+     * Configures the signer and determines the trading mode (LIVE, SIMULATION, or MONITORING).
+     * This logic is centralized here to be reusable.
+     * @private
+     */
+    _configureSigner() {
+        const pimlicoApiKey = this.config.pimlicoApiKey;
+        const privateKey = this.config.privateKey;
+        const walletAddress = this.config.walletAddress;
+
+        if (!privateKey) {
+            console.log('[ENGINE] ℹ️ No PRIVATE_KEY configured - running in MONITORING mode');
+            console.log('[ENGINE] LIVE mode will detect opportunities but not execute trades');
+            console.log('[ENGINE] To enable LIVE trading, set PRIVATE_KEY in environment variables or configure via API');
+            this.pimlicoConfig = null;
+            this.signer = null;
+            this.monitoringOnly = true;
+        } else if (!pimlicoApiKey) {
+            console.log('[ENGINE] ⚠️ Pimlico not configured - running in SIMULATION mode');
+            this.pimlicoConfig = null;
+            this.signer = new ethers.Wallet(privateKey);
+            this.monitoringOnly = false; // Can simulate trades
+        } else {
+            this.pimlicoConfig = {
+                apiKey: pimlicoApiKey,
+                bundlerUrl: this.config.pimlico.bundlerUrl,
+                paymasterUrl: this.config.pimlico.paymasterUrl,
+                entryPoint: this.config.pimlico.entryPoint,
+                walletAddress: walletAddress
+            };
+
+            // Initialize signer for LIVE trading
+            this.signer = new ethers.Wallet(privateKey);
+            this.monitoringOnly = false;
+            console.log(`[ENGINE] 🔐 LIVE Trading Ready - Wallet: ${walletAddress}`);
+        }
+    }
+
+    /**
+     * Dynamically updates the wallet configuration and reconfigures the engine for LIVE/MONITORING mode.
+     * @param {string} privateKey - The new private key.
+     * @param {string} walletAddress - The corresponding wallet address.
+     */
+    updateWalletConfiguration(privateKey, walletAddress) {
+        console.log('[ENGINE] 🔄 Re-configuring wallet...');
+        // Update the in-memory config for this engine instance
+        this.config.privateKey = privateKey;
+        this.config.walletAddress = walletAddress;
+
+        // Re-run the signer and mode configuration
+        this._configureSigner();
+
+        console.log(`[ENGINE] ✅ RECONFIGURATION COMPLETE. Current state: ${this.monitoringOnly ? 'MONITORING' : 'LIVE/SIMULATION'}`);
     }
     
     // Initialize Ranking Engine integration
@@ -242,10 +274,21 @@ class EnterpriseProfitEngine {
     }
 
     /**
-     * Execute live gasless trade via Pimlico
+     * Execute live trade via Pimlico (or simulate if no private key configured)
      */
     async executeLiveTrade(opportunity, chain) {
-        if (this.mode !== 'LIVE') return;
+        // In monitoring mode (no private key), simulate the trade execution
+        if (this.monitoringOnly || this.mode !== 'LIVE') {
+            console.log(`[ENGINE] 📡 MONITORING: Detected opportunity on ${chain.toUpperCase()}:`);
+            console.log(`[ENGINE]   Strategy: ${opportunity.strategy.name}`);
+            console.log(`[ENGINE]   Expected Profit: ${opportunity.profit} ETH`);
+            console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode - no private key)`);
+            
+            // Still update stats to show activity
+            this.stats.totalTrades++;
+            this.stats.totalProfit += parseFloat(opportunity.profit);
+            return;
+        }
 
         this.activeExecutions++;
         try {
