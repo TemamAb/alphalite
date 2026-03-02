@@ -1,9 +1,4 @@
 #!/bin/bash
-# Add all files
 git add .
-
-# Create commit with fix
-git commit -m "Fix: Null check for Pimlico config"
-
-# Push to master branch
+git commit -m "Fix: Enhanced config service with more env key fallbacks and .env support"
 git push origin master

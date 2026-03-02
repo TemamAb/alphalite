@@ -15,21 +15,30 @@ const dataSources = require('./data_sources.json');
 let dotenv;
 try {
     dotenv = require('dotenv');
-    // Load .env file as fallback
-    const envPath = path.join(__dirname, '.env');
-    if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath });
-        console.log('[CONFIG] Loaded .env file as fallback');
+    // Try multiple paths for .env file
+    const possiblePaths = [
+        path.join(__dirname, '.env'),
+        path.join(__dirname, '..', '.env'),
+        path.join(process.cwd(), '.env')
+    ];
+    
+    for (const envPath of possiblePaths) {
+        if (fs.existsSync(envPath)) {
+            dotenv.config({ path: envPath });
+            console.log('[CONFIG] Loaded .env file from:', envPath);
+            break;
+        }
     }
 } catch (e) {
     console.log('[CONFIG] dotenv not available, using process.env only');
 }
 
 /**
- * Get configuration value with Render-first, .env-second fallback
+ * Get configuration value with Render-first (process.env), .env-second fallback
+ * This allows: Render dashboard env vars > local .env file
  */
 function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    // First priority: Render's process.env
+    // First priority: Render's process.env (set in Render dashboard)
     if (process.env[primaryKey]) {
         return process.env[primaryKey];
     }
@@ -84,32 +93,44 @@ class ConfigService extends EventEmitter {
             
             // API Keys - Render first, .env fallback
             // Also extract from WebSocket URLs if embedded
-            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY', ['ALCHEMY-API-KEY', 'alchemy_api_key'], 
+            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY', 
+                ['ALCHEMY-API-KEY', 'ALCHEMY-API-KEY', 'alchemy_api_key', 'ALCHEMY_KEY'], 
                 this.extractAlchemyKey(
                     getConfigValue('ETH_WS_URL', ['eth_ws_url'], null) ||
-                    getConfigValue('ALCHEMY_WS_URL', ['alchemy_ws_url'], null)
+                    getConfigValue('ALCHEMY_WS_URL', ['alchemy_ws_url'], null) ||
+                    getConfigValue('ALCHEMY_WS', ['alchemy_ws'], null)
                 )
             ),
-            infuraApiKey: getConfigValue('INFURA_API_KEY', ['infura_api_key'], null),
+            infuraApiKey: getConfigValue('INFURA_API_KEY', ['infura_api_key', 'INFURA_API_KEY'], null),
             pimlicoApiKey: getConfigValue('PIMLICO_API_KEY', ['pimlico_api_key'], null),
             openaiApiKey: getConfigValue('OPENAI_API_KEY', ['openai_api_key'], null),
             
-            // Blockchain RPC URLs
+            // Blockchain RPC URLs - Check multiple variations from .env
             rpcUrls: {
-                ethereum: getConfigValue('ETHEREUM_RPC', ['ETH_RPC_URL', 'ethereum_rpc', 'eth_rpc_url'], null),
-                polygon: getConfigValue('POLYGON_RPC', ['POLYGON_RPC_URL', 'polygon_rpc'], null),
-                arbitrum: getConfigValue('ARBITRUM_RPC', ['ARBITRUM_RPC_URL', 'arbitrum_rpc'], null),
-                optimism: getConfigValue('OPTIMISM_RPC', ['OPTIMISM_RPC_URL', 'optimism_rpc'], null),
-                base: getConfigValue('BASE_RPC', ['BASE_RPC_URL', 'base_rpc'], null),
+                ethereum: getConfigValue('ETHEREUM_RPC', 
+                    ['ETH_RPC_URL', 'ethereum_rpc', 'eth_rpc_url', 'ETHRPC'], null),
+                polygon: getConfigValue('POLYGON_RPC', 
+                    ['POLYGON_RPC_URL', 'polygon_rpc', 'polygon_rpc_url'], null),
+                arbitrum: getConfigValue('ARBITRUM_RPC', 
+                    ['ARBITRUM_RPC_URL', 'arbitrum_rpc', 'arbitrum_rpc_url'], null),
+                optimism: getConfigValue('OPTIMISM_RPC', 
+                    ['OPTIMISM_RPC_URL', 'optimism_rpc', 'optimism_rpc_url'], null),
+                base: getConfigValue('BASE_RPC', 
+                    ['BASE_RPC_URL', 'base_rpc', 'base_rpc_url'], null),
             },
             
-            // WebSocket URLs for mempool
+            // WebSocket URLs for mempool - Critical for live data
             wsUrls: {
-                ethereum: getConfigValue('ETH_WS_URL', ['ALCHEMY_WS_URL', 'eth_ws_url', 'alchemy_ws'], null),
-                polygon: getConfigValue('POLYGON_WS_URL', ['polygon_ws_url'], null),
-                arbitrum: getConfigValue('ARBITRUM_WS_URL', ['arbitrum_ws_url'], null),
-                optimism: getConfigValue('OPTIMISM_WS_URL', ['optimism_ws_url'], null),
-                base: getConfigValue('BASE_WS_URL', ['base_ws_url'], null),
+                ethereum: getConfigValue('ETH_WS_URL', 
+                    ['ALCHEMY_WS_URL', 'eth_ws_url', 'alchemy_ws_url', 'ALCHEMY_WS'], null),
+                polygon: getConfigValue('POLYGON_WS_URL', 
+                    ['polygon_ws_url', 'POLYGON_WS'], null),
+                arbitrum: getConfigValue('ARBITRUM_WS_URL', 
+                    ['arbitrum_ws_url', 'ARBITRUM_WS'], null),
+                optimism: getConfigValue('OPTIMISM_WS_URL', 
+                    ['optimism_ws_url', 'OPTIMISM_WS'], null),
+                base: getConfigValue('BASE_WS_URL', 
+                    ['base_ws_url', 'BASE_WS'], null),
             },
             
             // Pimlico Configuration
