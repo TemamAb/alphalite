@@ -1,4 +1,4 @@
-services:
+grservices:
   # 1. PostgreSQL Database
   - name: alphapro-db
     type: pserv
@@ -84,19 +84,23 @@ services:
 
       # Alchemy WebSocket URLs for Real-time Mempool
       - key: ETH_WS_URL
-        value: wss://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
+      - key: ALCHEMY_WS_URL
+        value: wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: ARBITRUM_WS_URL
-        value: wss://arb-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://arb-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: POLYGON_WS_URL
-        value: wss://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: OPTIMISM_WS_URL
-        value: wss://opt-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://opt-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: BASE_WS_URL
-        value: wss://base-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://base-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
 
-      # Alchemy API Keys
+      # Alchemy API Keys - using multiple key names for compatibility
       - key: ALCHEMY_API_KEY
-        value: 9v_Ducm70QxIb75p3_wPS
+        value: mK2nj6ZSi1mZ2THJMUHcF
+      - key: ALCHEMY-API-KEY
+        value: mK2nj6ZSi1mZ2THJMUHcF
       - key: INFURA_API_KEY
         value: mK2nj6ZSi1mZ2THJMUHcF
 
