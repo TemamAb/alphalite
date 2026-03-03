@@ -3,8 +3,22 @@ const RankingEngine = require('../services/RankingEngine');
 let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
 
-// Load configuration service from root
-const configService = require('../../../configService');
+// Try multiple paths for config
+let configService;
+try {
+    configService = require('../../../configService');
+} catch (e) {
+    try {
+        configService = require('../../configService');
+    } catch (e2) {
+        try {
+            configService = require('./configService');
+        } catch (e3) {
+            console.error('[ENGINE] Could not load configService:', e3.message);
+            configService = { getConfig: () => ({}) };
+        }
+    }
+}
 
 const axios = require('axios');
 const { ethers } = require('ethers');

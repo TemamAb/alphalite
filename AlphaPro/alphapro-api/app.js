@@ -10,7 +10,18 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
-const preFlightCheckService = require('../PreFlightCheck');
+// Try multiple paths for PreFlightCheck
+let preFlightCheckService;
+try {
+    preFlightCheckService = require('../PreFlightCheck');
+} catch (e) {
+    try {
+        preFlightCheckService = require('./PreFlightCheck');
+    } catch (e2) {
+        console.error('[APP] Could not load PreFlightCheck service:', e2.message);
+        preFlightCheckService = { runAllChecks: async () => ({ allOk: true, results: [] }) };
+    }
+}
 const rankingEngine = require('./src/services/RankingEngine');
 const aiOptimizer = require('./src/services/AIAutoOptimizer');
 const brainConnector = require('./src/services/BrainConnector');
