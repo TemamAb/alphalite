@@ -30,9 +30,6 @@ COPY PreFlightCheck.js .
 # Copy config service for environment variable handling
 COPY configService.js .
 
-# Copy .env file for production
-COPY .env .
-
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist
 
