@@ -48,13 +48,13 @@ class MEVEngineer {
     async optimizeGas(chain) {
         try {
             const rpcUrl = this.getRPC(chain);
-            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
             
             // Get current network fees
             const feeData = await provider.getFeeData();
             
-            const currentGasPrice = parseFloat(ethers.formatUnits(feeData.gasPrice, 'gwei'));
-            const baseFee = parseFloat(ethers.formatUnits(feeData.lastBaseFeePerGas || feeData.gasPrice, 'gwei'));
+            const currentGasPrice = parseFloat(ethers.utils.formatUnits(feeData.gasPrice, 'gwei'));
+            const baseFee = parseFloat(ethers.utils.formatUnits(feeData.lastBaseFeePerGas || feeData.gasPrice, 'gwei'));
             
             // Determine optimal gas strategy
             let recommendedGasPrice;
@@ -82,7 +82,7 @@ class MEVEngineer {
                 recommendedGasPrice: recommendedGasPrice.toFixed(2),
                 baseFee: baseFee.toFixed(2),
                 priorityFee: this.priorityFee,
-                maxFee: eip1559 ? ethers.formatUnits(feeData.maxFeePerGas, 'gwei') : null,
+                maxFee: eip1559 ? ethers.utils.formatUnits(feeData.maxFeePerGas, 'gwei') : null,
                 strategy,
                 estimatedConfirmationTime: this.estimateConfirmationTime(recommendedGasPrice)
             };
@@ -111,7 +111,7 @@ class MEVEngineer {
             const gasStrategy = await this.optimizeGas(chain);
             
             const rpcUrl = this.getRPC(chain);
-            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
             
             // Estimate gas if not provided
             let gasLimit = txRequest.gasLimit;
@@ -147,7 +147,7 @@ class MEVEngineer {
                     mode: 'PAPER',
                     tx,
                     gasEstimate: gasLimit.toString(),
-                    estimatedCost: ethers.formatEther(tx.maxFeePerGas * gasLimit),
+                    estimatedCost: ethers.utils.formatEther(tx.maxFeePerGas * gasLimit),
                     simulationTime: Date.now() - startTime
                 };
                 
@@ -174,8 +174,8 @@ class MEVEngineer {
                 hash: response.hash,
                 blockNumber: receipt.blockNumber,
                 gasUsed: receipt.gasUsed.toString(),
-                effectiveGasPrice: ethers.formatUnits(receipt.effectiveGasPrice, 'gwei'),
-                totalCost: ethers.formatEther(receipt.effectiveGasPrice * receipt.gasUsed),
+                effectiveGasPrice: ethers.utils.formatUnits(receipt.effectiveGasPrice, 'gwei'),
+                totalCost: ethers.utils.formatEther(receipt.effectiveGasPrice * receipt.gasUsed),
                 confirmationTime: Date.now() - startTime
             };
             

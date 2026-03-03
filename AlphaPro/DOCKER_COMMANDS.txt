@@ -1,0 +1,50 @@
+# AlphaPro Docker Deployment Commands
+# Run these in your terminal (not from VSCode tool)
+
+==============================================
+# STEP 1: Navigate to AlphaPro directory
+==============================================
+cd AlphaPro
+
+==============================================
+# STEP 2: Build and start containers
+==============================================
+docker compose up --build -d
+
+# OR using docker-compose (older syntax):
+# docker-compose up --build -d
+
+==============================================
+# STEP 3: Verify containers are running
+==============================================
+docker ps
+
+# You should see:
+# - alphapro-api    (port 3001)
+# - alphapro-brain (port 5001)
+
+==============================================
+# STEP 4: Test the API
+==============================================
+curl http://localhost:3001/api/health
+curl http://localhost:3001/api/engine/state
+
+# Expected: mode: "LIVE"
+
+==============================================
+# STEP 5: View Dashboard
+==============================================
+# Open in browser: http://localhost:3001
+
+==============================================
+# View logs
+==============================================
+docker compose logs -f
+
+# Or specific container:
+# docker compose logs -f alphapro-api
+
+==============================================
+# Stop containers
+==============================================
+docker compose down

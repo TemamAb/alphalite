@@ -9,12 +9,18 @@ const path = require('path');
 // Load data sources configuration
 const dataSources = require('../data_sources.json');
 
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
+
 class ConfigService extends EventEmitter {
     constructor() {
         super();
         
         // Default configuration
         this.config = {
+            // Server Configuration
+            port: process.env.PORT || 3000,
+            host: process.env.HOST || '0.0.0.0', // 0.0.0.0 is required for Docker networking
+
             // Trading Configuration
             maxConcurrentExecutions: parseInt(process.env.MAX_CONCURRENT_EXECUTIONS) || 5,
             minOpportunitySize: parseFloat(process.env.MIN_OPPORTUNITY_SIZE) || 100,
@@ -54,6 +60,7 @@ class ConfigService extends EventEmitter {
         };
         
         console.log('[CONFIG] Configuration service initialized');
+        if (this.config.walletAddress) console.log(`[CONFIG] Active Wallet Address: ${this.config.walletAddress}`);
    }
     
     getConfig() {

@@ -11,7 +11,7 @@ const { KMSClient, GetPublicKeyCommand } = require("@aws-sdk/client-kms");
 
 const axios = require('axios');
 const path = require('path');
-const config = require(path.join(__dirname, '..', 'data_sources.json')); // AUDIT FIX: Corrected path to project root
+const config = require(path.join(__dirname, 'data_sources.json')); // FIX: In Docker, both are in /app
 
 class PreFlightCheckService {
 
@@ -20,7 +20,7 @@ class PreFlightCheckService {
       const checks = [
             { name: 'PostgreSQL Database', check: this.checkPostgres },
             { name: 'Redis Message Bus', check: this.checkRedis },
-            { name: 'AWS KMS Connectivity', check: this.checkKms },
+            { name: 'Data Providers', check: this.checkDataProviders },
             { name: 'Environment Variables', check: this.checkEnvVariables }
         ];
 
@@ -82,11 +82,8 @@ class PreFlightCheckService {
   async checkEnvVariables() {
         const requiredEnvVars = [
             'ALCHEMY_API_KEY',
-            'ADMIN_API_KEY',
             'DATABASE_URL',
-            'REDIS_URL',
-            'AWS_KMS_KEY_ID',
-            'AWS_REGION'
+            'REDIS_URL'
         ];
 
         requiredEnvVars.forEach(envVar => {

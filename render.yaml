@@ -1,4 +1,4 @@
-grservices:
+services:
   # 1. PostgreSQL Database
   - name: alphapro-db
     type: pserv

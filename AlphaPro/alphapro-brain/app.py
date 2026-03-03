@@ -15,6 +15,7 @@ This implements:
 - Dynamic parameter reconfiguration
 """
 
+import os
 import time
 import threading
 import random
@@ -29,6 +30,9 @@ logging.basicConfig(level=logging.INFO, format='[ORACLE] %(message)s')
 logger = logging.getLogger("AlphaProOracle")
 
 app = Flask(__name__)
+
+# Support PORT environment variable for multi-instance deployment
+BRAIN_PORT = int(os.environ.get('BRAIN_PORT', os.environ.get('PORT', 5000)))
 
 @dataclass
 class SystemConfig:
@@ -378,5 +382,5 @@ if __name__ == '__main__':
     optimization_thread = threading.Thread(target=optimization_loop, daemon=True)
     optimization_thread.start()
     
-    logger.info("🚀 AlphaPro Oracle started on port 5000")
-    app.run(host='0.0.0.0', port=5000)
+    logger.info(f"🚀 AlphaPro Oracle started on port {BRAIN_PORT}")
+    app.run(host='0.0.0.0', port=BRAIN_PORT)

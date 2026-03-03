@@ -5,11 +5,25 @@ const https = require('https');
 const WebSocket = require('ws');
 const path = require('path');
 
-// Load environment variables from .env file
+const fs = require('fs');
+// Load environment variables from .env file with fallback paths
 const dotenv = require('dotenv');
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+const possibleEnvPaths = [
+    path.join(__dirname, '.env'),
+    path.join(__dirname, '..', '.env'),
+    path.join(process.cwd(), '.env')
+];
+
+for (const envPath of possibleEnvPaths) {
+    if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        console.log('[APP] Loaded environment from:', envPath);
+        break;
+    }
+}
 
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
+
 // Try multiple paths for PreFlightCheck
 let preFlightCheckService;
 try {
@@ -29,8 +43,15 @@ const brainConnector = require('./src/services/BrainConnector');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let engineStartTime = null; // To track engine runtime for stats
-let startTrades = 0; // To track trades at the start of the session
+// Force auto-start for production/profit mode
+let engineStartTime = Date.now();
+let startTrades = 0;
+
+// Initialize engine state on boot
+const bootConfig = require('./config/configService').getConfig();
+const initialMode = bootConfig.tradingMode || 'LIVE';
+profitEngine.setMode(initialMode);
+console.log(`[APP] 🚀 Profit Engine AUTO-STARTED in ${initialMode} mode`);
 
 // Helper functions for wallet detection
 function detectWalletProvider(address) {
@@ -632,7 +653,7 @@ app.post('/api/wallets/upload-keys', async (req, res) => {
     let newCount = 0;
 
     try {
-        const { ethers } = require('ethers');
+        const ethers = require('ethers');
 
         for (const rawKey of keys) {
             if (!rawKey) continue;

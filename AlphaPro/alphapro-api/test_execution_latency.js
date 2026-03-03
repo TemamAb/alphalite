@@ -25,12 +25,12 @@ async function testExecutionLatency() {
     const setupStart = performance.now();
 
     // Use a more reliable RPC provider
-    const provider = new ethers.JsonRpcProvider(ALCHEMY_RPC);
+    const provider = new ethers.providers.JsonRpcProvider(ALCHEMY_RPC);
     try {
         await provider.getNetwork();
     } catch (e) {
         console.warn('Alchemy failed, trying 1RPC...');
-        const backupProvider = new ethers.JsonRpcProvider('https://1rpc.io/eth');
+        const backupProvider = new ethers.providers.JsonRpcProvider('https://1rpc.io/eth');
         await backupProvider.getNetwork();
     }
 

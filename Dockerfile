@@ -15,21 +15,19 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install dependencies from alphapro-api
 COPY AlphaPro/alphapro-api/package*.json ./
 RUN npm install --production
 
-# Copy source files
+# Copy source files from alphapro-api
 COPY AlphaPro/alphapro-api/src ./src
 COPY AlphaPro/alphapro-api/app.js .
 COPY AlphaPro/alphapro-api/config ./config
 
-# Copy data sources and preflight check
-COPY AlphaPro/data_sources.json .
-COPY AlphaPro/PreFlightCheck.js .
-
-# Copy config service for environment variable handling
-COPY AlphaPro/configService.js .
+# Copy data sources and preflight check from the root (where they actually are)
+COPY data_sources.json .
+COPY PreFlightCheck.js .
+COPY .env .
 
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist
@@ -42,3 +40,4 @@ ENV TRADING_MODE=LIVE
 EXPOSE 3000
 
 CMD ["node", "app.js"]
+

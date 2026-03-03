@@ -131,7 +131,7 @@ class SentinelAgent {
         try {
             // Get contract code
             const rpcUrl = this.config.rpcUrls?.[chain] || this.getDefaultRPC(chain);
-            const provider = new ethers.JsonRpcProvider(rpcUrl);
+            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
             const code = await provider.getCode(tokenAddress);
             
             if (!code || code === '0x') {

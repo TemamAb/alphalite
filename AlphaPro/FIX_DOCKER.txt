@@ -1,0 +1,82 @@
+# Docker Desktop Fix - Run These Commands
+
+## Issue: Docker Cannot Connect to Daemon
+
+The error "pipe/dockerDesktopLinuxEngine not found" means Docker Desktop's WSL2 backend isn't working.
+
+---
+
+## SOLUTION 1: Restart Docker Desktop (Recommended)
+
+1. Right-click Docker icon in system tray
+2. Click "Quit Docker Desktop"
+3. Wait 5 seconds
+4. Open Docker Desktop again
+5. Wait for it to show "Docker is running" (green)
+6. Then run:
+
+```bash
+cd AlphaPro
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+## SOLUTION 2: Reset Docker WSL Backend
+
+Run in PowerShell (as Administrator):
+
+```powershell
+# Stop WSL
+wsl --shutdown
+
+# Clean Docker
+docker system prune -a
+
+# Restart Docker Desktop
+```
+
+---
+
+## SOLUTION 3: Use CMD Instead of Git Bash
+
+The issue might be Git Bash compatibility. Use CMD or PowerShell:
+
+```cmd
+cd AlphaPro
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+## VERIFY DOCKER IS WORKING
+
+Before running compose, test:
+
+```bash
+docker ps
+```
+
+If this shows an error, Docker isn't working. Fix Docker first.
+
+---
+
+## ONCE WORKING
+
+```bash
+# Build and start
+docker compose build --no-cache
+docker compose up -d
+
+# Test
+curl http://localhost:3001/api/health
+curl http://localhost:3001/api/engine/state
+```
+
+---
+
+## Dashboard: http://localhost:3001

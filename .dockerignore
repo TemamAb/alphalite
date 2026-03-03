@@ -1,0 +1,13 @@
+# Ignore dependencies (they will be installed inside the container)
+**/node_modules
+**/npm-debug.log
+**/yarn-error.log
+
+# Ignore build artifacts
+**/dist
+**/build
+
+# Ignore git and env files
+.git
+.env
+.DS_Store

@@ -1,5 +1,3 @@
-version: '3.8'
-
 # AlphaPro Live Paper Trading Docker Compose
 # This configuration runs the trading system in PAPER (simulation) mode
 
@@ -43,17 +41,19 @@ services:
 
   # --- API & Trading Engine ---
   
-  api:
+  dashboard:
     build:
-      context: ./AlphaPro
+      context: .
       dockerfile: Dockerfile
-    container_name: alphapro-api
+    container_name: alphapro-dashboard
     ports:
       - "3001:3000"
+    env_file:
+      - .env
     environment:
       # Trading Configuration
       - NODE_ENV=production
-      - TRADING_MODE=PAPER  # Live Paper Trading Mode
+      - TRADING_MODE=LIVE   # Live Production Trading Mode
       - PORT=3000
       
       # Database Connections

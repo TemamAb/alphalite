@@ -10,7 +10,7 @@ async function runHighSpeedValidation() {
     // 1. Mock Data
     const privateKey = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     const bundlerUrl = 'https://api.pimlico.io/v1/ethereum/rpc?apikey=mK2nj6ZSi1mZ2THJMUHcF';
-    const provider = new ethers.JsonRpcProvider('https://1rpc.io/eth');
+    const provider = new ethers.providers.JsonRpcProvider('https://1rpc.io/eth');
     const signer = new ethers.Wallet(privateKey);
 
     // 2. Measure Component Prep (Control variables)

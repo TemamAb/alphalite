@@ -10,7 +10,7 @@ async function testLocalSpeed() {
 
     const tStart = performance.now();
     for (let i = 0; i < 100; i++) {
-        const hash = ethers.id("test" + i);
+        const hash = ethers.utils.id("test" + i);
     }
     const tHash = performance.now();
     console.log(`- 100x Hashing: ${(tHash - tStart).toFixed(4)}ms`);

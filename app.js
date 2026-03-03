@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
-const preFlightCheckService = require('./src/services/PreFlightCheck');
-const configService = require('./src/config/configService');
+const preFlightCheckService = require('./PreFlightCheck'); // FIX: Located at root in Docker
+const configService = require('./config/configService');   // FIX: Located at root/config in Docker
 
 
 const app = express();
@@ -67,12 +67,12 @@ app.post('/api/strategies/reload', (req, res) => {
 
 // --- Serve React Frontend (Production) ---
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, 'alphapro-api/client/dist')));
+    app.use(express.static(path.join(__dirname, 'client/dist'))); // FIX: Docker path is /app/client/dist
     app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, 'alphapro-api/client/dist/index.html'));
+        res.sendFile(path.join(__dirname, 'client/dist/index.html'));
     });
 }
 
 app.listen(PORT, () => {
-    console.log(`[ALPHA-PRO API] Server running on port ${PORT}`);
+    console.log(`[ALPHA-PRO DASHBOARD] Server running on port ${PORT}`);
 });
