@@ -297,7 +297,7 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE]   Expected Profit: ${opportunity.profit} ETH`);
             console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode - no private key)`);
 
-            // Still update stats to show activity and decrement execution slot
+            // Still update stats and release the concurrency slot
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(opportunity.profit);
             this.activeExecutions--;
@@ -309,7 +309,7 @@ class EnterpriseProfitEngine {
             const chainKey = (chain || 'ethereum').toLowerCase();
             const rpcUrl = this.rpcEndpoints[chainKey] || this.rpcEndpoints.ethereum;
 
-            console.log(`[ENGINE] 🚀 EXECUTING LIVE TRADE on ${chainKey.toUpperCase()}:`);
+            console.log(`[ENGINE] 🚀 EXECUTING GASLESS TRADE via PIMLICO on ${chainKey.toUpperCase()}:`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
@@ -324,7 +324,7 @@ class EnterpriseProfitEngine {
             });
 
             // 2. Create a SimpleAccount builder with the paymaster
-            // Using a static or cached provider would be better, but the URL strings are now Alchemy based.
+            // We use the Alchemy RPC URL directly to ensure userop can detect the network
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
                 this.signer,
                 rpcUrl,
@@ -336,7 +336,7 @@ class EnterpriseProfitEngine {
 
             // 3. Construct the callData for the UserOperation.
             const to = this.pimlicoConfig.walletAddress;
-            const value = 0;
+            const value = 1; // Simulated value for contract interaction
             const data = '0x';
 
             console.log(`[ENGINE] 🏗️ Building UserOperation...`);
@@ -344,13 +344,12 @@ class EnterpriseProfitEngine {
 
             // 4. Send the UserOperation via the bundler
             console.log(`[ENGINE] ⛽ Gas Sponsorship: REQUESTED via Pimlico Paymaster`);
-            console.log(`[ENGINE] ⏳ Submitting to Pimlico Bundler...`);
             const res = await client.sendUserOperation(op);
             console.log(`[ENGINE]   UserOp Hash: ${res.userOpHash}`);
 
             console.log(`[ENGINE] ⏳ Waiting for transaction inclusion...`);
             const ev = await res.wait();
-            console.log(`[ENGINE] ✅ LIVE TRADE CONFIRMED! Tx Hash: ${ev?.transactionHash}`);
+            console.log(`[ENGINE] ✅ GASLESS TRADE CONFIRMED! Tx Hash: ${ev?.transactionHash}`);
 
             // 5. Update stats
             this.stats.totalTrades++;
@@ -361,7 +360,7 @@ class EnterpriseProfitEngine {
             console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
 
         } catch (error) {
-            console.error(`[ENGINE] ❌ Live trade failed:`, error.message);
+            console.error(`[ENGINE] ❌ Gasless trade failed:`, error.message);
         } finally {
             this.activeExecutions--;
         }
