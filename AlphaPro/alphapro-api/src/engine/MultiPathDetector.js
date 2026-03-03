@@ -31,17 +31,17 @@ class MultiPathDetector extends EventEmitter {
         // Provider configurations - ordered by expected performance
         const providerConfigs = [
             {
+                id: 'alchemy',
+                name: 'Alchemy',
+                rpc: process.env.ETH_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
+                ws: process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
+                priority: 1
+            },
+            {
                 id: '1rpc',
                 name: '1RPC',
                 rpc: 'https://1rpc.io/eth',
                 ws: 'wss://1rpc.io/eth',
-                priority: 1
-            },
-            {
-                id: 'ankr',
-                name: 'Ankr',
-                rpc: 'https://rpc.ankr.com/eth',
-                ws: 'wss://rpc.ankr.com/eth',
                 priority: 2
             },
             {
@@ -50,13 +50,6 @@ class MultiPathDetector extends EventEmitter {
                 rpc: 'https://ethereum.publicnode.com',
                 ws: 'wss://ethereum.publicnode.com',
                 priority: 3
-            },
-            {
-                id: 'alchemy',
-                name: 'Alchemy',
-                rpc: process.env.ETH_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
-                ws: process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
-                priority: 4
             }
         ];
 

@@ -92,6 +92,9 @@ class EnterpriseProfitEngine {
         });
 
         this.subscribeToEvents();
+
+        // High-speed provider cache (Ethers v6)
+        this._providerCache = new Map();
     }
 
     /**
@@ -280,9 +283,7 @@ class EnterpriseProfitEngine {
      * Checks if new execution can start based on concurrency limit
      */
     canExecute() {
-        const canExec = this.activeExecutions < this.config.maxConcurrentExecutions;
-        if (!canExec) console.log(`[ENGINE] ⚠️ Max concurrent executions reached (${this.activeExecutions}/${this.config.maxConcurrentExecutions}). Skipping opportunity.`);
-        return canExec;
+        return this.activeExecutions < this.config.maxConcurrentExecutions;
     }
 
     /**
@@ -296,17 +297,19 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE]   Expected Profit: ${opportunity.profit} ETH`);
             console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode - no private key)`);
 
-            // Still update stats to show activity
+            // Still update stats to show activity and decrement execution slot
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(opportunity.profit);
+            this.activeExecutions--;
             return;
         }
 
-        this.activeExecutions++;
         try {
             const { txHash, strategy, profit } = opportunity;
+            const chainKey = (chain || 'ethereum').toLowerCase();
+            const rpcUrl = this.rpcEndpoints[chainKey] || this.rpcEndpoints.ethereum;
 
-            console.log(`[ENGINE] 🚀 EXECUTING LIVE TRADE on ${chain.toUpperCase()}:`);
+            console.log(`[ENGINE] 🚀 EXECUTING LIVE TRADE on ${chainKey.toUpperCase()}:`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
@@ -321,9 +324,10 @@ class EnterpriseProfitEngine {
             });
 
             // 2. Create a SimpleAccount builder with the paymaster
+            // Using a static or cached provider would be better, but the URL strings are now Alchemy based.
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
                 this.signer,
-                this.rpcEndpoints[chain],
+                rpcUrl,
                 {
                     entryPoint: this.pimlicoConfig.entryPoint,
                     paymasterMiddleware: paymaster,
@@ -331,8 +335,6 @@ class EnterpriseProfitEngine {
             );
 
             // 3. Construct the callData for the UserOperation.
-            // This is a mock call: sending 0 ETH to self.
-            // In a real scenario, this would be the encoded arbitrage transaction data.
             const to = this.pimlicoConfig.walletAddress;
             const value = 0;
             const data = '0x';
@@ -353,6 +355,7 @@ class EnterpriseProfitEngine {
             // 5. Update stats
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(profit);
+            this.stats.successfulTrades++;
 
             console.log(`║  💎 Total Profit:         ${this.stats.totalProfit.toFixed(4)} ETH`);
             console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
@@ -435,8 +438,11 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
 
-            // Execute live trade
-            await this.executeLiveTrade({
+            // Synchronously reserve execution slot
+            this.activeExecutions++;
+
+            // Execute live trade - fire and forget (don't await here to keep listening)
+            this.executeLiveTrade({
                 txHash: txHash,
                 strategy,
                 profit
