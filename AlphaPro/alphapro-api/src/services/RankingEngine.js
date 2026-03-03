@@ -5,21 +5,22 @@
  */
 
 const EventEmitter = require('events');
+const DataFusionEngine = require('../engine/DataFusionEngine');
 
 class RankingEngine extends EventEmitter {
     constructor() {
         super();
-        
+
         // Real-time rankings storage
         this.chainRankings = new Map();
         this.dexRankings = new Map();
         this.pairRankings = new Map();
-        
+
         // Historical performance data
         this.profitHistory = new Map();
         this.volumeHistory = new Map();
         this.opportunityHistory = new Map();
-        
+
         // Scoring weights (can be adjusted dynamically)
         this.weights = {
             chain: {
@@ -41,15 +42,15 @@ class RankingEngine extends EventEmitter {
                 profitWeight: 0.20
             }
         };
-        
+
         // Initialize default rankings
         this.initializeRankings();
-        
+
         // Update interval
         this.updateInterval = 60000; // 1 minute
         this.startAutoUpdate();
     }
-    
+
     initializeRankings() {
         // Initialize chain rankings with baseline scores
         const defaultChains = [
@@ -79,7 +80,7 @@ class RankingEngine extends EventEmitter {
             { id: 'sei', name: 'Sei', baseScore: 10 },
             { id: 'osmosis', name: 'Osmosis', baseScore: 8 }
         ];
-        
+
         defaultChains.forEach(chain => {
             this.chainRankings.set(chain.id, {
                 ...chain,
@@ -91,7 +92,7 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         });
-        
+
         // Initialize DEX rankings
         const defaultDexes = [
             { id: 'uniswap_v3', chain: 'ethereum', baseScore: 95 },
@@ -110,7 +111,7 @@ class RankingEngine extends EventEmitter {
             { id: 'spiritswap', chain: 'fantom', baseScore: 85 },
             { id: 'zebra', chain: 'scroll', baseScore: 80 }
         ];
-        
+
         defaultDexes.forEach(dex => {
             this.dexRankings.set(`${dex.chain}_${dex.id}`, {
                 ...dex,
@@ -123,7 +124,7 @@ class RankingEngine extends EventEmitter {
             });
         });
     }
-    
+
     /**
      * Update chain rankings based on real-time data
      */
@@ -131,23 +132,23 @@ class RankingEngine extends EventEmitter {
         for (const [chainId, data] of Object.entries(chainData)) {
             const current = this.chainRankings.get(chainId);
             if (!current) continue;
-            
+
             // Calculate new score
             const profitScore = this.calculateProfitScore(data.profit24h);
             const volumeScore = this.calculateVolumeScore(data.volume24h);
             const opportunityScore = this.calculateOpportunityScore(data.opportunitiesCount);
             const reliabilityScore = data.reliability || 0.99;
-            
-            const newScore = 
+
+            const newScore =
                 (profitScore * this.weights.chain.profitWeight) +
                 (volumeScore * this.weights.chain.volumeWeight) +
                 (opportunityScore * this.weights.chain.opportunityWeight) +
                 (reliabilityScore * 100 * this.weights.chain.reliabilityWeight);
-            
+
             // Apply momentum (smoothing)
             const momentum = 0.7;
             const finalScore = (current.score * momentum) + (newScore * (1 - momentum));
-            
+
             this.chainRankings.set(chainId, {
                 ...current,
                 score: Math.min(100, Math.max(0, finalScore)),
@@ -158,10 +159,10 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         }
-        
+
         this.emit('chainRankingsUpdated', this.getSortedChains());
     }
-    
+
     /**
      * Update DEX rankings based on real-time data
      */
@@ -169,23 +170,23 @@ class RankingEngine extends EventEmitter {
         for (const [dexKey, data] of Object.entries(dexData)) {
             const current = this.dexRankings.get(dexKey);
             if (!current) continue;
-            
+
             // Calculate new score
             const liquidityScore = this.calculateLiquidityScore(data.liquidity24h);
             const volumeScore = this.calculateVolumeScore(data.volume24h);
             const feeScore = (1 - data.avgFee) * 100;
             const reliabilityScore = (data.reliability || 0.98) * 100;
-            
-            const newScore = 
+
+            const newScore =
                 (liquidityScore * this.weights.dex.liquidityWeight) +
                 (volumeScore * this.weights.dex.volumeWeight) +
                 (feeScore * this.weights.dex.feeWeight) +
                 (reliabilityScore * this.weights.dex.reliabilityWeight);
-            
+
             // Apply momentum
             const momentum = 0.8;
             const finalScore = (current.score * momentum) + (newScore * (1 - momentum));
-            
+
             this.dexRankings.set(dexKey, {
                 ...current,
                 score: Math.min(100, Math.max(0, finalScore)),
@@ -196,10 +197,10 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         }
-        
+
         this.emit('dexRankingsUpdated', this.getSortedDexes());
     }
-    
+
     /**
      * Update trading pair rankings based on arbitrage opportunities
      */
@@ -207,22 +208,22 @@ class RankingEngine extends EventEmitter {
         for (const [pairKey, data] of Object.entries(pairData)) {
             // Calculate spread score (higher spread = higher score)
             const spreadScore = Math.min(100, data.avgSpreadBps * 10);
-            
+
             // Frequency score (more opportunities = better)
             const frequencyScore = Math.min(100, data.opportunityFrequency * 10);
-            
+
             // Volume score
             const volumeScore = this.calculateVolumeScore(data.volume24h);
-            
+
             // Historical profit score
             const profitScore = this.calculateProfitScore(data.profit24h);
-            
-            const newScore = 
+
+            const newScore =
                 (spreadScore * this.weights.pair.spreadWeight) +
                 (frequencyScore * this.weights.pair.frequencyWeight) +
                 (volumeScore * this.weights.pair.volumeWeight) +
                 (profitScore * this.weights.pair.profitWeight);
-            
+
             this.pairRankings.set(pairKey, {
                 pair: pairKey,
                 score: Math.min(100, Math.max(0, newScore)),
@@ -234,17 +235,17 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         }
-        
+
         this.emit('pairRankingsUpdated', this.getSortedPairs());
     }
-    
+
     /**
      * Get top N chains by profitability
      */
     getTopChains(count = 10) {
         return this.getSortedChains().slice(0, count);
     }
-    
+
     /**
      * Get sorted chains by score
      */
@@ -252,14 +253,14 @@ class RankingEngine extends EventEmitter {
         return Array.from(this.chainRankings.values())
             .sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get top DEXs for a specific chain
      */
     getTopDexes(chainId, count = 5) {
         return this.getSortedDexes(chainId).slice(0, count);
     }
-    
+
     /**
      * Get sorted DEXs by score
      */
@@ -270,14 +271,14 @@ class RankingEngine extends EventEmitter {
         }
         return dexes.sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get top trading pairs by profitability
      */
     getTopPairs(count = 20) {
         return this.getSortedPairs().slice(0, count);
     }
-    
+
     /**
      * Get sorted pairs by score
      */
@@ -285,39 +286,39 @@ class RankingEngine extends EventEmitter {
         return Array.from(this.pairRankings.values())
             .sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get best opportunity across all pairs
      */
     getBestOpportunity() {
         const topPairs = this.getTopPairs(10);
         if (topPairs.length === 0) return null;
-        
+
         // Get the highest scoring pair
         return topPairs[0];
     }
-    
+
     /**
      * Get recommended chain for next trade
      */
     getRecommendedChain() {
         const topChains = this.getTopChains(3);
         if (topChains.length === 0) return null;
-        
+
         // Return top chain with highest score
         return topChains[0];
     }
-    
+
     /**
      * Get recommended DEX for a chain
      */
     getRecommendedDex(chainId) {
         const topDexes = this.getTopDexes(chainId, 3);
         if (topDexes.length === 0) return null;
-        
+
         return topDexes[0];
     }
-    
+
     /**
      * Calculate profit score (0-100)
      */
@@ -326,7 +327,7 @@ class RankingEngine extends EventEmitter {
         // Logarithmic scaling for profit
         return Math.min(100, Math.log10(profit + 1) * 20);
     }
-    
+
     /**
      * Calculate volume score (0-100)
      */
@@ -335,7 +336,7 @@ class RankingEngine extends EventEmitter {
         // Logarithmic scaling for volume
         return Math.min(100, Math.log10(volume + 1) * 15);
     }
-    
+
     /**
      * Calculate opportunity frequency score (0-100)
      */
@@ -343,7 +344,7 @@ class RankingEngine extends EventEmitter {
         if (count <= 0) return 0;
         return Math.min(100, count * 2);
     }
-    
+
     /**
      * Calculate liquidity score (0-100)
      */
@@ -351,7 +352,7 @@ class RankingEngine extends EventEmitter {
         if (liquidity <= 0) return 0;
         return Math.min(100, Math.log10(liquidity + 1) * 12);
     }
-    
+
     /**
      * Update scoring weights dynamically
      */
@@ -359,7 +360,7 @@ class RankingEngine extends EventEmitter {
         this.weights = { ...this.weights, ...newWeights };
         this.emit('weightsUpdated', this.weights);
     }
-    
+
     /**
      * Start auto-update cycle
      */
@@ -368,7 +369,7 @@ class RankingEngine extends EventEmitter {
             await this.performAutoUpdate();
         }, this.updateInterval);
     }
-    
+
     /**
      * Perform automatic ranking update
      */
@@ -376,10 +377,10 @@ class RankingEngine extends EventEmitter {
         try {
             // Fetch latest data from data sources
             // This would integrate with APIs like DexScreener, Birdeye, etc.
-            
+
             // For now, simulate with slight variations
             this.simulateMarketMovement();
-            
+
             // Emit update events
             this.emit('autoUpdateComplete', {
                 chains: this.getSortedChains(),
@@ -390,23 +391,18 @@ class RankingEngine extends EventEmitter {
             console.error('[RANKING] Auto-update error:', error);
         }
     }
-    
-    /**
-     * Simulate market movements for testing
-     */
+
     simulateMarketMovement() {
-        // Add some random variation to scores
+        // Only simulate in PAPER mode or if no real data is available
+        if (process.env.TRADING_MODE === 'LIVE') return;
+
+        // Add some random variation to scores for visualization
         for (const [key, chain] of this.chainRankings) {
-            const variation = (Math.random() - 0.5) * 2;
+            const variation = (Math.random() - 0.5) * 1.5;
             chain.score = Math.max(0, Math.min(100, chain.score + variation));
         }
-        
-        for (const [key, dex] of this.dexRankings) {
-            const variation = (Math.random() - 0.5) * 3;
-            dex.score = Math.max(0, Math.min(100, dex.score + variation));
-        }
     }
-    
+
     /**
      * Get full ranking report
      */
@@ -426,7 +422,7 @@ class RankingEngine extends EventEmitter {
             }
         };
     }
-    
+
     /**
      * Stop the ranking engine
      */

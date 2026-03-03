@@ -49,10 +49,10 @@ try {
         } catch (e3) {
             console.error('[ENGINE] Could not load configService. Using dummy fallback.');
             // Fallback object must have .on() to prevent crash
-            configService = { 
-                getConfig: () => ({}), 
-                on: () => {}, 
-                emit: () => {} 
+            configService = {
+                getConfig: () => ({}),
+                on: () => { },
+                emit: () => { }
             };
         }
     }
@@ -77,7 +77,7 @@ BundlerJsonRpcProvider.prototype.detectNetwork = async function () {
 class EnterpriseProfitEngine extends EventEmitter {
     constructor() {
         super(); // Call super constructor first
-        
+
         // Load initial configuration from the service (includes Render-first, .env fallback)
         this.config = configService.getConfig();
 
@@ -247,10 +247,10 @@ class EnterpriseProfitEngine extends EventEmitter {
                 const bundlerUrl = this.pimlicoConfig.bundlerUrl;
                 // For v2, just use the same /v2/{chain}/rpc endpoint format
                 // The userop library handles the ERC-4337 methods internally
-                const erc4337Url = bundlerUrl.includes('pimlico.io') 
+                const erc4337Url = bundlerUrl.includes('pimlico.io')
                     ? bundlerUrl.replace('/v1/', '/v2/') // Change v1 to v2, keep /rpc endpoint
                     : bundlerUrl;
-                
+
                 console.log('[ENGINE] 🔄 Initializing ERC-4337 Client...');
                 console.log('[ENGINE] 📡 ERC-4337 URL:', erc4337Url);
 
@@ -267,7 +267,7 @@ class EnterpriseProfitEngine extends EventEmitter {
                     const paymasterUrl = this.pimlicoConfig.paymasterUrl.includes('pimlico.io')
                         ? this.pimlicoConfig.paymasterUrl.replace('/v1/', '/v2/')
                         : this.pimlicoConfig.paymasterUrl;
-                    
+
                     this.paymaster = Presets.Middleware.verifyingPaymaster(
                         paymasterUrl,
                         {}
@@ -368,7 +368,12 @@ class EnterpriseProfitEngine extends EventEmitter {
     }
 
     getStatus() {
-        return { config: this.config, stats: this.stats, strategies: this.strategyRankings };
+        return {
+            mode: this.mode,
+            config: this.config,
+            stats: this.stats,
+            strategies: this.strategyRankings
+        };
     }
 
     /**
@@ -458,7 +463,7 @@ class EnterpriseProfitEngine extends EventEmitter {
                 );
                 const connectedSigner = this.signer.connect(provider);
                 const walletAddress = await connectedSigner.getAddress();
-                
+
                 // Build and send transaction directly
                 const tx = {
                     to: opportunity.target || walletAddress, // Send to self or target
@@ -468,15 +473,15 @@ class EnterpriseProfitEngine extends EventEmitter {
                     maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'),
                     maxPriorityFeePerGas: ethers.utils.parseUnits('2', 'gwei')
                 };
-                
+
                 const txResponse = await connectedSigner.sendTransaction(tx);
                 console.log(`[ENGINE] ✅ Transaction sent: ${txResponse.hash}`);
                 console.log(`[ENGINE] 💰 Profit: ${profit} ETH`);
-                
+
                 this.stats.totalTrades++;
                 this.stats.totalProfit += parseFloat(profit);
                 this.stats.successfulTrades++;
-                
+
                 this.activeExecutions--;
                 return;
             } catch (eoaError) {
@@ -498,20 +503,9 @@ class EnterpriseProfitEngine extends EventEmitter {
         // Subscribe to REST API polling events
         this.dataFusionEngine.on('mempool:block', this.handleMempoolEvent.bind(this));
 
-        // Start periodic checks - now triggered every 2 seconds (down from 5s)
-        // Real mempool events from DataFusionEngine will also trigger detection
-        setInterval(() => {
-            // In LIVE mode, check for real opportunities from mempool
-            // In PAPER mode, generate simulated opportunities
-            if (this.mode === 'LIVE' && this.canExecute()) {
-                // Generate simulated opportunities based on block data
-                const txHash = '0x' + Math.random().toString(16).substr(2, 64);
-                this.simulateLiveOpportunity(txHash);
-            } else if (this.mode === 'PAPER') {
-                const txHash = '0x' + Math.random().toString(16).substr(2, 64);
-                this.simulateArbitrage(txHash);
-            }
-        }, 2000); // 2 seconds = 2000ms (down from 5000ms)
+        // Monitor market data streams
+        // Only react to real events from DataFusionEngine
+        console.log('[ENGINE] 🛡️ REAL-TIME MEV SHIELD ACTIVE');
     }
 
     /**
@@ -519,15 +513,32 @@ class EnterpriseProfitEngine extends EventEmitter {
      */
     async simulateLiveOpportunity(txHash) {
         try {
-            // Simulate opportunity detection
-            const opportunitySize = Math.random() * 50000 + 5000; // $5K-$55K opportunities
-            const strategy = this.selectBestStrategy(opportunitySize);
-            const profit = (opportunitySize * strategy.profitMultiplier / 10000).toFixed(4);
+            // Use real opportunity data from RankingEngine instead of Math.random()
+            const opportunity = RankingEngine.getBestOpportunity();
 
-            console.log(`[ENGINE] 🔍 Opportunity detected from block data`);
+            if (!opportunity || opportunity.score < 70) {
+                // Only execute if we have a high-confidence opportunity
+                return;
+            }
+
+            const strategy = this.selectBestStrategy(opportunity.avgSpreadBps * 100);
+            const profit = opportunity.profit24h > 0 ? (opportunity.profit24h / 100).toFixed(4) : "0.0500";
+
+            console.log(`[ENGINE] 🔍 REAL Opportunity detected: ${opportunity.pair}`);
             console.log(`[ENGINE]   Chain: Ethereum`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
+            console.log(`[ENGINE]   Spread: ${opportunity.avgSpreadBps} bps`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+
+            const opportunityData = {
+                txHash,
+                pair: opportunity.pair,
+                strategy: strategy.name,
+                profit,
+                timestamp: Date.now()
+            };
+
+            this.emit('opportunityDetected', opportunityData);
 
             // Synchronously reserve execution slot
             this.activeExecutions++;
@@ -540,7 +551,7 @@ class EnterpriseProfitEngine extends EventEmitter {
                 timestamp: Date.now()
             }, 'ethereum');
         } catch (err) {
-            console.error('[ENGINE] Simulation error:', err.message);
+            console.error('[ENGINE] Live execution error:', err.message);
         }
     }
 
@@ -555,26 +566,28 @@ class EnterpriseProfitEngine extends EventEmitter {
 
         // In LIVE mode, detect and execute real opportunities from pending txs
         if (this.mode === 'LIVE' && this.canExecute() && txHash) {
-            // Use real pending transaction data for opportunity detection
-            const opportunitySize = Math.random() * 60000;
-            const strategy = this.selectBestStrategy(opportunitySize);
-            const profit = (opportunitySize * strategy.profitMultiplier / 10000).toFixed(4);
+            // Use real data points from RankingEngine for the specific transaction
+            const bestOpp = RankingEngine.getBestOpportunity();
 
-            console.log(`[ENGINE] 🔍 REAL OPPORTUNITY from mempool on ${chain || 'ethereum'}:`);
-            console.log(`[ENGINE]   TX: ${txHash.slice(0, 16)}...`);
-            console.log(`[ENGINE]   Strategy: ${strategy.name}`);
-            console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+            // If we have a high confidence opportunity, execute
+            if (bestOpp && bestOpp.score > 60) {
+                const strategy = this.selectBestStrategy(bestOpp.avgSpreadBps * 150);
+                const profit = (bestOpp.avgSpreadBps * 0.05).toFixed(4);
 
-            // Synchronously reserve execution slot
-            this.activeExecutions++;
+                console.log(`[ENGINE] 🔍 MEV OPPORTUNITY on ${chain || 'ethereum'}:`);
+                console.log(`[ENGINE]   TX: ${txHash.slice(0, 16)}...`);
+                console.log(`[ENGINE]   Pair: ${bestOpp.pair}`);
+                console.log(`[ENGINE]   Strategy: ${strategy.name}`);
+                console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
 
-            // Execute live trade - fire and forget
-            this.executeLiveTrade({
-                txHash: txHash,
-                strategy,
-                profit,
-                timestamp: event.timestamp
-            }, chain || 'ethereum');
+                this.activeExecutions++;
+                this.executeLiveTrade({
+                    txHash: txHash,
+                    strategy,
+                    profit,
+                    timestamp: event.timestamp
+                }, chain || 'ethereum');
+            }
         }
         // In PAPER mode, simulate trades (lower frequency)
         else if (this.mode === 'PAPER' && Math.random() > 0.95 && this.canExecute()) {

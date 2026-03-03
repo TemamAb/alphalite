@@ -176,6 +176,25 @@ wss.on('connection', (ws) => {
     });
 });
 
+// Broadcast message to all connected clients
+function broadcast(message) {
+    const payload = JSON.stringify(message);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(payload);
+        }
+    });
+}
+
+// Subscribe to engine events and broadcast to frontend
+profitEngine.on('tradeExecuted', (trade) => {
+    broadcast({ type: 'BLOCKCHAIN_EVENT', data: { ...trade, category: 'TRADE' } });
+});
+
+profitEngine.on('opportunityDetected', (opp) => {
+    broadcast({ type: 'BLOCKCHAIN_EVENT', data: { ...opp, category: 'OPPORTUNITY' } });
+});
+
 // Broadcast stats to all WebSocket clients
 function broadcastStats() {
     const stats = profitEngine.getStatus();
@@ -256,7 +275,7 @@ app.get('/api/dashboard', (req, res) => {
             rankings: rankings,
             topOpportunity: opportunity,
             engine: {
-                mode: engineStatus.config.tradingMode,
+                mode: engineStatus.mode,
                 stats: engineStatus.stats,
                 strategies: engineStatus.strategies
             },
@@ -988,9 +1007,10 @@ server.listen(PORT, () => {
     console.log(`[ALPHA-PRO API] Server running on port ${PORT}`);
     console.log(`[WS] WebSocket available at ws://localhost:${PORT}/ws`);
 
-    // AUTO-START: Start the profit engine in LIVE mode on server startup
-    console.log(`[AUTO-START] Starting AlphaPro Engine in ${process.env.TRADING_MODE || 'LIVE'} mode...`);
-    profitEngine.setMode('LIVE');
+    // AUTO-START: Start the profit engine in LIVE mode on server startup if configured
+    const initialMode = process.env.TRADING_MODE || 'LIVE';
+    console.log(`[AUTO-START] Starting AlphaPro Engine in ${initialMode} mode...`);
+    profitEngine.setMode(initialMode);
     profitEngine.start();
-    console.log(`[AUTO-START] ✅ AlphaPro Engine started in LIVE mode!`);
+    console.log(`[AUTO-START] ✅ AlphaPro Engine initialized in ${initialMode} mode!`);
 });
