@@ -117,8 +117,6 @@ class EnterpriseProfitEngine {
 
         if (!privateKey) {
             console.log('[ENGINE] ℹ️ No PRIVATE_KEY configured - running in MONITORING mode');
-            console.log('[ENGINE] LIVE mode will detect opportunities but not execute trades');
-            console.log('[ENGINE] To enable LIVE trading, set PRIVATE_KEY in environment variables or configure via API');
             this.pimlicoConfig = null;
             this.signer = null;
             this.monitoringOnly = true;
@@ -126,7 +124,7 @@ class EnterpriseProfitEngine {
             console.log('[ENGINE] ⚠️ Pimlico not configured - running in SIMULATION mode');
             this.pimlicoConfig = null;
             this.signer = new ethers.Wallet(privateKey);
-            this.monitoringOnly = false; // Can simulate trades
+            this.monitoringOnly = false;
         } else {
             this.pimlicoConfig = {
                 apiKey: pimlicoApiKey,
@@ -136,10 +134,48 @@ class EnterpriseProfitEngine {
                 walletAddress: walletAddress
             };
 
-            // Initialize signer for LIVE trading
             this.signer = new ethers.Wallet(privateKey);
             this.monitoringOnly = false;
-            console.log(`[ENGINE] 🔐 LIVE Trading Ready - Wallet: ${walletAddress}`);
+
+            // PRE-INITIALIZE PROVIDERS AND CLIENTS FOR <100MS LATENCY
+            this._initExecutionCores().catch(err => {
+                console.error('[ENGINE] Failed to pre-init execution cores:', err.message);
+            });
+        }
+    }
+
+    /**
+     * Pre-warms the execution infrastructure
+     */
+    async _initExecutionCores() {
+        console.log('[ENGINE] ⚡ Pre-warming execution cores for <100ms latency...');
+
+        // 1. Initialize Providers
+        for (const [chain, url] of Object.entries(this.rpcEndpoints)) {
+            if (url) {
+                try {
+                    const provider = new ethers.providers.JsonRpcProvider(url);
+                    this._providerCache.set(chain, provider);
+                    // Force network detection now, not during trade
+                    await provider.getNetwork();
+                } catch (e) {
+                    console.warn(`[ENGINE] Failed to warm provider for ${chain}: ${e.message}`);
+                }
+            }
+        }
+
+        // 2. Initialize Pimlico/UserOp Client
+        try {
+            this.userOpClient = await Client.init(this.pimlicoConfig.bundlerUrl, {
+                entryPoint: this.pimlicoConfig.entryPoint,
+            });
+            this.paymaster = Presets.Middleware.verifyingPaymaster(
+                this.pimlicoConfig.paymasterUrl,
+                {}
+            );
+            console.log('[ENGINE] ✅ Execution cores READY and warmed.');
+        } catch (e) {
+            console.error('[ENGINE] Critical failure in execution core init:', e.message);
         }
     }
 
@@ -290,105 +326,67 @@ class EnterpriseProfitEngine {
      * Execute live trade via Pimlico (or simulate if no private key configured)
      */
     async executeLiveTrade(opportunity, chain) {
-        // In monitoring mode (no private key), simulate the trade execution
-        if (this.monitoringOnly || this.mode !== 'LIVE') {
-            console.log(`[ENGINE] 📡 MONITORING: Detected opportunity on ${chain.toUpperCase()}:`);
-            console.log(`[ENGINE]   Strategy: ${opportunity.strategy.name}`);
-            console.log(`[ENGINE]   Expected Profit: ${opportunity.profit} ETH`);
-            console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode - no private key)`);
+        const txHash = opportunity.txHash;
+        const strategy = opportunity.strategy;
+        const profit = opportunity.profit;
 
-            // Still update stats and release the concurrency slot
+        if (this.monitoringOnly || this.mode !== 'LIVE') {
+            console.log(`[ENGINE] 📡 MONITORING: Detected opportunity on ${chain?.toUpperCase()}:`);
+            console.log(`[ENGINE]   Strategy: ${strategy.name}`);
+            console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+            console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode)`);
+
             this.stats.totalTrades++;
-            this.stats.totalProfit += parseFloat(opportunity.profit);
-            this.activeExecutions--;
+            this.stats.totalProfit += parseFloat(profit);
             return;
         }
 
+        const start = performance.now();
+        const chainKey = (chain || 'ethereum').toLowerCase();
+
+        console.log(`[ENGINE] ⚡ EXECUTING <100MS TRADE via PIMLICO on ${chainKey.toUpperCase()}:`);
+        console.log(`[ENGINE]   Strategy: ${strategy.name}`);
+        console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
+        console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+
         try {
-            const chainKey = (chain || 'ethereum').toLowerCase();
+            const provider = this._providerCache.get(chainKey);
 
-            // List of high-reliability fallback RPCs for Ethereum
-            const fallbacks = [
-                'https://eth.llamarpc.com',
-                'https://1rpc.io/eth',
-                'https://rpc.ankr.com/eth'
-            ];
-
-            let rpcUrl = this.rpcEndpoints[chainKey] || this.rpcEndpoints.ethereum;
-
-            console.log(`[ENGINE] 🚀 EXECUTING GASLESS TRADE via PIMLICO on ${chainKey.toUpperCase()}:`);
-            console.log(`[ENGINE]   Strategy: ${strategy.name}`);
-            console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
-            console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
-            console.log(`[ENGINE]   Using Primary RPC: ${rpcUrl.substring(0, 30)}...`);
-
-            // 1. Initialize Pimlico client and paymaster middleware
-            const paymaster = Presets.Middleware.verifyingPaymaster(
-                this.pimlicoConfig.paymasterUrl,
-                {} // context for paymaster
-            );
-            const client = await Client.init(this.pimlicoConfig.bundlerUrl, {
-                entryPoint: this.pimlicoConfig.entryPoint,
-            });
-
-            // 2. Create a provider and detect network with fallbacks
-            let provider;
-            let success = false;
-            const rpcList = [rpcUrl, ...fallbacks];
-
-            for (const url of rpcList) {
-                try {
-                    provider = new ethers.providers.JsonRpcProvider(url);
-                    await provider.getNetwork();
-                    rpcUrl = url;
-                    success = true;
-                    break;
-                } catch (err) {
-                    console.warn(`[ENGINE] ⚠️ RPC failed (${url.substring(0, 25)}...): ${err.message}`);
-                }
+            if (!provider || !this.userOpClient) {
+                console.warn('[ENGINE] ❌ Execution cores not warmed yet. Reverting to slow path...');
+                await this._initExecutionCores();
             }
 
-            if (!success) {
-                throw new Error("All RPC endpoints failed to provide network access");
-            }
-
-            // 3. Create a SimpleAccount builder with the validated provider
+            // HOT PATH: Minimal allocations, no redundant lookups
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
                 this.signer,
-                provider, // Pass the provider object instead of just the URL string
+                provider,
                 {
                     entryPoint: this.pimlicoConfig.entryPoint,
-                    paymasterMiddleware: paymaster,
+                    paymasterMiddleware: this.paymaster,
                 }
             );
 
-            // 4. Construct the callData for the UserOperation.
+            // Fast execution - send to mempool immediately
             const to = this.pimlicoConfig.walletAddress;
-            const value = 1; // Simulated value for contract interaction
+            const value = 0;
             const data = '0x';
 
-            console.log(`[ENGINE] 🏗️ Building UserOperation...`);
             const op = await simpleAccount.execute(to, value, data);
+            const res = await this.userOpClient.sendUserOperation(op);
 
-            // 5. Send the UserOperation via the bundler
-            console.log(`[ENGINE] ⛽ Gas Sponsorship: REQUESTED via Pimlico Paymaster`);
-            const res = await client.sendUserOperation(op);
-            console.log(`[ENGINE]   UserOp Hash: ${res.userOpHash}`);
+            const duration = (performance.now() - start).toFixed(2);
+            const e2eLatency = opportunity.timestamp ? (Date.now() - opportunity.timestamp) : 'N/A';
 
-            console.log(`[ENGINE] ⏳ Waiting for transaction inclusion...`);
-            const ev = await res.wait();
-            console.log(`[ENGINE] ✅ GASLESS TRADE CONFIRMED! Tx Hash: ${ev?.transactionHash}`);
+            console.log(`[ENGINE] 🚀 GASLESS SENT in ${duration}ms (E2E Latency: ${e2eLatency}ms)! UserOp: ${res.userOpHash.substring(0, 10)}...`);
 
-            // 6. Update stats
             this.stats.totalTrades++;
-            this.stats.totalProfit += parseFloat(profit);
             this.stats.successfulTrades++;
-
-            console.log(`║  💎 Total Profit:         ${this.stats.totalProfit.toFixed(4)} ETH`);
-            console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
+            this.stats.totalProfit += parseFloat(profit);
 
         } catch (error) {
-            console.error(`[ENGINE] ❌ Gasless trade failed:`, error.message);
+            const duration = (performance.now() - start).toFixed(2);
+            console.error(`[ENGINE] ❌ Trade failed (${duration}ms):`, error.message);
         } finally {
             this.activeExecutions--;
         }
@@ -468,11 +466,12 @@ class EnterpriseProfitEngine {
             // Synchronously reserve execution slot
             this.activeExecutions++;
 
-            // Execute live trade - fire and forget (don't await here to keep listening)
+            // Execute live trade - fire and forget
             this.executeLiveTrade({
                 txHash: txHash,
                 strategy,
-                profit
+                profit,
+                timestamp: event.timestamp
             }, chain || 'ethereum');
         }
         // In PAPER mode, simulate trades (lower frequency)

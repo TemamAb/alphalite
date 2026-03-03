@@ -22,8 +22,8 @@ try {
     } catch (e2) {
         console.error('[DATA-FUSION] Could not load configService:', e2.message);
         // Fallback to reading env directly
-        configService = { 
-            getConfig: () => ({ 
+        configService = {
+            getConfig: () => ({
                 alchemyApiKey: process.env.ALCHEMY_API_KEY,
                 wsUrls: {
                     ethereum: process.env.ETH_WS_URL,
@@ -32,7 +32,7 @@ try {
                     optimism: process.env.OPTIMISM_WS_URL,
                     base: process.env.BASE_WS_URL
                 }
-            }) 
+            })
         };
     }
 }
@@ -61,52 +61,52 @@ class DataFusionEngine extends EventEmitter {
         // OPTION B: WebSocket for sub-200ms latency
         // Free public WebSocket endpoints (no API key required)
         this.chains = [
-            { 
-                id: 'ethereum', 
-                name: 'Ethereum', 
-                rpcUrl: appConfig.rpcUrls?.ethereum || process.env.ETH_RPC_URL || 'https://1rpc.io/eth', 
+            {
+                id: 'ethereum',
+                name: 'Ethereum',
+                rpcUrl: appConfig.rpcUrls?.ethereum || process.env.ETH_RPC_URL || 'https://1rpc.io/eth',
                 wsUrl: process.env.ETH_WS_URL || 'wss://ethereum.publicnode.com'  // Free WebSocket!
             },
-            { 
-                id: 'arbitrum', 
-                name: 'Arbitrum', 
-                rpcUrl: appConfig.rpcUrls?.arbitrum || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc', 
+            {
+                id: 'arbitrum',
+                name: 'Arbitrum',
+                rpcUrl: appConfig.rpcUrls?.arbitrum || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
                 wsUrl: process.env.ARBITRUM_WS_URL || 'wss://arb1.arbitrum.io/websocket'  // Free WebSocket!
             },
-            { 
-                id: 'polygon', 
-                name: 'Polygon', 
-                rpcUrl: appConfig.rpcUrls?.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com', 
+            {
+                id: 'polygon',
+                name: 'Polygon',
+                rpcUrl: appConfig.rpcUrls?.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
                 wsUrl: process.env.POLYGON_WS_URL || null  // No free WS, use REST
             },
-            { 
-                id: 'optimism', 
-                name: 'Optimism', 
-                rpcUrl: appConfig.rpcUrls?.optimism || process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io', 
+            {
+                id: 'optimism',
+                name: 'Optimism',
+                rpcUrl: appConfig.rpcUrls?.optimism || process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
                 wsUrl: process.env.OPTIMISM_WS_URL || null
             },
-            { 
-                id: 'base', 
-                name: 'Base', 
-                rpcUrl: appConfig.rpcUrls?.base || process.env.BASE_RPC_URL || 'https://base.llamarpc.com', 
+            {
+                id: 'base',
+                name: 'Base',
+                rpcUrl: appConfig.rpcUrls?.base || process.env.BASE_RPC_URL || 'https://base.llamarpc.com',
                 wsUrl: process.env.BASE_WS_URL || null
             },
-            { 
-                id: 'avalanche', 
-                name: 'Avalanche', 
-                rpcUrl: appConfig.rpcUrls?.avalanche || process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc', 
+            {
+                id: 'avalanche',
+                name: 'Avalanche',
+                rpcUrl: appConfig.rpcUrls?.avalanche || process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
                 wsUrl: process.env.AVALANCHE_WS_URL || null
             },
-            { 
-                id: 'bsc', 
-                name: 'BSC', 
-                rpcUrl: appConfig.rpcUrls?.bsc || process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org', 
+            {
+                id: 'bsc',
+                name: 'BSC',
+                rpcUrl: appConfig.rpcUrls?.bsc || process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org',
                 wsUrl: process.env.BSC_WS_URL || null
             },
-            { 
-                id: 'celo', 
-                name: 'Celo', 
-                rpcUrl: appConfig.rpcUrls?.celo || process.env.CELO_RPC_URL || 'https://forno.celo.org', 
+            {
+                id: 'celo',
+                name: 'Celo',
+                rpcUrl: appConfig.rpcUrls?.celo || process.env.CELO_RPC_URL || 'https://forno.celo.org',
                 wsUrl: process.env.CELO_WS_URL || null
             }
         ];
@@ -121,7 +121,7 @@ class DataFusionEngine extends EventEmitter {
     async start() {
         console.log('[DATA-FUSION] ⚡ Starting High-Speed Mempool Engine...');
         this.isLive = true;
-        
+
         // Try MultiPathDetector first (Strategy 3 - fastest)
         if (MultiPathDetector) {
             try {
@@ -130,23 +130,21 @@ class DataFusionEngine extends EventEmitter {
                     timeout: 500,
                     maxLatency: 1000
                 });
-                
+
                 // Forward multi-path transactions to engine
                 this.multiPath.on('transaction', (event) => {
-                    if (event.isFastest) {
-                        const tx = event.data.params?.result;
-                        if (tx) {
-                            this.emit('mempool:pendingTx', {
-                                chain: 'ethereum',
-                                hash: tx,
-                                provider: event.provider,
-                                latency: event.latency,
-                                timestamp: Date.now()
-                            });
-                        }
+                    const tx = event.hash;
+                    if (tx) {
+                        this.emit('mempool:pendingTx', {
+                            chain: 'ethereum',
+                            hash: tx,
+                            provider: event.provider,
+                            latency: event.latency,
+                            timestamp: event.timestamp || Date.now()
+                        });
                     }
                 });
-                
+
                 await this.multiPath.start();
                 console.log('[DATA-FUSION] ✅ Multi-Path Detection active!');
                 return; // Skip legacy methods if multi-path works
@@ -154,7 +152,7 @@ class DataFusionEngine extends EventEmitter {
                 console.log(`[DATA-FUSION] ⚠️ Multi-Path failed: ${err.message}, falling back...`);
             }
         }
-        
+
         // Fallback: Try WebSocket connections first for real-time mempool (sub-200ms)
         let wsConnected = false;
         for (const chain of this.chains) {
@@ -167,7 +165,7 @@ class DataFusionEngine extends EventEmitter {
                 }
             }
         }
-        
+
         if (wsConnected) {
             console.log('[DATA-FUSION] 🚀 LIVE: WebSocket mode active (sub-200ms detection)');
         } else {
@@ -176,7 +174,7 @@ class DataFusionEngine extends EventEmitter {
             this.startMempoolPolling();
         }
     }
-    
+
     /**
      * OPTION A: Real-time Mempool Detection
      * - 1-second polling interval (down from 15 seconds)
@@ -186,21 +184,21 @@ class DataFusionEngine extends EventEmitter {
      */
     startMempoolPolling() {
         console.log('[DATA-FUSION] ⚡ Starting HIGH-SPEED mempool polling (1s interval)...');
-        
+
         // Multiple RPC endpoints for Ethereum (ordered by performance)
         const ethRpcs = [
             'https://1rpc.io/eth',      // Fastest - tested at 804ms
             'https://rpc.ankr.com/eth', // Backup - tested at 399ms but 0 pending
             'https://eth.llamarpc.com'  // Fallback
         ];
-        
+
         // Track current RPC index for round-robin
         let currentRpcIndex = 0;
         let consecutiveFailures = 0;
         const MAX_FAILURES_BEFORE_BACKOFF = 5;
         let isBackingOff = false;
         let backoffUntil = 0;
-        
+
         // Polling interval: 1 second for real-time detection
         this.mempoolPollInterval = setInterval(async () => {
             try {
@@ -208,17 +206,17 @@ class DataFusionEngine extends EventEmitter {
                 if (isBackingOff && Date.now() < backoffUntil) {
                     return; // Skip this poll cycle
                 }
-                
+
                 if (isBackingOff && Date.now() >= backoffUntil) {
                     console.log('[DATA-FUSION] 🔄 Recovering from rate limit - resuming polling');
                     isBackingOff = false;
                     consecutiveFailures = 0;
                 }
-                
+
                 // Round-robin through RPC endpoints
                 const rpcUrl = ethRpcs[currentRpcIndex];
                 currentRpcIndex = (currentRpcIndex + 1) % ethRpcs.length;
-                
+
                 // Get PENDING block (not just block number!) - this is key for MEV
                 const response = await fetch(rpcUrl, {
                     method: 'POST',
@@ -230,17 +228,17 @@ class DataFusionEngine extends EventEmitter {
                         id: 1
                     })
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     consecutiveFailures = 0; // Reset on success
-                    
+
                     if (data.result && data.result.transactions) {
                         const pendingTxs = data.result.transactions;
-                        
+
                         if (pendingTxs.length > 0) {
                             console.log(`[DATA-FUSION] 📦 Detected ${pendingTxs.length} pending transactions`);
-                            
+
                             // Emit each pending transaction for real-time processing
                             pendingTxs.forEach((tx, index) => {
                                 // Only process first 10 to avoid spam
@@ -257,7 +255,7 @@ class DataFusionEngine extends EventEmitter {
                                     });
                                 }
                             });
-                            
+
                             // Also emit block event for bulk processing
                             this.emit('mempool:block', {
                                 chain: 'ethereum',
@@ -271,7 +269,7 @@ class DataFusionEngine extends EventEmitter {
                     // Rate limited - implement exponential backoff
                     consecutiveFailures++;
                     console.warn(`[DATA-FUSION] ⚠️ Rate limited (${consecutiveFailures}/${MAX_FAILURES_BEFORE_BACKOFF})`);
-                    
+
                     if (consecutiveFailures >= MAX_FAILURES_BEFORE_BACKOFF) {
                         console.warn('[DATA-FUSION] 🚫 Too many failures - backing off for 30 seconds');
                         isBackingOff = true;
@@ -296,12 +294,12 @@ class DataFusionEngine extends EventEmitter {
     connectChain(chain) {
         // Build WebSocket URL - supports both API-key-based and free endpoints
         let url = chain.wsUrl;
-        
+
         if (!url) {
             console.log(`[DATA-FUSION] ⚠️ ${chain.name}: No WebSocket URL configured, skipping.`);
             return false;
         }
-        
+
         // If using Alchemy WebSocket URL, append API key
         if (this.alchemyKey && url.includes('alchemy.com')) {
             url = `${url}${this.alchemyKey}`;
@@ -309,11 +307,11 @@ class DataFusionEngine extends EventEmitter {
         } else {
             console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} mempool (Public WebSocket)...`);
         }
-        
+
         const self = this;
-        
+
         console.log(`[DATA-FUSION] 📡 WebSocket: ${url.substring(0, 50)}...`);
-        
+
         try {
             const ws = new ReconnectingWebSocket(url, [], {
                 WebSocket: WebSocket,
@@ -332,7 +330,7 @@ class DataFusionEngine extends EventEmitter {
                     params: ["newPendingTransactions"]
                 }));
             });
-            
+
             ws.addEventListener('message', (data) => {
                 try {
                     const event = JSON.parse(data.data);
@@ -358,7 +356,7 @@ class DataFusionEngine extends EventEmitter {
                     console.error(`[DATA-FUSION] ❌ ${chain.name} WS Error:`, err.message);
                 }
             });
-            
+
             return true;
         } catch (error) {
             console.error(`[DATA-FUSION] ❌ Failed to connect to ${chain.name}:`, error.message);
@@ -385,27 +383,27 @@ class DataFusionEngine extends EventEmitter {
             while (attempt < maxRetries) {
                 attempt++;
 
-            
-            const url = `${config.tier2_discovery.dexscreener.base_url}${config.tier2_discovery.dexscreener.endpoints.tokens}${tokenAddress}`;
-            const response = await axios.get(url);
 
-            if (response.data && response.data.pairs && response.data.pairs.length > 0) {
-                const bestPair = response.data.pairs[0];
-                const priceUsd = parseFloat(bestPair.priceUsd);
-                this.priceCache.set(tokenAddress, { price: priceUsd, timestamp: Date.now() });
-                return priceUsd;
-            } else {
-                  console.warn(`[DATA-FUSION] ⚠️ No pairs found on DexScreener for ${tokenAddress}, retry attempt ${attempt}`);
-                  await this.backoff(attempt);
+                const url = `${config.tier2_discovery.dexscreener.base_url}${config.tier2_discovery.dexscreener.endpoints.tokens}${tokenAddress}`;
+                const response = await axios.get(url);
+
+                if (response.data && response.data.pairs && response.data.pairs.length > 0) {
+                    const bestPair = response.data.pairs[0];
+                    const priceUsd = parseFloat(bestPair.priceUsd);
+                    this.priceCache.set(tokenAddress, { price: priceUsd, timestamp: Date.now() });
+                    return priceUsd;
+                } else {
+                    console.warn(`[DATA-FUSION] ⚠️ No pairs found on DexScreener for ${tokenAddress}, retry attempt ${attempt}`);
+                    await this.backoff(attempt);
+                }
             }
-          }
         } catch (error) {
             console.error(`[DATA-FUSION] ⚠️ DexScreener Error for ${tokenAddress}:`, error.message);
 
         }
         return null;
     }
-    
+
     /**
      * Tier 3: Fetch Price from CoinGecko
      */
