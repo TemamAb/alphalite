@@ -27,7 +27,6 @@ COPY AlphaPro/alphapro-api/config ./config
 # Copy data sources and preflight check from the root (where they actually are)
 COPY data_sources.json .
 COPY PreFlightCheck.js .
-COPY .env .
 
 # Copy built frontend static files
 COPY --from=client-build /app/client/dist ./client/dist
