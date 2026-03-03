@@ -3,18 +3,8 @@ const RankingEngine = require('../services/RankingEngine');
 let strategies = require('./strategies.json');
 const { performance } = require('perf_hooks');
 
-// Try multiple paths for config
-let configService;
-try {
-    configService = require('../../../configService');
-} catch (e) {
-    try {
-        configService = require('../../configService');
-    } catch (e2) {
-        console.error('[ENGINE] Could not load configService:', e2.message);
-        configService = { getConfig: () => ({}) };
-    }
-}
+// Load configuration service from root
+const configService = require('../../../configService');
 
 const axios = require('axios');
 const { ethers } = require('ethers');
@@ -33,14 +23,14 @@ class EnterpriseProfitEngine {
 
         // RPC endpoints for each chain - use config service
         this.rpcEndpoints = this.config.rpcUrls;
-        
+
         // Validate RPC endpoints
         Object.entries(this.rpcEndpoints).forEach(([chain, url]) => {
             if (!url) {
                 console.warn(`[ENGINE] ⚠️ Missing RPC endpoint for ${chain}`);
             }
         });
-        
+
         if (this.pimlicoConfig) {
             console.log(`[ENGINE] 🔐 LIVE Trading Mode Configured:`);
             console.log(`[ENGINE]   Wallet: ${this.pimlicoConfig.walletAddress}`);
@@ -75,19 +65,27 @@ class EnterpriseProfitEngine {
         this.dataFusionEngine.start().catch(err => {
             console.error("[ENGINE] Failed to start DataFusionEngine:", err);
         });
-        
+
         // Priority tracking from rankings
         this.topChains = [];
         this.topPairs = [];
         this.bestOpportunity = null;
-        
+
         console.log(`[ENGINE] Initialized in ${this.mode.toUpperCase()} mode.`);
         console.log(`[ENGINE] 📊 Strategy Rankings Loaded:`);
         this.strategyRankings.forEach((s, i) => {
-            console.log(`[ENGINE]   ${i+1}. ${s.name} (Risk: ${s.risk}) - Profit: ${s.profitMultiplier}x`);
+            console.log(`[ENGINE]   ${i + 1}. ${s.name} (Risk: ${s.risk}) - Profit: ${s.profitMultiplier}x`);
         });
 
         this.subscribeToEvents();
+    }
+
+    /**
+     * Start the profit engine
+     */
+    async start() {
+        console.log('[ENGINE] 🟢 Profit engine started and monitoring...');
+        return true;
     }
 
     /**
@@ -144,29 +142,29 @@ class EnterpriseProfitEngine {
 
         console.log(`[ENGINE] ✅ RECONFIGURATION COMPLETE. Current state: ${this.monitoringOnly ? 'MONITORING' : 'LIVE/SIMULATION'}`);
     }
-    
+
     // Initialize Ranking Engine integration
     initializeRankingIntegration() {
         console.log('[ENGINE] 🎯 Ranking Engine Integration Active');
-        
+
         // Listen for ranking updates
         RankingEngine.on('chainRankingsUpdated', (chains) => {
             this.topChains = chains.slice(0, 5).map(c => c.id);
             console.log(`[RANKING] 🔥 Priority Chains: ${this.topChains.join(', ')}`);
         });
-        
+
         RankingEngine.on('pairRankingsUpdated', (pairs) => {
             this.topPairs = pairs.slice(0, 10).map(p => p.pair);
             console.log(`[RANKING] 💎 Priority Pairs: ${this.topPairs.join(', ')}`);
         });
-        
+
         RankingEngine.on('autoUpdateComplete', (data) => {
             if (data.pairs && data.pairs.length > 0) {
                 this.bestOpportunity = data.pairs[0];
             }
         });
     }
-    
+
     // Get prioritized opportunity from rankings
     getRankedOpportunity() {
         const opportunity = RankingEngine.getBestOpportunity();
@@ -184,7 +182,7 @@ class EnterpriseProfitEngine {
         }
         return null;
     }
-    
+
     // Get full rankings for dashboard
     getRankings() {
         return RankingEngine.getRankingReport();
@@ -283,7 +281,7 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE]   Strategy: ${opportunity.strategy.name}`);
             console.log(`[ENGINE]   Expected Profit: ${opportunity.profit} ETH`);
             console.log(`[ENGINE]   ⚠️ Trade NOT executed (monitoring mode - no private key)`);
-            
+
             // Still update stats to show activity
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(opportunity.profit);
@@ -293,7 +291,7 @@ class EnterpriseProfitEngine {
         this.activeExecutions++;
         try {
             const { txHash, strategy, profit } = opportunity;
-            
+
             console.log(`[ENGINE] 🚀 EXECUTING LIVE TRADE on ${chain.toUpperCase()}:`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
@@ -312,12 +310,12 @@ class EnterpriseProfitEngine {
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
                 this.signer,
                 this.rpcEndpoints[chain],
-                { 
+                {
                     entryPoint: this.pimlicoConfig.entryPoint,
                     paymasterMiddleware: paymaster,
                 }
             );
-            
+
             // 3. Construct the callData for the UserOperation.
             // This is a mock call: sending 0 ETH to self.
             // In a real scenario, this would be the encoded arbitrage transaction data.
@@ -327,7 +325,7 @@ class EnterpriseProfitEngine {
 
             console.log(`[ENGINE] 🏗️ Building UserOperation...`);
             const op = await simpleAccount.execute(to, value, data);
-            
+
             // 4. Send the UserOperation via the bundler
             console.log(`[ENGINE] ⛽ Gas Sponsorship: REQUESTED via Pimlico Paymaster`);
             console.log(`[ENGINE] ⏳ Submitting to Pimlico Bundler...`);
@@ -341,10 +339,10 @@ class EnterpriseProfitEngine {
             // 5. Update stats
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(profit);
-            
+
             console.log(`║  💎 Total Profit:         ${this.stats.totalProfit.toFixed(4)} ETH`);
             console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades}`);
-            
+
         } catch (error) {
             console.error(`[ENGINE] ❌ Live trade failed:`, error.message);
         } finally {
@@ -355,7 +353,7 @@ class EnterpriseProfitEngine {
     subscribeToEvents() {
         console.log('[ENGINE] ✅ Subscribing to market data streams...');
         this.dataFusionEngine.on('mempool:pendingTx', this.handleMempoolEvent.bind(this));
-        
+
         // Subscribe to REST API polling events
         this.dataFusionEngine.on('mempool:block', this.handleMempoolEvent.bind(this));
 
@@ -374,7 +372,7 @@ class EnterpriseProfitEngine {
             }
         }, 2000); // 2 seconds = 2000ms (down from 5000ms)
     }
-    
+
     /**
      * Simulate live trading opportunity when in LIVE mode
      */
@@ -385,12 +383,12 @@ class EnterpriseProfitEngine {
             const opportunitySize = Math.random() * 50000 + 5000; // $5K-$55K opportunities
             const strategy = this.selectBestStrategy(opportunitySize);
             const profit = (opportunitySize * strategy.profitMultiplier / 10000).toFixed(4);
-            
+
             console.log(`[ENGINE] 🔍 Opportunity detected from block data`);
             console.log(`[ENGINE]   Chain: Ethereum`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
-            
+
             // Execute trade (simulated in monitoring mode)
             await this.executeLiveTrade({
                 txHash,
@@ -410,22 +408,22 @@ class EnterpriseProfitEngine {
         // Support both old format (tx) and new format (hash)
         const txHash = event.tx || event.hash;
         const { chain } = event;
-        
+
         // In LIVE mode, detect and execute real opportunities from pending txs
         if (this.mode === 'LIVE' && this.canExecute() && txHash) {
             // Use real pending transaction data for opportunity detection
             const opportunitySize = Math.random() * 60000;
             const strategy = this.selectBestStrategy(opportunitySize);
             const profit = (opportunitySize * strategy.profitMultiplier / 10000).toFixed(4);
-            
+
             console.log(`[ENGINE] 🔍 REAL OPPORTUNITY from mempool on ${chain || 'ethereum'}:`);
             console.log(`[ENGINE]   TX: ${txHash.slice(0, 16)}...`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
-            
+
             // Execute live trade
             await this.executeLiveTrade({
-                txHash,
+                txHash: txHash,
                 strategy,
                 profit
             }, chain || 'ethereum');

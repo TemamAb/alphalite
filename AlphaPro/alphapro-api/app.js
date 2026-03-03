@@ -1,4 +1,4 @@
- const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const https = require('https');
@@ -10,7 +10,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const profitEngine = require('./src/engine/EnterpriseProfitEngine');
-const preFlightCheckService = require('./PreFlightCheck');
+const preFlightCheckService = require('../PreFlightCheck');
 const rankingEngine = require('./src/services/RankingEngine');
 const aiOptimizer = require('./src/services/AIAutoOptimizer');
 const brainConnector = require('./src/services/BrainConnector');
@@ -26,9 +26,9 @@ function detectWalletProvider(address) {
     // Deterministic assignment based on address characteristics for system verification
     // This simulates detection to populate the UI with consistent brands
     if (!address) return { name: 'Unknown', logo: '' };
-    
+
     const lastChar = address.slice(-1).toLowerCase();
-    
+
     // Assign brands based on the last character of the address
     if (['0', '1', '2', '3'].includes(lastChar)) {
         return { name: 'MetaMask', logo: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' };
@@ -57,7 +57,7 @@ async function fetchPublicBalance(address) {
         'https://ethereum.publicnode.com',
         'https://rpc.ankr.com/eth'
     ];
-    
+
     for (const endpoint of rpcEndpoints) {
         try {
             const result = await fetchBalanceWithTimeout(address, endpoint, 3000);
@@ -66,7 +66,7 @@ async function fetchPublicBalance(address) {
             console.log(`[Balance] ${endpoint} failed: ${e.message}`);
         }
     }
-    
+
     // Fallback: return 0 if all endpoints fail
     return 0;
 }
@@ -132,13 +132,13 @@ const wss = new WebSocket.Server({ server, path: '/ws' });
 // WebSocket connection handler
 wss.on('connection', (ws) => {
     console.log('[WS] Client connected');
-    
+
     // Send current stats immediately
     ws.send(JSON.stringify({
         type: 'STATS_UPDATE',
         data: profitEngine.getStatus()
     }));
-    
+
     ws.on('close', () => {
         console.log('[WS] Client disconnected');
     });
@@ -179,7 +179,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/config/status', (req, res) => {
     const configService = require('./config/configService.js');
     const cfg = configService.getConfig();
-    
+
     res.json({
         pimlicoConfigured: !!(cfg.pimlico?.bundlerUrl && cfg.pimlico?.paymasterUrl),
         walletConfigured: !!cfg.walletAddress,
@@ -219,7 +219,7 @@ app.get('/api/dashboard', (req, res) => {
         const rankings = profitEngine.getRankings();
         const opportunity = profitEngine.getRankedOpportunity();
         const engineStatus = profitEngine.getStatus();
-        
+
         res.status(200).json({
             rankings: rankings,
             topOpportunity: opportunity,
@@ -331,7 +331,7 @@ app.get('/api/rankings/opportunity', (req, res) => {
         const opportunity = rankingEngine.getBestOpportunity();
         const recommendedChain = rankingEngine.getRecommendedChain();
         const recommendedDex = recommendedChain ? rankingEngine.getRecommendedDex(recommendedChain.id) : null;
-        
+
         res.status(200).json({
             bestOpportunity: opportunity,
             recommendedChain,
@@ -377,7 +377,7 @@ app.get('/api/engine/stats', (req, res) => {
     }
 
     const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
-    
+
     // Win rate calculation - tracked from actual trade executions
     const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
 
@@ -396,48 +396,48 @@ app.get('/api/engine/stats', (req, res) => {
  */
 app.get('/api/copilot', async (req, res) => {
     const { question } = req.query;
-    
+
     // Get engine stats for analysis
     const engineStatus = profitEngine.getStatus();
     const mode = profitEngine.getMode();
     const stats = engineStatus.stats;
-    
+
     // Get AI Optimizer state
     const optimizerState = aiOptimizer.getState();
-    
+
     // Get Rankings
     const rankings = profitEngine.getRankings();
     const opportunity = profitEngine.getRankedOpportunity();
-    
+
     // Calculate metrics for projection
     const totalTrades = stats.totalTrades || 0;
     const totalProfit = stats.totalProfit || 0;
     const successfulTrades = stats.successfulTrades || 0;
     const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
-    
+
     // Calculate confidence score based on simulation performance
     let confidenceScore = 0;
     let projection = "";
-    
+
     if (mode === 'PAPER' && totalTrades > 0) {
         // Paper trading mode - calculate confidence based on performance
         const profitFactor = totalProfit > 0 ? Math.min(totalProfit / 1000, 100) : 0;
         const volumeFactor = Math.min(totalTrades / 100, 100);
         const winRateFactor = winRate;
-        
+
         confidenceScore = Math.min(
             (profitFactor * 0.4) + (volumeFactor * 0.3) + (winRateFactor * 0.3),
             95
         );
-        
+
         // Calculate projected monthly profit
         const projectedDailyProfit = (totalProfit / Math.max(totalTrades, 1)) * 24;
         const projectedMonthlyProfit = projectedDailyProfit * 30;
-        
+
         projection = `Based on ${totalTrades} simulated trades with ${winRate.toFixed(1)}% win rate. ` +
             `Projected monthly profit: ${projectedMonthlyProfit.toFixed(2)}. ` +
             `Confidence Score: ${confidenceScore.toFixed(1)}%`;
-            
+
         if (confidenceScore >= 70) {
             projection += " Recommendation: READY for production deployment.";
         } else if (confidenceScore >= 50) {
@@ -455,13 +455,13 @@ app.get('/api/copilot', async (req, res) => {
     } else {
         projection = "System not running. Start engine in PAPER or LIVE mode for analysis.";
     }
-    
+
     // Generate answer based on question
     let answer = projection;
-    
+
     if (question && question.toLowerCase().includes('profit')) {
-        const projectedMonthlyProfit = mode === 'PAPER' && totalTrades > 0 
-            ? (totalProfit / totalTrades) * 24 * 30 
+        const projectedMonthlyProfit = mode === 'PAPER' && totalTrades > 0
+            ? (totalProfit / totalTrades) * 24 * 30
             : 0;
         answer = `Current total profit: ${totalProfit.toFixed(2)}. ` +
             `Projected monthly profit: ${projectedMonthlyProfit.toFixed(2)}. ` +
@@ -478,7 +478,7 @@ app.get('/api/copilot', async (req, res) => {
             answer = `NOT READY FOR DEPLOYMENT - Confidence Score: ${confidenceScore.toFixed(1)}% - Continue paper trading to improve metrics`;
         }
     }
-    
+
     res.json({
         answer,
         metrics: {
@@ -521,9 +521,9 @@ app.post('/api/engine/state', (req, res) => {
 app.post('/api/engine/strategies/reload', (req, res) => {
     profitEngine.reloadStrategies();
     const status = profitEngine.getStatus();
-    res.status(200).json({ 
-        message: 'Strategies reload triggered', 
-        count: status.strategies.length 
+    res.status(200).json({
+        message: 'Strategies reload triggered',
+        count: status.strategies.length
     });
 });
 
@@ -548,9 +548,9 @@ app.get('/api/wallets', (req, res) => {
     const totalBalance = walletData.reduce((sum, w) => sum + (w.balance || w.totalBalance || 0), 0);
     const validCount = walletData.filter(w => w.valid).length;
     const invalidCount = walletData.filter(w => !w.valid).length;
-    res.json({ 
-        wallets: walletData, 
-        totalBalance: totalBalance.toFixed(4), 
+    res.json({
+        wallets: walletData,
+        totalBalance: totalBalance.toFixed(4),
         count: walletData.length,
         validCount,
         invalidCount
@@ -565,30 +565,30 @@ app.post('/api/wallets/import', async (req, res) => {
     if (!addresses || !Array.isArray(addresses)) {
         return res.status(400).json({ error: 'Invalid addresses array' });
     }
-    
+
     // Process addresses in parallel for better performance
     const walletPromises = addresses.map(async (addr) => {
         // Validate address format
         const isValid = /^0x[a-fA-F0-9]{40}$/.test(addr);
-        
+
         // Detect provider
         const providerData = detectWalletProvider(addr);
-        
+
         // Detect blockchain
         const blockchain = detectBlockchain(addr);
-        
+
         // Skip fetching balance during import - do it in background
         // This prevents import timeouts
         const realBalance = 0;
-        
-        const chains = isValid ? { 
-            ETH: '0.0000', 
-            ARB: '0.0000', 
-            OP: '0.0000', 
-            BASE: '0.0000', 
+
+        const chains = isValid ? {
+            ETH: '0.0000',
+            ARB: '0.0000',
+            OP: '0.0000',
+            BASE: '0.0000',
             MATIC: '0'
         } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
-        
+
         return {
             address: addr,
             name: `Wallet ${wallets.length + 1}`,
@@ -601,9 +601,9 @@ app.post('/api/wallets/import', async (req, res) => {
             totalBalance: realBalance
         };
     });
-    
+
     const newWallets = await Promise.all(walletPromises);
-    
+
     wallets = [...wallets, ...newWallets];
     res.json({ success: true, count: newWallets.length });
 });
@@ -706,16 +706,16 @@ app.delete('/api/wallets/:address', (req, res) => {
  */
 app.post('/api/wallets/verify-key', (req, res) => {
     const { privateKey } = req.body;
-    
+
     if (!privateKey) {
         return res.status(400).json({ error: 'Private key required' });
     }
-    
+
     try {
         const { ethers } = require('ethers');
         let key = privateKey.trim();
         if (!key.startsWith('0x')) key = '0x' + key;
-        
+
         const wallet = new ethers.Wallet(key);
         res.json({ success: true, address: wallet.address });
     } catch (error) {
@@ -729,28 +729,28 @@ app.post('/api/wallets/verify-key', (req, res) => {
 app.put('/api/wallets/:address', (req, res) => {
     const oldAddr = req.params.address;
     const { address: newAddr, privateKey } = req.body;
-    
+
     const walletIndex = wallets.findIndex(w => w.address === oldAddr);
     if (walletIndex === -1) return res.status(404).json({ error: 'Wallet not found' });
-    
+
     // Check if system is in LIVE (production) mode
     const isLiveMode = profitEngine && profitEngine.getMode() === 'LIVE';
-    
+
     // If private key is being updated, validate and set it
     if (privateKey) {
         try {
             const { ethers } = require('ethers');
             let key = privateKey.trim();
             if (!key.startsWith('0x')) key = '0x' + key;
-            
+
             const wallet = new ethers.Wallet(key);
             wallets[walletIndex].privateKey = key;
             wallets[walletIndex].hasKey = true;
-            
+
             // Wallet is valid only if it has a valid address AND private key AND system is in LIVE mode
             const isValidAddr = /^0x[a-fA-F0-9]{40}$/.test(wallets[walletIndex].address);
             wallets[walletIndex].valid = isValidAddr && isLiveMode;
-            
+
             // If no new address provided, use derived address
             if (!newAddr) {
                 wallets[walletIndex].address = wallet.address;
@@ -759,16 +759,16 @@ app.put('/api/wallets/:address', (req, res) => {
             return res.status(400).json({ error: 'Invalid private key format' });
         }
     }
-    
+
     // If address is being updated
     if (newAddr) {
         const isValid = /^0x[a-fA-F0-9]{40}$/.test(newAddr);
         const providerData = detectWalletProvider(newAddr);
         const blockchain = detectBlockchain(newAddr);
-        
+
         // Wallet is valid only if it has a valid address AND private key AND system is in LIVE mode
         const walletIsValid = isValid && !!wallets[walletIndex].privateKey && isLiveMode;
-        
+
         wallets[walletIndex] = {
             ...wallets[walletIndex],
             address: newAddr,
@@ -778,7 +778,7 @@ app.put('/api/wallets/:address', (req, res) => {
             blockchain
         };
     }
-    
+
     res.json({ success: true, wallet: wallets[walletIndex] });
 });
 
@@ -787,48 +787,48 @@ app.put('/api/wallets/:address', (req, res) => {
  */
 app.post('/api/wallets/configure', (req, res) => {
     const { walletAddress, privateKey } = req.body;
-    
+
     if (!walletAddress || !privateKey) {
         return res.status(400).json({ error: 'Wallet address and private key required' });
     }
-    
+
     // Validate address format
     if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
         return res.status(400).json({ error: 'Invalid wallet address format' });
     }
-    
+
     // Validate private key format
     if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
         return res.status(400).json({ error: 'Invalid private key format' });
     }
-    
+
     // Derive address from private key to verify
     try {
         const { ethers } = require('ethers');
         const wallet = new ethers.Wallet(privateKey);
-        
+
         if (wallet.address.toLowerCase() !== walletAddress.toLowerCase()) {
             return res.status(400).json({ error: 'Private key does not match wallet address' });
         }
-        
+
         // Update environment variables for any other services that might read them.
         // Also, update the running engine instance directly.
         process.env.PRIVATE_KEY = privateKey;
         process.env.WALLET_ADDRESS = walletAddress;
-        
+
         // Update the profit engine with the new configuration
         if (profitEngine) {
             profitEngine.updateWalletConfiguration(privateKey, walletAddress);
         }
-        
+
         console.log(`[WALLET] Configured for LIVE trading: ${walletAddress}`);
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             walletAddress: walletAddress,
             message: 'Wallet configured for LIVE trading'
         });
-        
+
     } catch (error) {
         console.error('[WALLET] Configuration error:', error);
         res.status(500).json({ error: 'Failed to configure wallet' });
@@ -841,26 +841,26 @@ app.post('/api/wallets/configure', (req, res) => {
 app.post('/api/wallets/add', async (req, res) => {
     const { address } = req.body;
     if (!address) return res.status(400).json({ error: 'Address required' });
-    
+
     const isValid = /^0x[a-fA-F0-9]{40}$/.test(address);
-    
+
     // Detect provider based on address patterns (simplified detection)
     const providerData = detectWalletProvider(address);
-    
+
     // Fetch real balance
     const realBalance = isValid ? await fetchPublicBalance(address) : 0;
-    
-    const chains = isValid ? { 
-        ETH: realBalance.toFixed(4), 
-        ARB: '0.0000', 
-        OP: '0.0000', 
-        BASE: '0.0000', 
+
+    const chains = isValid ? {
+        ETH: realBalance.toFixed(4),
+        ARB: '0.0000',
+        OP: '0.0000',
+        BASE: '0.0000',
         MATIC: '0'
     } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
-    
+
     // Detect blockchain based on address prefix (simplified)
     const blockchain = detectBlockchain(address);
-    
+
     const newWallet = {
         address,
         name: `Wallet ${wallets.length + 1}`,
@@ -872,7 +872,7 @@ app.post('/api/wallets/add', async (req, res) => {
         balance: realBalance,
         totalBalance: realBalance
     };
-    
+
     wallets.push(newWallet);
     res.json({ success: true, wallet: newWallet });
 });
@@ -905,8 +905,8 @@ app.get('/api/wallets/total-profit', (req, res) => {
  * Withdraw profits
  */
 app.post('/api/wallets/withdraw', (req, res) => {
-    const { mode, amount } = req.body; 
-    
+    const { mode, amount } = req.body;
+
     if (mode === 'auto') {
         res.json({ success: true, mode: 'auto', message: 'Auto-withdraw enabled' });
     } else {
@@ -933,14 +933,14 @@ app.get('/api/settings/trading', (req, res) => {
  */
 app.post('/api/settings/trading', (req, res) => {
     const { reinvestmentRate, capitalVelocity } = req.body;
-    
+
     if (reinvestmentRate !== undefined) {
         tradingSettings.reinvestmentRate = Math.max(0, Math.min(100, reinvestmentRate));
     }
     if (capitalVelocity !== undefined) {
         tradingSettings.capitalVelocity = Math.max(1, Math.min(500, capitalVelocity));
     }
-    
+
     res.json({ success: true, settings: tradingSettings });
 });
 
@@ -955,4 +955,10 @@ if (process.env.NODE_ENV === 'production') {
 server.listen(PORT, () => {
     console.log(`[ALPHA-PRO API] Server running on port ${PORT}`);
     console.log(`[WS] WebSocket available at ws://localhost:${PORT}/ws`);
+
+    // AUTO-START: Start the profit engine in LIVE mode on server startup
+    console.log(`[AUTO-START] Starting AlphaPro Engine in ${process.env.TRADING_MODE || 'LIVE'} mode...`);
+    profitEngine.setMode('LIVE');
+    profitEngine.start();
+    console.log(`[AUTO-START] ✅ AlphaPro Engine started in LIVE mode!`);
 });
