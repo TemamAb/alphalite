@@ -305,14 +305,22 @@ class EnterpriseProfitEngine {
         }
 
         try {
-            const { txHash, strategy, profit } = opportunity;
             const chainKey = (chain || 'ethereum').toLowerCase();
-            const rpcUrl = this.rpcEndpoints[chainKey] || this.rpcEndpoints.ethereum;
+
+            // List of high-reliability fallback RPCs for Ethereum
+            const fallbacks = [
+                'https://eth.llamarpc.com',
+                'https://1rpc.io/eth',
+                'https://rpc.ankr.com/eth'
+            ];
+
+            let rpcUrl = this.rpcEndpoints[chainKey] || this.rpcEndpoints.ethereum;
 
             console.log(`[ENGINE] 🚀 EXECUTING GASLESS TRADE via PIMLICO on ${chainKey.toUpperCase()}:`);
             console.log(`[ENGINE]   Strategy: ${strategy.name}`);
             console.log(`[ENGINE]   Trigger Tx: ${txHash.slice(0, 16)}...`);
             console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
+            console.log(`[ENGINE]   Using Primary RPC: ${rpcUrl.substring(0, 30)}...`);
 
             // 1. Initialize Pimlico client and paymaster middleware
             const paymaster = Presets.Middleware.verifyingPaymaster(
@@ -323,18 +331,38 @@ class EnterpriseProfitEngine {
                 entryPoint: this.pimlicoConfig.entryPoint,
             });
 
-            // 2. Create a SimpleAccount builder with the paymaster
-            // We use the Alchemy RPC URL directly to ensure userop can detect the network
+            // 2. Create a provider and detect network with fallbacks
+            let provider;
+            let success = false;
+            const rpcList = [rpcUrl, ...fallbacks];
+
+            for (const url of rpcList) {
+                try {
+                    provider = new ethers.providers.JsonRpcProvider(url);
+                    await provider.getNetwork();
+                    rpcUrl = url;
+                    success = true;
+                    break;
+                } catch (err) {
+                    console.warn(`[ENGINE] ⚠️ RPC failed (${url.substring(0, 25)}...): ${err.message}`);
+                }
+            }
+
+            if (!success) {
+                throw new Error("All RPC endpoints failed to provide network access");
+            }
+
+            // 3. Create a SimpleAccount builder with the validated provider
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
                 this.signer,
-                rpcUrl,
+                provider, // Pass the provider object instead of just the URL string
                 {
                     entryPoint: this.pimlicoConfig.entryPoint,
                     paymasterMiddleware: paymaster,
                 }
             );
 
-            // 3. Construct the callData for the UserOperation.
+            // 4. Construct the callData for the UserOperation.
             const to = this.pimlicoConfig.walletAddress;
             const value = 1; // Simulated value for contract interaction
             const data = '0x';
@@ -342,7 +370,7 @@ class EnterpriseProfitEngine {
             console.log(`[ENGINE] 🏗️ Building UserOperation...`);
             const op = await simpleAccount.execute(to, value, data);
 
-            // 4. Send the UserOperation via the bundler
+            // 5. Send the UserOperation via the bundler
             console.log(`[ENGINE] ⛽ Gas Sponsorship: REQUESTED via Pimlico Paymaster`);
             const res = await client.sendUserOperation(op);
             console.log(`[ENGINE]   UserOp Hash: ${res.userOpHash}`);
@@ -351,7 +379,7 @@ class EnterpriseProfitEngine {
             const ev = await res.wait();
             console.log(`[ENGINE] ✅ GASLESS TRADE CONFIRMED! Tx Hash: ${ev?.transactionHash}`);
 
-            // 5. Update stats
+            // 6. Update stats
             this.stats.totalTrades++;
             this.stats.totalProfit += parseFloat(profit);
             this.stats.successfulTrades++;

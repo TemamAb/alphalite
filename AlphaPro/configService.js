@@ -21,7 +21,7 @@ try {
         path.join(__dirname, '..', '.env'),
         path.join(process.cwd(), '.env')
     ];
-    
+
     for (const envPath of possiblePaths) {
         if (fs.existsSync(envPath)) {
             dotenv.config({ path: envPath });
@@ -38,15 +38,14 @@ try {
  * This allows: Render dashboard env vars > local .env file
  */
 function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    // Debug: Log what we're looking for
-    console.log(`[CONFIG] getConfigValue: primaryKey=${primaryKey}, fallbackKeys=${JSON.stringify(fallbackKeys)}`);
-    
+    // console.log(`[CONFIG] getConfigValue: primaryKey=${primaryKey}, fallbackKeys=${JSON.stringify(fallbackKeys)}`);
+
     // First priority: Render's process.env (set in Render dashboard)
     if (process.env[primaryKey]) {
         console.log(`[CONFIG] Found primary key '${primaryKey}': ${process.env[primaryKey].substring(0, 10)}...`);
         return process.env[primaryKey];
     }
-    
+
     // Second priority: fallback keys from .env file
     for (const key of fallbackKeys) {
         if (process.env[key]) {
@@ -54,7 +53,7 @@ function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
             return process.env[key];
         }
     }
-    
+
     console.log(`[CONFIG] Key '${primaryKey}' not found, returning default: ${defaultValue}`);
     // Third priority: default value
     return defaultValue;
@@ -79,28 +78,28 @@ function getIntValue(primaryKey, fallbackKeys = [], defaultValue = null) {
 class ConfigService extends EventEmitter {
     constructor() {
         super();
-        
+
         // Default configuration with fallback logic
         this.config = {
             // Trading Configuration
             maxConcurrentExecutions: getIntValue('MAX_CONCURRENT_EXECUTIONS', ['max_concurrent_executions'], 5),
             minOpportunitySize: getNumericValue('MIN_OPPORTUNITY_SIZE', ['min_opportunity_size'], 100),
-            
+
             // Risk Management
             maxPositionSize: getNumericValue('MAX_POSITION_SIZE', ['max_position_size'], 10000),
             stopLossPercentage: getNumericValue('STOP_LOSS_PERCENTAGE', ['stop_loss_percentage'], 5),
-            
+
             // Trading Mode
             tradingMode: getConfigValue('TRADING_MODE', ['trading_mode'], 'LIVE'),
             withdrawalMode: getConfigValue('WITHDRAWAL_MODE', ['withdrawal_mode'], 'MANUAL'),
-            
+
             // Data Sources
             dataSources: dataSources,
-            
+
             // API Keys - Render first, .env fallback
             // Also extract from WebSocket URLs if embedded
-            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY', 
-                ['ALCHEMY-API-KEY', 'ALCHEMY-API-KEY', 'alchemy_api_key', 'ALCHEMY_KEY'], 
+            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY',
+                ['ALCHEMY-API-KEY', 'ALCHEMY-API-KEY', 'alchemy_api_key', 'ALCHEMY_KEY'],
                 this.extractAlchemyKey(
                     getConfigValue('ETH_WS_URL', ['eth_ws_url'], null) ||
                     getConfigValue('ALCHEMY_WS_URL', ['alchemy_ws_url'], null) ||
@@ -110,7 +109,7 @@ class ConfigService extends EventEmitter {
             infuraApiKey: getConfigValue('INFURA_API_KEY', ['infura_api_key', 'INFURA_API_KEY'], null),
             pimlicoApiKey: getConfigValue('PIMLICO_API_KEY', ['pimlico_api_key'], null),
             openaiApiKey: getConfigValue('OPENAI_API_KEY', ['openai_api_key'], null),
-            
+
             // Blockchain RPC URLs - 55+ Networks Supported (with public fallbacks)
             rpcUrls: {
                 // EVM Chains (Alchemy)
@@ -126,19 +125,19 @@ class ConfigService extends EventEmitter {
                 polygonZkevm: getConfigValue('POLYGON_ZKEVM_RPC_URL', ['POLYGON_ZKEVM_RPC_URL', 'zkevm_rpc'], 'https://zkevm-rpc.com'),
                 scroll: getConfigValue('SCROLL_RPC_URL', ['SCROLL_RPC_URL'], 'https://rpc.scroll.io'),
                 zora: getConfigValue('ZORA_RPC_URL', ['ZORA_RPC_URL'], 'https://rpc.zora.energy'),
-                
+
                 // Testnets
                 sepolia: getConfigValue('SEPOLIA_RPC_URL', ['SEPOLIA_RPC_URL'], 'https://rpc.sepolia.org'),
                 goerli: getConfigValue('GOERLI_RPC_URL', ['GOERLI_RPC_URL'], 'https://goerli.infura.io/v3/'),
                 arbitrumSepolia: getConfigValue('ARBITRUM_SEPOLIA_RPC_URL', ['ARBITRUM_SEPOLIA_RPC_URL'], 'https://sepolia.arbitrum.io/rpc'),
                 optimismSepolia: getConfigValue('OPTIMISM_SEPOLIA_RPC_URL', ['OPTIMISM_SEPOLIA_RPC_URL'], 'https://sepolia.optimism.io'),
                 baseSepolia: getConfigValue('BASE_SEPOLIA_RPC_URL', ['BASE_SEPOLIA_RPC_URL'], 'https://sepolia.base.org'),
-                
+
                 // Non-EVM
                 solana: getConfigValue('SOLANA_RPC_URL', ['SOLANA_RPC_URL'], 'https://api.mainnet-beta.solana.com'),
                 starknet: getConfigValue('STARKNET_RPC_URL', ['STARKNET_RPC_URL'], 'https://rpc-mainnet.starknet.io'),
                 apts: getConfigValue('APTOS_RPC_URL', ['APTOS_RPC_URL'], 'https://fullnode.mainnet.aptoslabs.com'),
-                
+
                 // Additional EVM Chains
                 fantom: getConfigValue('FANTOM_RPC_URL', ['FANTOM_RPC_URL', 'ftm_rpc'], 'https://rpc.fantom.network'),
                 cronos: getConfigValue('CRONOS_RPC_URL', ['CRONOS_RPC_URL'], 'https://rpc.cronos.org'),
@@ -160,13 +159,13 @@ class ConfigService extends EventEmitter {
                 blast: getConfigValue('BLAST_RPC_URL', ['BLAST_RPC_URL'], 'https://rpc.blast.io'),
                 rootstock: getConfigValue('ROOTSTOCK_RPC_URL', ['ROOTSTOCK_RPC_URL', 'rsk_rpc'], 'https://public-node.rsk.co'),
                 rsk: getConfigValue('RSK_RPC_URL', ['RSK_RPC_URL'], 'https://public-node.rsk.co'),
-                
+
                 // Cosmos Ecosystem
                 cosmos: getConfigValue('COSMOS_RPC_URL', ['COSMOS_RPC_URL'], 'https://rpc-cosmoshub.keplr.app'),
                 osmosis: getConfigValue('OSMOSIS_RPC_URL', ['OSMOSIS_RPC_URL'], 'https://rpc-osmosis.keplr.app'),
                 injective: getConfigValue('INJECTIVE_RPC_URL', ['INJECTIVE_RPC_URL'], 'https://public.injective.network'),
                 sei: getConfigValue('SEI_RPC_URL', ['SEI_RPC_URL'], 'https://rpc.sei.io'),
-                
+
                 // Other Chains
                 sui: getConfigValue('SUI_RPC_URL', ['SUI_RPC_URL'], 'https://rpc.mainnet.sui.io'),
                 near: getConfigValue('NEAR_RPC_URL', ['NEAR_RPC_URL'], 'https://rpc.mainnet.near.org'),
@@ -181,7 +180,7 @@ class ConfigService extends EventEmitter {
                 bitcoincsv: getConfigValue('BITCOIN_SV_RPC_URL', ['BITCOIN_SV_RPC_URL', 'bsv_rpc'], 'https://bitcoinsv.io'),
                 kadena: getConfigValue('KADENA_RPC_URL', ['KADENA_RPC_URL'], 'https://api.kadena.network'),
             },
-            
+
             // WebSocket URLs for mempool - 40+ Networks
             wsUrls: {
                 // EVM Chains (Alchemy)
@@ -197,14 +196,14 @@ class ConfigService extends EventEmitter {
                 polygonZkevm: getConfigValue('POLYGON_ZKEVM_WS_URL', [], null),
                 scroll: getConfigValue('SCROLL_WS_URL', [], null),
                 zora: getConfigValue('ZORA_WS_URL', [], null),
-                
+
                 // Testnets
                 sepolia: getConfigValue('SEPOLIA_WS_URL', [], null),
                 goerli: getConfigValue('GOERLI_WS_URL', [], null),
                 arbitrumSepolia: getConfigValue('ARBITRUM_SEPOLIA_WS_URL', [], null),
                 optimismSepolia: getConfigValue('OPTIMISM_SEPOLIA_WS_URL', [], null),
                 baseSepolia: getConfigValue('BASE_SEPOLIA_WS_URL', [], null),
-                
+
                 // Additional EVM
                 fantom: getConfigValue('FANTOM_WS_URL', ['ftm_ws_url'], null),
                 cronos: getConfigValue('CRONOS_WS_URL', [], null),
@@ -224,47 +223,47 @@ class ConfigService extends EventEmitter {
                 fraxtal: getConfigValue('FRAXTAL_WS_URL', [], null),
                 blast: getConfigValue('BLAST_WS_URL', [], null),
                 rootstock: getConfigValue('ROOTSTOCK_WS_URL', [], null),
-                
+
                 // Cosmos Ecosystem
                 cosmos: getConfigValue('COSMOS_WS_URL', [], null),
                 osmosis: getConfigValue('OSMOSIS_WS_URL', [], null),
                 injective: getConfigValue('INJECTIVE_WS_URL', [], null),
                 sei: getConfigValue('SEI_WS_URL', [], null),
-                
+
                 // Other Chains
                 vechain: getConfigValue('VECHAIN_WS_URL', [], null),
                 thorchain: getConfigValue('THORCHAIN_WS_URL', [], null),
             },
-            
+
             // Pimlico Configuration
             pimlico: {
                 bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], null),
                 paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], null),
                 entryPoint: getConfigValue('ENTRYPOINT_ADDRESS', ['entrypoint_address'], '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'),
             },
-            
+
             // Wallet Configuration
             walletAddress: getConfigValue('WALLET_ADDRESS', ['wallet_address'], null),
             privateKey: getConfigValue('PRIVATE_KEY', ['private_key'], null),
-            
+
             // Market Data APIs
             marketData: {
                 coingeckoUrl: getConfigValue('COINGECKO_API_URL', ['coingecko_api_url', 'coingecko_url', 'COINGECKO_URL'], 'https://api.coingecko.com/api/v3'),
                 dexscreenerUrl: getConfigValue('DEXSCREENER_API_URL', ['dexscreener_api_url', 'DEXSCREENER_URL', 'DEXSCREENER_API'], 'https://api.dexscreener.com/latest/dex'),
                 birdeyeUrl: getConfigValue('BIRDEYE_API_URL', ['birdeye_api_url', 'BIRDEYE_URL', 'BIRDEYE_API'], 'https://public-api.birdeye.so'),
             },
-            
+
             // Market Data API Keys
             marketApiKeys: {
                 coingecko: getConfigValue('COINGECKO_API_KEY', ['coingecko_key'], null),
                 birdeye: getConfigValue('BIRDEYE_API_KEY', ['birdeye_key'], null),
             }
         };
-        
+
         console.log('[CONFIG] Configuration service initialized');
         this.logConfigStatus();
     }
-    
+
     /**
      * Extract Alchemy API key from WebSocket URL if embedded
      * e.g., wss://eth-mainnet.g.alchemy.com/v2/KEY123 -> KEY123
@@ -274,10 +273,10 @@ class ConfigService extends EventEmitter {
         const match = wsUrl.match(/\/v2\/(.+)$/);
         return match ? match[1] : null;
     }
-    
+
     logConfigStatus() {
         console.log('[CONFIG] === Configuration Status ===');
-        
+
         // Check critical configurations
         const critical = [
             { name: 'Trading Mode', value: this.config.tradingMode },
@@ -290,22 +289,22 @@ class ConfigService extends EventEmitter {
             { name: 'DexScreener', value: this.config.marketData.dexscreenerUrl ? 'configured' : 'MISSING' },
             { name: 'Birdeye', value: this.config.marketData.birdeyeUrl ? 'configured' : 'MISSING' },
         ];
-        
+
         critical.forEach(item => {
             console.log(`[CONFIG]   ${item.name}: ${item.value}`);
         });
         console.log('[CONFIG] ==============================');
     }
-    
+
     getConfig() {
         return this.config;
     }
-    
+
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
         this.emit('config_update', this.config);
     }
-    
+
     /**
      * Get specific config value
      */

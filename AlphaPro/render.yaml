@@ -16,7 +16,7 @@ services:
   # The Core (Node API + React Frontend)
   - name: alphapro-api
     runtime: docker
-    dockerfilePath: AlphaPro/Dockerfile
+    dockerfilePath: Dockerfile
     rootDir: .
     plan: standard
     envVars:
@@ -48,43 +48,39 @@ services:
       - key: PIMLICO_API_KEY
         value: pim_UbfKR9ocMe5ibNUCGgB8fE
       - key: BUNDLER_URL
-        value: https://api.pimlico.io/v1/1/rpc
+        value: https://api.pimlico.io/v1/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
       - key: PAYMASTER_URL
-        value: https://api.pimlico.io/v2/1/rpc
+        value: https://api.pimlico.io/v2/1/rpc?apikey=pim_UbfKR9ocMe5ibNUCGgB8fE
       - key: ENTRYPOINT_ADDRESS
         value: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
 
       # Blockchain RPC Endpoints (Primary)
       - key: ETH_RPC_URL
-        value: https://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: https://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: ARBITRUM_RPC_URL
-        value: https://arb1.arbitrum.io/rpc
+        value: https://arb-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: OPTIMISM_RPC_URL
-        value: https://mainnet.optimism.io
+        value: https://opt-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: POLYGON_RPC_URL
-        value: https://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: https://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: BASE_RPC_URL
         value: https://base.llamarpc.com
 
       # WebSocket URLs for Real-time Mempool (sub-200ms latency)
-      # Option 1: Alchemy WebSocket (with API key)
       - key: ETH_WS_URL
-        value: wss://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
-      # Option 2: Free Public WebSocket (no API key required) - uncomment below:
-      # - key: ETH_WS_URL
-      #   value: wss://ethereum.publicnode.com
+        value: wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: ARBITRUM_WS_URL
-        value: wss://arb-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://arb-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: POLYGON_WS_URL
-        value: wss://polygon-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://polygon-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: OPTIMISM_WS_URL
-        value: wss://opt-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://opt-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
       - key: BASE_WS_URL
-        value: wss://base-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+        value: wss://base-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF
 
       # Alchemy API Key
       - key: ALCHEMY_API_KEY
-        value: 9v_Ducm70QxIb75p3_wPS
+        value: mK2nj6ZSi1mZ2THJMUHcF
 
       # Infura API Key (Backup)
       - key: INFURA_API_KEY
@@ -92,7 +88,7 @@ services:
 
       # AI Service
       - key: OPENAI_API_KEY
-        value: sk-proj-ALPHAPRO_PLACEHOLDER
+        value: YOUR_OPENAI_API_KEY_HERE
 
       # Brain Service
       - key: BRAIN_URL

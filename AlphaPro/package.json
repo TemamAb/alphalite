@@ -1,0 +1,24 @@
+{
+  "name": "alphapro",
+  "version": "1.0.0",
+  "description": "",
+  "main": "configService.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
+    "pg": "^8.19.0",
+    "reconnecting-websocket": "^4.4.0",
+    "redis": "^5.11.0",
+    "undici": "^7.22.0",
+    "userop": "^0.4.0-beta.5",
+    "ws": "^8.19.0"
+  }
+}

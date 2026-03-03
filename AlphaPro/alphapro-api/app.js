@@ -188,7 +188,7 @@ app.get('/api/health', (req, res) => {
  * Configuration status endpoint - returns production readiness
  */
 app.get('/api/config/status', (req, res) => {
-    const configService = require('./config/configService.js');
+    const configService = require('../configService');
     const cfg = configService.getConfig();
 
     res.json({
