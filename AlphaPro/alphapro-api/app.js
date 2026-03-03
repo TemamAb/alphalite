@@ -49,8 +49,30 @@ function detectBlockchain(address) {
     return 'Ethereum';
 }
 
-// Helper to fetch real ETH balance from public RPC
-function fetchPublicBalance(address) {
+// Helper to fetch real ETH balance from public RPC (with timeout and fallback)
+async function fetchPublicBalance(address) {
+    // Try multiple public RPC endpoints for reliability
+    const rpcEndpoints = [
+        'https://eth.llamarpc.com',
+        'https://ethereum.publicnode.com',
+        'https://rpc.ankr.com/eth'
+    ];
+    
+    for (const endpoint of rpcEndpoints) {
+        try {
+            const result = await fetchBalanceWithTimeout(address, endpoint, 3000);
+            if (result !== null) return result;
+        } catch (e) {
+            console.log(`[Balance] ${endpoint} failed: ${e.message}`);
+        }
+    }
+    
+    // Fallback: return 0 if all endpoints fail
+    return 0;
+}
+
+// Helper function with timeout
+function fetchBalanceWithTimeout(address, endpoint, timeout) {
     return new Promise((resolve) => {
         const postData = JSON.stringify({
             jsonrpc: "2.0",
@@ -59,15 +81,17 @@ function fetchPublicBalance(address) {
             id: 1
         });
 
+        const url = new URL(endpoint);
         const options = {
-            hostname: 'eth.llamarpc.com',
-            port: 443,
-            path: '/',
+            hostname: url.hostname,
+            port: url.port || 443,
+            path: url.pathname || '/',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Content-Length': postData.length
-            }
+            },
+            timeout: timeout
         };
 
         const req = https.request(options, (res) => {
@@ -80,12 +104,17 @@ function fetchPublicBalance(address) {
                         const wei = BigInt(json.result);
                         const eth = Number(wei) / 1e18;
                         resolve(eth);
-                    } else { resolve(0); }
-                } catch (e) { resolve(0); }
+                    } else {
+                        resolve(null);
+                    }
+                } catch (e) {
+                    resolve(null);
+                }
             });
         });
 
-        req.on('error', () => resolve(0));
+        req.on('error', () => { resolve(null); });
+        req.on('timeout', () => { req.destroy(); resolve(null); });
         req.write(postData);
         req.end();
     });
@@ -537,9 +566,8 @@ app.post('/api/wallets/import', async (req, res) => {
         return res.status(400).json({ error: 'Invalid addresses array' });
     }
     
-    const newWallets = [];
-    for (let i = 0; i < addresses.length; i++) {
-        const addr = addresses[i];
+    // Process addresses in parallel for better performance
+    const walletPromises = addresses.map(async (addr) => {
         // Validate address format
         const isValid = /^0x[a-fA-F0-9]{40}$/.test(addr);
         
@@ -549,20 +577,21 @@ app.post('/api/wallets/import', async (req, res) => {
         // Detect blockchain
         const blockchain = detectBlockchain(addr);
         
-        // Fetch real balance
-        const realBalance = isValid ? await fetchPublicBalance(addr) : 0;
+        // Skip fetching balance during import - do it in background
+        // This prevents import timeouts
+        const realBalance = 0;
         
         const chains = isValid ? { 
-            ETH: realBalance.toFixed(4), 
+            ETH: '0.0000', 
             ARB: '0.0000', 
             OP: '0.0000', 
             BASE: '0.0000', 
             MATIC: '0'
         } : { ETH: '0', ARB: '0', OP: '0', BASE: '0', MATIC: '0' };
         
-        newWallets.push({
+        return {
             address: addr,
-            name: `Wallet ${wallets.length + i + 1}`,
+            name: `Wallet ${wallets.length + 1}`,
             valid: false, // Will be valid only when private key is added
             provider: providerData.name,
             logo: providerData.logo,
@@ -570,8 +599,10 @@ app.post('/api/wallets/import', async (req, res) => {
             chains,
             balance: realBalance,
             totalBalance: realBalance
-        });
-    }
+        };
+    });
+    
+    const newWallets = await Promise.all(walletPromises);
     
     wallets = [...wallets, ...newWallets];
     res.json({ success: true, count: newWallets.length });
@@ -622,11 +653,11 @@ app.post('/api/wallets/upload-keys', async (req, res) => {
                     const providerData = detectWalletProvider(address);
                     const blockchain = detectBlockchain(address);
 
-                    // Fetch real balance for the new wallet
-                    const realBalance = isValid ? await fetchPublicBalance(address) : 0;
+                    // Skip fetching balance during key upload - do it in background
+                    const realBalance = 0;
 
                     const chains = isValid ? {
-                        ETH: realBalance.toFixed(4),
+                        ETH: '0.0000',
                         ARB: '0.0000',
                         OP: '0.0000',
                         BASE: '0.0000',

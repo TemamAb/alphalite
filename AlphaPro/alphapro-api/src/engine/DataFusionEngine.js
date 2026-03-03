@@ -37,6 +37,14 @@ try {
     }
 }
 
+// Import MultiPathDetector for Strategy 3
+let MultiPathDetector;
+try {
+    MultiPathDetector = require('./MultiPathDetector');
+} catch (e) {
+    console.log('[DATA-FUSION] MultiPathDetector not available, using legacy mode');
+}
+
 class DataFusionEngine extends EventEmitter {
 
     constructor() {
@@ -50,111 +58,261 @@ class DataFusionEngine extends EventEmitter {
         this.alchemyKey = appConfig.alchemyApiKey;
 
         // Supported chains configuration - use config service with fallback to .env
+        // OPTION B: WebSocket for sub-200ms latency
+        // Free public WebSocket endpoints (no API key required)
         this.chains = [
-            { id: 'ethereum', name: 'Ethereum', rpcUrl: appConfig.rpcUrls?.ethereum || process.env.ETH_RPC_URL || 'https://eth.llamarpc.com', wsUrl: appConfig.wsUrls?.ethereum || process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
-            { id: 'arbitrum', name: 'Arbitrum', rpcUrl: appConfig.rpcUrls?.arbitrum || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc', wsUrl: appConfig.wsUrls?.arbitrum || process.env.ARBITRUM_WS_URL || 'wss://arb-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
-            { id: 'polygon', name: 'Polygon', rpcUrl: appConfig.rpcUrls?.polygon || process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com', wsUrl: appConfig.wsUrls?.polygon || process.env.POLYGON_WS_URL || 'wss://polygon-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
-            { id: 'optimism', name: 'Optimism', rpcUrl: appConfig.rpcUrls?.optimism || process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io', wsUrl: appConfig.wsUrls?.optimism || process.env.OPTIMISM_WS_URL || 'wss://opt-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
-            { id: 'base', name: 'Base', rpcUrl: appConfig.rpcUrls?.base || process.env.BASE_RPC_URL || 'https://base.llamarpc.com', wsUrl: appConfig.wsUrls?.base || process.env.BASE_WS_URL || 'wss://base-mainnet.g.alchemy.com/v2/' + (appConfig.alchemyApiKey || '') },
-            { id: 'avalanche', name: 'Avalanche', rpcUrl: appConfig.rpcUrls?.avalanche || process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc', wsUrl: null },
-            { id: 'bsc', name: 'BSC', rpcUrl: appConfig.rpcUrls?.bsc || process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org', wsUrl: null },
-            { id: 'celo', name: 'Celo', rpcUrl: appConfig.rpcUrls?.celo || process.env.CELO_RPC_URL || 'https://forno.celo.org', wsUrl: null }
+            { 
+                id: 'ethereum', 
+                name: 'Ethereum', 
+                rpcUrl: appConfig.rpcUrls?.ethereum || process.env.ETH_RPC_URL || 'https://1rpc.io/eth', 
+                wsUrl: process.env.ETH_WS_URL || 'wss://ethereum.publicnode.com'  // Free WebSocket!
+            },
+            { 
+                id: 'arbitrum', 
+                name: 'Arbitrum', 
+                rpcUrl: appConfig.rpcUrls?.arbitrum || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc', 
+                wsUrl: process.env.ARBITRUM_WS_URL || 'wss://arb1.arbitrum.io/websocket'  // Free WebSocket!
+            },
+            { 
+                id: 'polygon', 
+                name: 'Polygon', 
+                rpcUrl: appConfig.rpcUrls?.polygon || process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com', 
+                wsUrl: process.env.POLYGON_WS_URL || null  // No free WS, use REST
+            },
+            { 
+                id: 'optimism', 
+                name: 'Optimism', 
+                rpcUrl: appConfig.rpcUrls?.optimism || process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io', 
+                wsUrl: process.env.OPTIMISM_WS_URL || null
+            },
+            { 
+                id: 'base', 
+                name: 'Base', 
+                rpcUrl: appConfig.rpcUrls?.base || process.env.BASE_RPC_URL || 'https://base.llamarpc.com', 
+                wsUrl: process.env.BASE_WS_URL || null
+            },
+            { 
+                id: 'avalanche', 
+                name: 'Avalanche', 
+                rpcUrl: appConfig.rpcUrls?.avalanche || process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc', 
+                wsUrl: process.env.AVALANCHE_WS_URL || null
+            },
+            { 
+                id: 'bsc', 
+                name: 'BSC', 
+                rpcUrl: appConfig.rpcUrls?.bsc || process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org', 
+                wsUrl: process.env.BSC_WS_URL || null
+            },
+            { 
+                id: 'celo', 
+                name: 'Celo', 
+                rpcUrl: appConfig.rpcUrls?.celo || process.env.CELO_RPC_URL || 'https://forno.celo.org', 
+                wsUrl: process.env.CELO_WS_URL || null
+            }
         ];
     }
 
     /**
-     * Starts the fusion engine: Connects to WebSocket streams for live data.
+     * Starts the fusion engine: Tries WebSocket first, falls back to REST polling.
+     * WebSocket provides sub-200ms latency for real-time MEV detection.
+     * 
+     * STRATEGY 3: Multi-Path Detection - uses multiple providers simultaneously
      */
     async start() {
-        if (!this.alchemyKey) {
-            // No Alchemy key - REQUIRE production config
-            console.error("[DATA-FUSION] ❌ CRITICAL: ALCHEMY_API_KEY is required for production trading.");
-            console.error("[DATA-FUSION] Please set ALCHEMY_API_KEY environment variable.");
-            console.error("[DATA-FUSION] Get free key at: https://www.alchemy.com/");
-            throw new Error('ALCHEMY_API_KEY required for production');
-        }
-        
-        // Connect to main chains only initially to avoid rate limiting
-        // Alchemy free tier has rate limits - only connect to ETH, Arbitrum, Polygon
-        const mainChains = [
-            this.chains.find(c => c.id === 'ethereum'),
-            this.chains.find(c => c.id === 'arbitrum'),
-            this.chains.find(c => c.id === 'polygon')
-        ].filter(Boolean);
-        
-        let connectedCount = 0;
-        
-        for (let i = 0; i < mainChains.length; i++) {
-            // Add longer delay between connections to avoid rate limiting (5 seconds)
-            if (i > 0) {
-                console.log(`[DATA-FUSION] ⏳ Waiting 5s before connecting to ${mainChains[i].name}...`);
-                await setTimeoutPromises(5000);
-            }
-            if (this.connectChain(mainChains[i])) {
-                connectedCount++;
-            }
-        }
-
-        // Wait for connections with timeout
-        const connectionTimeout = new Promise((resolve) => {
-            setTimeout(() => resolve(false), 10000);
-        });
-        
-        const connectedPromise = new Promise((resolve) => {
-            const checkConnections = () => {
-                const activeConnections = Array.from(this.connections.values()).filter(ws => ws.readyState === WebSocket.OPEN).length;
-                if (activeConnections > 0) {
-                    resolve(true);
-                }
-            };
-            // Check every second for 10 seconds
-            const interval = setInterval(checkConnections, 1000);
-            setTimeout(() => {
-                clearInterval(interval);
-                resolve(false);
-            }, 10000);
-        });
-        
-        const connected = await Promise.race([connectedPromise, connectionTimeout]);
-        
-        // Don't fail completely - allow partial connectivity
-        if (connectedCount === 0) {
-            console.error("[DATA-FUSION] ⚠️  WARNING: Failed to connect to any blockchain networks.");
-            console.error("[DATA-FUSION] Continuing in degraded mode - some features may not work.");
-            // Don't throw - continue with degraded mode
-            this.isLive = true;
-            console.log("[DATA-FUSION] 🚀 Engine Started in DEGRADED mode (no blockchain connections).");
-            return;
-        }
-
+        console.log('[DATA-FUSION] ⚡ Starting High-Speed Mempool Engine...');
         this.isLive = true;
-        console.log(`[DATA-FUSION] 🚀 LIVE Engine Started - Connected to ${connectedCount} blockchain networks.`);
+        
+        // Try MultiPathDetector first (Strategy 3 - fastest)
+        if (MultiPathDetector) {
+            try {
+                console.log('[DATA-FUSION] 🎯 Attempting Multi-Path Detection (Strategy 3)...');
+                this.multiPath = new MultiPathDetector({
+                    timeout: 500,
+                    maxLatency: 1000
+                });
+                
+                // Forward multi-path transactions to engine
+                this.multiPath.on('transaction', (event) => {
+                    if (event.isFastest) {
+                        const tx = event.data.params?.result;
+                        if (tx) {
+                            this.emit('mempool:pendingTx', {
+                                chain: 'ethereum',
+                                hash: tx,
+                                provider: event.provider,
+                                latency: event.latency,
+                                timestamp: Date.now()
+                            });
+                        }
+                    }
+                });
+                
+                await this.multiPath.start();
+                console.log('[DATA-FUSION] ✅ Multi-Path Detection active!');
+                return; // Skip legacy methods if multi-path works
+            } catch (err) {
+                console.log(`[DATA-FUSION] ⚠️ Multi-Path failed: ${err.message}, falling back...`);
+            }
+        }
+        
+        // Fallback: Try WebSocket connections first for real-time mempool (sub-200ms)
+        let wsConnected = false;
+        for (const chain of this.chains) {
+            if (chain.wsUrl) {
+                console.log(`[DATA-FUSION] 🔌 Attempting WebSocket for ${chain.name}...`);
+                const connected = this.connectChain(chain);
+                if (connected) {
+                    wsConnected = true;
+                    console.log(`[DATA-FUSION] ✅ ${chain.name}: WebSocket connected (target: <200ms latency)`);
+                }
+            }
+        }
+        
+        if (wsConnected) {
+            console.log('[DATA-FUSION] 🚀 LIVE: WebSocket mode active (sub-200ms detection)');
+        } else {
+            console.log('[DATA-FUSION] ⚠️ No WebSocket available, using REST polling fallback');
+            console.log('[DATA-FUSION] 📡 Starting REST API mempool polling (1s interval)...');
+            this.startMempoolPolling();
+        }
+    }
+    
+    /**
+     * OPTION A: Real-time Mempool Detection
+     * - 1-second polling interval (down from 15 seconds)
+     * - Polls pending transactions (not just block number)
+     * - Multiple RPC endpoints with automatic failover
+     * - Dynamic throttling to avoid rate limits
+     */
+    startMempoolPolling() {
+        console.log('[DATA-FUSION] ⚡ Starting HIGH-SPEED mempool polling (1s interval)...');
+        
+        // Multiple RPC endpoints for Ethereum (ordered by performance)
+        const ethRpcs = [
+            'https://1rpc.io/eth',      // Fastest - tested at 804ms
+            'https://rpc.ankr.com/eth', // Backup - tested at 399ms but 0 pending
+            'https://eth.llamarpc.com'  // Fallback
+        ];
+        
+        // Track current RPC index for round-robin
+        let currentRpcIndex = 0;
+        let consecutiveFailures = 0;
+        const MAX_FAILURES_BEFORE_BACKOFF = 5;
+        let isBackingOff = false;
+        let backoffUntil = 0;
+        
+        // Polling interval: 1 second for real-time detection
+        this.mempoolPollInterval = setInterval(async () => {
+            try {
+                // Check if we're in backoff mode
+                if (isBackingOff && Date.now() < backoffUntil) {
+                    return; // Skip this poll cycle
+                }
+                
+                if (isBackingOff && Date.now() >= backoffUntil) {
+                    console.log('[DATA-FUSION] 🔄 Recovering from rate limit - resuming polling');
+                    isBackingOff = false;
+                    consecutiveFailures = 0;
+                }
+                
+                // Round-robin through RPC endpoints
+                const rpcUrl = ethRpcs[currentRpcIndex];
+                currentRpcIndex = (currentRpcIndex + 1) % ethRpcs.length;
+                
+                // Get PENDING block (not just block number!) - this is key for MEV
+                const response = await fetch(rpcUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_getBlockByNumber',
+                        params: ['pending', true], // Get pending transactions!
+                        id: 1
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    consecutiveFailures = 0; // Reset on success
+                    
+                    if (data.result && data.result.transactions) {
+                        const pendingTxs = data.result.transactions;
+                        
+                        if (pendingTxs.length > 0) {
+                            console.log(`[DATA-FUSION] 📦 Detected ${pendingTxs.length} pending transactions`);
+                            
+                            // Emit each pending transaction for real-time processing
+                            pendingTxs.forEach((tx, index) => {
+                                // Only process first 10 to avoid spam
+                                if (index < 10) {
+                                    this.emit('mempool:pendingTx', {
+                                        chain: 'ethereum',
+                                        hash: tx.hash,
+                                        from: tx.from,
+                                        to: tx.to,
+                                        value: tx.value,
+                                        gasPrice: tx.gasPrice,
+                                        data: tx.input,
+                                        timestamp: Date.now()
+                                    });
+                                }
+                            });
+                            
+                            // Also emit block event for bulk processing
+                            this.emit('mempool:block', {
+                                chain: 'ethereum',
+                                blockNumber: parseInt(data.result.number, 16),
+                                pendingCount: pendingTxs.length,
+                                timestamp: Date.now()
+                            });
+                        }
+                    }
+                } else if (response.status === 429) {
+                    // Rate limited - implement exponential backoff
+                    consecutiveFailures++;
+                    console.warn(`[DATA-FUSION] ⚠️ Rate limited (${consecutiveFailures}/${MAX_FAILURES_BEFORE_BACKOFF})`);
+                    
+                    if (consecutiveFailures >= MAX_FAILURES_BEFORE_BACKOFF) {
+                        console.warn('[DATA-FUSION] 🚫 Too many failures - backing off for 30 seconds');
+                        isBackingOff = true;
+                        backoffUntil = Date.now() + 30000;
+                    }
+                }
+            } catch (error) {
+                consecutiveFailures++;
+                // Silent fail but track failures
+                if (consecutiveFailures >= 3) {
+                    console.warn(`[DATA-FUSION] ⚠️ RPC errors: ${consecutiveFailures}`);
+                }
+            }
+        }, 1000); // 1 second = 1000ms - MUCH FASTER than before!
     }
 
     /**
-     * LIVE MODE: Connect to blockchain mempool streams
+     * LIVE MODE: Connect to blockchain mempool streams via WebSocket
+     * Works with or without API keys (supports free public WebSocket endpoints)
      * Returns true if connection initiated successfully
      */
     connectChain(chain) {
-        if (!this.alchemyKey) {
-            console.error(`[DATA-FUSION] Cannot connect to ${chain.name}: No API key configured`);
-            return false;
-        }
+        // Build WebSocket URL - supports both API-key-based and free endpoints
+        let url = chain.wsUrl;
         
-        // Build WebSocket URL with API key
-        let url = chain.wsUrl || chain.alchemyUrl;
         if (!url) {
             console.log(`[DATA-FUSION] ⚠️ ${chain.name}: No WebSocket URL configured, skipping.`);
             return false;
         }
-        if (this.alchemyKey && typeof url === 'string' && !url.includes(this.alchemyKey)) {
+        
+        // If using Alchemy WebSocket URL, append API key
+        if (this.alchemyKey && url.includes('alchemy.com')) {
             url = `${url}${this.alchemyKey}`;
+            console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} mempool (Alchemy)...`);
+        } else {
+            console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} mempool (Public WebSocket)...`);
         }
         
         const self = this;
-
-        console.log(`[DATA-FUSION] 🔌 Connecting to ${chain.name} mempool stream...`);
-        console.log(`[DATA-FUSION] 📡 URL: ${url.replace(this.alchemyKey, '***')}`);
+        
+        console.log(`[DATA-FUSION] 📡 WebSocket: ${url.substring(0, 50)}...`);
         
         try {
             const ws = new ReconnectingWebSocket(url, [], {

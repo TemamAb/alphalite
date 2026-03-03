@@ -66,9 +66,13 @@ services:
       - key: BASE_RPC_URL
         value: https://base.llamarpc.com
 
-      # Alchemy WebSocket URLs for Real-time Mempool
+      # WebSocket URLs for Real-time Mempool (sub-200ms latency)
+      # Option 1: Alchemy WebSocket (with API key)
       - key: ETH_WS_URL
         value: wss://eth-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
+      # Option 2: Free Public WebSocket (no API key required) - uncomment below:
+      # - key: ETH_WS_URL
+      #   value: wss://ethereum.publicnode.com
       - key: ARBITRUM_WS_URL
         value: wss://arb-mainnet.g.alchemy.com/v2/9v_Ducm70QxIb75p3_wPS
       - key: POLYGON_WS_URL
