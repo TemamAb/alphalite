@@ -86,9 +86,7 @@ services:
       - key: INFURA_API_KEY
         value: mK2nj6ZSi1mZ2THJMUHcF
 
-      # AI Service
-      - key: OPENAI_API_KEY
-        value: YOUR_OPENAI_API_KEY_HERE
+      # AI Service (Configured via Render Secrets or .env)
 
       # Brain Service
       - key: BRAIN_URL
