@@ -596,6 +596,16 @@ class EnterpriseProfitEngine extends EventEmitter {
                 console.log(`[ENGINE]   Strategy: ${strategy.name}`);
                 console.log(`[ENGINE]   Expected Profit: ${profit} ETH`);
 
+                const opportunityData = {
+                    txHash,
+                    pair: bestOpp.pair,
+                    strategy: strategy.name,
+                    profit,
+                    timestamp: Date.now()
+                };
+
+                this.emit('opportunityDetected', opportunityData);
+
                 this.activeExecutions++;
                 this.executeLiveTrade({
                     txHash: txHash,
