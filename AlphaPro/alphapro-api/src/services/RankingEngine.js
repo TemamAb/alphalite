@@ -49,6 +49,9 @@ class RankingEngine extends EventEmitter {
         // Update interval
         this.updateInterval = 60000; // 1 minute
         this.startAutoUpdate();
+
+        // Jumpstart organic trading data immediate after instantiation
+        setTimeout(() => this.performAutoUpdate(), 1000);
     }
 
     initializeRankings() {
@@ -375,11 +378,34 @@ class RankingEngine extends EventEmitter {
      */
     async performAutoUpdate() {
         try {
-            // Fetch latest data from data sources
-            // This would integrate with APIs like DexScreener, Birdeye, etc.
+            // Fetch real pairs from DexScreener to populate pairRankings
+            try {
+                const axios = require('axios');
+                const response = await axios.get('https://api.dexscreener.com/latest/dex/search?q=WETH');
+                if (response.data && response.data.pairs) {
+                    const pairsData = {};
+                    response.data.pairs.slice(0, 20).forEach(p => {
+                        const volume24h = p.volume?.h24 || 0;
+                        const liquidity = p.liquidity?.usd || 0;
 
-            // For now, simulate with slight variations
-            this.simulateMarketMovement();
+                        // Infer organic spread dynamics based on real liquidity and volume volatility
+                        const spreadBps = liquidity > 0 ? (volume24h / liquidity) * 10 : 5;
+
+                        pairsData[`${p.baseToken.symbol}-${p.quoteToken.symbol} (${p.dexId})`] = {
+                            avgSpreadBps: Math.max(5, Math.min(spreadBps, 150)),
+                            opportunityFrequency: Math.max(1, Math.floor(volume24h / 500000)),
+                            volume24h: volume24h,
+                            profit24h: (volume24h * 0.0001) // Projected organic MEV extraction pool
+                        };
+                    });
+
+                    // Update the pairings with REAL API data
+                    await this.updatePairRankings(pairsData);
+                }
+            } catch (apiErr) {
+                console.error('[RANKING] Failed to fetch real DEX pairs:', apiErr.message);
+                this.simulateMarketMovement();
+            }
 
             // Emit update events
             this.emit('autoUpdateComplete', {
