@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  MessageSquare, 
-  Settings, 
-  Wallet, 
+import {
+  MessageSquare,
+  Settings,
+  Wallet,
   Trophy,
   Upload,
   Play,
@@ -60,6 +60,16 @@ interface DeploymentRecord {
   status: 'Active' | 'Inactive';
 }
 
+interface BlockchainEvent {
+  id: string;
+  timestamp: number;
+  type: string;
+  txHash: string;
+  pair: string;
+  strategy: string;
+  profit: string;
+}
+
 export const DashboardLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [currency, setCurrency] = useState('ETH');
@@ -109,6 +119,7 @@ export const DashboardLayout: React.FC = () => {
     return saved !== null ? JSON.parse(saved) : false;
   });
   const [pimlicoConfigured, setPimlicoConfigured] = useState(false);
+  const [blockchainStream, setBlockchainStream] = useState<BlockchainEvent[]>([]);
 
   // Helper to format values based on selected currency
   const getDisplayValue = (ethValue: number | string) => {
@@ -235,6 +246,41 @@ export const DashboardLayout: React.FC = () => {
     return () => { clearInterval(interval); clearInterval(priceInterval); };
   }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice, fetchConfigStatus]);
 
+  // WebSocket Connection
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = process.env.NODE_ENV === 'development'
+      ? 'ws://localhost:3000/ws'
+      : `${protocol}//${host}/ws`;
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'BLOCKCHAIN_EVENT') {
+          const newEvent: BlockchainEvent = {
+            id: Math.random().toString(36).substr(2, 9),
+            timestamp: data.data.timestamp,
+            type: data.data.category,
+            txHash: data.data.txHash || data.data.tx,
+            pair: data.data.pair || 'Arbitrage',
+            strategy: data.data.strategy || 'MEV',
+            profit: data.data.profit || '0'
+          };
+          setBlockchainStream(prev => [newEvent, ...prev].slice(0, 50)); // Keep last 50 events
+        }
+      } catch (err) {
+        console.error('Failed to parse WS message:', err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   const handleStartEngine = async () => {
     if (targetMode === 'LIVE') {
       if (!confirm('WARNING: You are about to start the engine in LIVE mode. This will interact with real assets. Proceed?')) {
@@ -262,7 +308,7 @@ export const DashboardLayout: React.FC = () => {
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'start', mode: targetMode })
@@ -276,14 +322,14 @@ export const DashboardLayout: React.FC = () => {
 
   const handlePauseEngine = async () => {
     // Mark the currently active deployment as Inactive
-    setDeploymentRecords(prevRecords => 
+    setDeploymentRecords(prevRecords =>
       prevRecords.map(rec => rec.status === 'Active' ? { ...rec, status: 'Inactive' } : rec)
     );
 
     try {
       await fetch('/api/engine/state', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'pause' })
@@ -304,23 +350,23 @@ export const DashboardLayout: React.FC = () => {
           const content = e.target?.result as string;
           // Use regex to handle both Windows (\r\n) and Unix (\n) line endings
           const addresses = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.startsWith('0x'));
-          
+
           if (addresses.length === 0) {
             alert('No valid wallet addresses found. Addresses must start with 0x');
             return;
           }
-          
+
           const res = await fetch('/api/wallets/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ addresses })
           });
-          
+
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
             throw new Error(errorData.error || `Server error: ${res.status}`);
           }
-          
+
           const data = await res.json();
           await fetchWallets();
           alert(`${data.count || addresses.length} wallets imported successfully!`);
@@ -341,23 +387,23 @@ export const DashboardLayout: React.FC = () => {
         try {
           const content = e.target?.result as string;
           const keys = content.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.length > 0);
-          
+
           if (keys.length === 0) {
             alert('No private keys found in file');
             return;
           }
-          
+
           const res = await fetch('/api/wallets/upload-keys', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keys })
           });
-          
+
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
             throw new Error(errorData.error || `Server error: ${res.status}`);
           }
-          
+
           const data = await res.json();
           await fetchWallets();
           alert(`Private keys processed! Matched: ${data.matched || 0}, New: ${data.new || 0}`);
@@ -383,24 +429,24 @@ export const DashboardLayout: React.FC = () => {
           try {
             const content = event.target?.result as string;
             const addresses = content.split(/[\r\n]+/).map((line: string) => line.trim()).filter((line: string) => line.startsWith('0x'));
-            
+
             if (addresses.length === 0) {
               alert('No valid wallet address found in file');
               return;
             }
-            
+
             const newAddr = addresses[0];
             const res = await fetch(`/api/wallets/${wallets[idx].address}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ address: newAddr })
             });
-            
+
             if (!res.ok) {
               const errorData = await res.json().catch(() => ({}));
               throw new Error(errorData.error || `Server error: ${res.status}`);
             }
-            
+
             await fetchWallets();
             alert(`Wallet address updated to: ${newAddr.slice(0, 10)}...`);
           } catch (err: any) {
@@ -427,42 +473,42 @@ export const DashboardLayout: React.FC = () => {
           try {
             const content = event.target?.result as string;
             const keys = content.split(/[\r\n]+/).map((line: string) => line.trim()).filter((line: string) => line.length > 0);
-            
+
             if (keys.length === 0) {
               alert('No private key found in file');
               return;
             }
-            
+
             let key = keys[0].trim();
             if (!key.startsWith('0x')) key = '0x' + key;
-            
+
             // Verify key via API and get derived address
             const verifyRes = await fetch('/api/wallets/verify-key', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ privateKey: key })
             });
-            
+
             if (!verifyRes.ok) {
               const errorData = await verifyRes.json().catch(() => ({}));
               throw new Error(errorData.error || 'Invalid private key');
             }
-            
+
             const verifyData = await verifyRes.json();
             const derivedAddress = verifyData.address;
-            
+
             // Update the wallet with the private key
             const res = await fetch(`/api/wallets/${wallets[idx].address}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ privateKey: key })
             });
-            
+
             if (!res.ok) {
               const errorData = await res.json().catch(() => ({}));
               throw new Error(errorData.error || `Server error: ${res.status}`);
             }
-            
+
             await fetchWallets();
             alert(`Private key uploaded for wallet: ${derivedAddress.slice(0, 10)}...`);
           } catch (err: any) {
@@ -552,7 +598,7 @@ export const DashboardLayout: React.FC = () => {
               <MessageSquare className="text-blue-400" /> Alpha-Copilot
             </h3>
             <div className="space-y-4">
-              <textarea 
+              <textarea
                 placeholder="Ask: 'What is my projected monthly profit in production?'"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg p-4 text-white h-32 focus:border-blue-500 outline-none"
               />
@@ -610,18 +656,26 @@ export const DashboardLayout: React.FC = () => {
             <div className="font-mono text-sm space-y-2 max-h-96 overflow-y-auto">
               {engineStatus === 'running' ? (
                 <>
-                  {[1,2,3,4,5].map((i) => (
-                    <div key={i} className="bg-slate-900 p-3 rounded flex justify-between items-center">
+                  {blockchainStream.length > 0 ? blockchainStream.map((event) => (
+                    <div key={event.id} className="bg-slate-900 p-3 rounded flex justify-between items-center transition-all animate-fade-in">
                       <div>
-                        <span className="text-green-400">#18234{500 + i}</span>
-                        <span className="text-slate-500 ml-2">→ 0x{i}abc...{i}xyz</span>
+                        <span className="text-green-400">#{event.id.toUpperCase()}</span>
+                        <span className="text-slate-500 mx-2">•</span>
+                        <span className="text-xs text-blue-400">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                        <span className="text-slate-500 ml-2">→ {event.txHash ? event.txHash.slice(0, 10) + '...' + event.txHash.slice(-6) : 'N/A'}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-slate-400">Uniswap v3</span>
-                        <span className="text-green-400 ml-2">+{getDisplayValue(engineStats.totalProfit)} {currency}</span>
+                        <span className="text-slate-400 text-xs px-2 py-1 bg-slate-800 rounded mr-2">{event.type}</span>
+                        <span className="text-slate-300">{event.strategy}</span>
+                        <span className="text-slate-500 mx-1">•</span>
+                        <span className="text-green-400 font-bold ml-1">+{getDisplayValue(event.profit)} {currency}</span>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-slate-500 text-center py-8 animate-pulse">
+                      Awaiting real opportunity... Scanner is active.
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-slate-500 text-center py-8">
@@ -641,8 +695,8 @@ export const DashboardLayout: React.FC = () => {
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Zap className="w-5 h-5 text-red-400" /> Engine Control
                 </h3>
-                <button 
-                  onClick={() => setEngineControlCollapsed(!engineControlCollapsed)} 
+                <button
+                  onClick={() => setEngineControlCollapsed(!engineControlCollapsed)}
                   className="text-slate-400 hover:text-white transition-colors p-1"
                   title={engineControlCollapsed ? 'Expand' : 'Collapse'}
                 >
@@ -653,75 +707,75 @@ export const DashboardLayout: React.FC = () => {
                   )}
                 </button>
               </div>
-              
-              {!engineControlCollapsed && (
-              <div className="bg-slate-900/50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-slate-300">Master Switch</span>
-                  <div className="flex items-center gap-2">
-                    {engineStatus === 'running' && engineStats.mode === 'LIVE' && (
-                      <><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span><span className="text-sm font-mono text-red-400">LIVE</span></>
-                    )}
-                    {engineStatus === 'running' && engineStats.mode === 'PAPER' && (
-                      <><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-mono text-green-400">PAPER</span></>
-                    )}
-                    {engineStatus === 'paused' && (
-                      <><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span><span className="text-sm font-mono text-yellow-400">PAUSED</span></>
-                    )}
-                    {engineStatus === 'stopped' && (
-                      <><span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span><span className="text-sm font-mono text-slate-400">STOPPED</span></>
-                    )}
-                  </div>
-                </div>
 
-                {pimlicoConfigured && engineStatus === 'running' && targetMode === 'LIVE' && (
-                <div className="mb-4 bg-blue-900/20 border border-blue-800 rounded p-2 flex items-center justify-center gap-2">
-                  <Zap className="w-3 h-3 text-blue-400" />
-                  <span className="text-xs text-blue-300 font-mono">Gasless Mode Active (Pimlico) - No Prefunding Required</span>
-                </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Mode Selector */}
-                  <div className="bg-slate-800 p-2 rounded-lg">
-                    <div className="text-xs text-slate-400 mb-2 text-center">MODE</div>
-                    <div className="flex bg-slate-900 p-1 rounded">
-                      <button 
-                        onClick={() => setTargetMode('PAPER')}
-                        className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'PAPER' ? 'bg-slate-700 text-white font-bold' : 'text-slate-500 hover:text-slate-300'}`}
-                      >
-                        PAPER
-                      </button>
-                      <button 
-                        onClick={() => setTargetMode('LIVE')}
-                        className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'LIVE' ? 'bg-red-900/50 text-red-400 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
-                      >
-                        LIVE
-                      </button>
+              {!engineControlCollapsed && (
+                <div className="bg-slate-900/50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-bold text-slate-300">Master Switch</span>
+                    <div className="flex items-center gap-2">
+                      {engineStatus === 'running' && engineStats.mode === 'LIVE' && (
+                        <><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span><span className="text-sm font-mono text-red-400">LIVE</span></>
+                      )}
+                      {engineStatus === 'running' && engineStats.mode === 'PAPER' && (
+                        <><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-mono text-green-400">PAPER</span></>
+                      )}
+                      {engineStatus === 'paused' && (
+                        <><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span><span className="text-sm font-mono text-yellow-400">PAUSED</span></>
+                      )}
+                      {engineStatus === 'stopped' && (
+                        <><span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span><span className="text-sm font-mono text-slate-400">STOPPED</span></>
+                      )}
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="bg-slate-800 p-2 rounded-lg">
-                    <div className="text-xs text-slate-400 mb-2 text-center">ACTION</div>
-                    {engineStatus === 'stopped' && (
-                      <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
-                        <Play className="w-4 h-4" /> Start
-                      </button>
-                    )}
-                    {engineStatus === 'running' && (
-                      <button onClick={handlePauseEngine} className="w-full flex items-center justify-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white text-sm py-2 rounded font-bold">
-                        <Pause className="w-4 h-4" /> Pause
-                      </button>
-                    )}
-                    {engineStatus === 'paused' && (
-                      <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
-                        <Play className="w-4 h-4" /> Resume
-                      </button>
-                    )}
+                  {pimlicoConfigured && engineStatus === 'running' && targetMode === 'LIVE' && (
+                    <div className="mb-4 bg-blue-900/20 border border-blue-800 rounded p-2 flex items-center justify-center gap-2">
+                      <Zap className="w-3 h-3 text-blue-400" />
+                      <span className="text-xs text-blue-300 font-mono">Gasless Mode Active (Pimlico) - No Prefunding Required</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Mode Selector */}
+                    <div className="bg-slate-800 p-2 rounded-lg">
+                      <div className="text-xs text-slate-400 mb-2 text-center">MODE</div>
+                      <div className="flex bg-slate-900 p-1 rounded">
+                        <button
+                          onClick={() => setTargetMode('PAPER')}
+                          className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'PAPER' ? 'bg-slate-700 text-white font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                          PAPER
+                        </button>
+                        <button
+                          onClick={() => setTargetMode('LIVE')}
+                          className={`flex-1 text-sm py-2 rounded transition-colors ${targetMode === 'LIVE' ? 'bg-red-900/50 text-red-400 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                          LIVE
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="bg-slate-800 p-2 rounded-lg">
+                      <div className="text-xs text-slate-400 mb-2 text-center">ACTION</div>
+                      {engineStatus === 'stopped' && (
+                        <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
+                          <Play className="w-4 h-4" /> Start
+                        </button>
+                      )}
+                      {engineStatus === 'running' && (
+                        <button onClick={handlePauseEngine} className="w-full flex items-center justify-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white text-sm py-2 rounded font-bold">
+                          <Pause className="w-4 h-4" /> Pause
+                        </button>
+                      )}
+                      {engineStatus === 'paused' && (
+                        <button onClick={handleStartEngine} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm py-2 rounded font-bold">
+                          <Play className="w-4 h-4" /> Resume
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
               )}
             </div>
 
@@ -729,8 +783,8 @@ export const DashboardLayout: React.FC = () => {
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Deployment Registry</h3>
-                <button 
-                  onClick={() => setDeploymentRegistryCollapsed(!deploymentRegistryCollapsed)} 
+                <button
+                  onClick={() => setDeploymentRegistryCollapsed(!deploymentRegistryCollapsed)}
                   className="text-slate-400 hover:text-white transition-colors p-1"
                   title={deploymentRegistryCollapsed ? 'Expand' : 'Collapse'}
                 >
@@ -768,9 +822,8 @@ export const DashboardLayout: React.FC = () => {
                             <td className="p-2 text-slate-300">{rec.chains.join(', ')}</td>
                             <td className="p-2 text-slate-400">{rec.timestamp.toLocaleString()}</td>
                             <td className="p-2 text-center">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                rec.status === 'Active' ? 'bg-green-500/20 text-green-400 animate-pulse' : 'bg-slate-600/50 text-slate-400'
-                              }`}>
+                              <span className={`px-2 py-1 rounded text-xs ${rec.status === 'Active' ? 'bg-green-500/20 text-green-400 animate-pulse' : 'bg-slate-600/50 text-slate-400'
+                                }`}>
                                 {rec.status}
                               </span>
                             </td>
@@ -796,8 +849,8 @@ export const DashboardLayout: React.FC = () => {
                     <span className="text-green-400">{wallets.filter((w: any) => w.valid).length} valid</span>
                     <span className="text-red-400">{wallets.filter((w: any) => !w.valid).length} invalid</span>
                   </div>
-                  <button 
-                    onClick={() => setWalletTableCollapsed(!walletTableCollapsed)} 
+                  <button
+                    onClick={() => setWalletTableCollapsed(!walletTableCollapsed)}
                     className="text-slate-400 hover:text-white transition-colors p-1"
                     title={walletTableCollapsed ? 'Expand' : 'Collapse'}
                   >
@@ -809,173 +862,173 @@ export const DashboardLayout: React.FC = () => {
                   </button>
                 </div>
               </div>
-              
-              {!walletTableCollapsed && (
-              <>
-              <div className="flex gap-2 mb-4">
-                <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm">
-                  <Upload className="w-4 h-4" /> Wallet Address Upload
-                  <input type="file" accept=".csv,.json,.txt" onChange={handleWalletUpload} className="hidden" />
-                </label>
-                <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm border border-yellow-500/30">
-                  <Key className="w-4 h-4 text-yellow-400" /> Wallet Keys Upload
-                  <input type="file" accept=".txt,.csv" onChange={handleKeyUpload} className="hidden" />
-                </label>
-                <button 
-                  onClick={async () => {
-                    setIsRefreshingWallets(true);
-                    await fetch('/api/wallets/refresh', { method: 'POST' });
-                    await fetchWallets();
-                    setIsRefreshingWallets(false);
-                  }}
-                  className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-200">
-                  <RefreshCw className={`w-4 h-4 ${isRefreshingWallets ? 'animate-spin' : ''}`} /> Refresh
-                </button>
-                <button onClick={async () => {
-                  const addr = prompt('Enter wallet address:');
-                  if (addr) {
-                    await fetch('/api/wallets/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: addr }) });
-                    fetchWallets();
-                  }
-                }} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-sm">+ Add</button>
-                <div className="ml-auto flex items-center gap-4 bg-slate-700 px-3 py-2 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Wallets:</span>
-                    <span className="text-sm font-bold text-white">{wallets.length}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Total:</span>
-                    <span className="text-sm font-bold text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))} {currency}</span>
-                  </div>
-                </div>
-              </div>
 
-              {wallets.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-slate-400 border-b border-slate-700">
-                        <th className="p-2 text-left">#</th>
-                        <th className="p-2 text-left">
-                          <div className="flex items-center gap-1">
-                            Wallet Address
-                            <label className="cursor-pointer text-blue-400 hover:text-blue-300" title="Upload wallet addresses">
-                              <Upload className="w-3 h-3" />
-                              <input 
-                                type="file" 
-                                accept=".csv,.json,.txt" 
-                                className="hidden" 
-                                onChange={handleWalletUpload}
-                              />
-                            </label>
-                          </div>
-                        </th>
-                        <th className="p-2 text-left">
-                          <div className="flex items-center gap-1">
-                            Private Key
-                            <label className="cursor-pointer text-yellow-400 hover:text-yellow-300" title="Upload private keys">
-                              <Upload className="w-3 h-3" />
-                              <input 
-                                type="file" 
-                                accept=".txt,.csv" 
-                                className="hidden" 
-                                onChange={handleKeyUpload}
-                              />
-                            </label>
-                          </div>
-                        </th>
-                        <th className="p-2 text-left">Blockchain</th>
-                        <th className="p-2 text-right">Balance</th>
-                        <th className="p-2 text-center">Status</th>
-                        <th className="p-2 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {wallets.map((wallet: any, idx: number) => (
-                        <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                          <td className="p-2 text-slate-400">{idx + 1}</td>
-                          <td className="p-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-slate-300">{wallet.address?.slice(0, 10)}...</span>
-                              <label className="cursor-pointer text-blue-400 hover:text-blue-300">
-                                <Upload className="w-3 h-3" />
-                                <input 
-                                  type="file" 
-                                  accept=".csv,.json,.txt" 
-                                  className="hidden" 
-                                  onChange={() => handleIndividualWalletUpload(idx)}
-                                />
-                              </label>
-                            </div>
-                          </td>
-                          <td className="p-2">
-                            <div className="flex items-center gap-2">
-                              {wallet.hasKey ? (
-                                <Key className="w-4 h-4 text-yellow-400" title="Private Key Configured" />
-                              ) : (
-                                <span className="text-slate-600 text-xs">-</span>
-                              )}
-                              <label className="cursor-pointer text-yellow-400 hover:text-yellow-300">
-                                <Upload className="w-3 h-3" />
-                                <input 
-                                  type="file" 
-                                  accept=".txt,.csv" 
-                                  className="hidden" 
-                                  onChange={() => handleIndividualKeyUpload(idx)}
-                                />
-                              </label>
-                            </div>
-                          </td>
-                          <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
-                          <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
-                          <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
-                          <td className="p-2 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button 
-                                onClick={async () => {
-                                  const newAddr = prompt('Edit wallet address:', wallet.address);
-                                  if (newAddr && newAddr !== wallet.address) {
-                                    await fetch(`/api/wallets/${wallet.address}`, { 
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' }, 
-                                      body: JSON.stringify({ address: newAddr }) 
-                                    });
-                                    fetchWallets();
-                                  }
-                                }} 
-                                className="text-blue-400 hover:text-blue-300"
-                              >
-                                ✎
-                              </button>
-                              <button 
-                                onClick={async () => { 
-                                  if (confirm('Are you sure you want to remove this wallet?')) {
-                                    await fetch(`/api/wallets/${wallet.address}`, { method: 'DELETE' }); 
-                                    fetchWallets(); 
-                                  }
-                                }} 
-                                className="text-red-400 hover:text-red-300"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="bg-slate-700/50 font-bold text-white">
-                        <td colSpan={3} className="p-2">TOTAL</td>
-                        <td className="p-2">{wallets.length} wallets</td>
-                        <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
-                        <td className="p-2 text-center">
-                          <span className="text-yellow-400">{wallets.filter((w: any) => w.hasKey).length} with keys</span>
-                        </td>
-                        <td></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              </>
+              {!walletTableCollapsed && (
+                <>
+                  <div className="flex gap-2 mb-4">
+                    <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm">
+                      <Upload className="w-4 h-4" /> Wallet Address Upload
+                      <input type="file" accept=".csv,.json,.txt" onChange={handleWalletUpload} className="hidden" />
+                    </label>
+                    <label className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg cursor-pointer text-sm border border-yellow-500/30">
+                      <Key className="w-4 h-4 text-yellow-400" /> Wallet Keys Upload
+                      <input type="file" accept=".txt,.csv" onChange={handleKeyUpload} className="hidden" />
+                    </label>
+                    <button
+                      onClick={async () => {
+                        setIsRefreshingWallets(true);
+                        await fetch('/api/wallets/refresh', { method: 'POST' });
+                        await fetchWallets();
+                        setIsRefreshingWallets(false);
+                      }}
+                      className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-200">
+                      <RefreshCw className={`w-4 h-4 ${isRefreshingWallets ? 'animate-spin' : ''}`} /> Refresh
+                    </button>
+                    <button onClick={async () => {
+                      const addr = prompt('Enter wallet address:');
+                      if (addr) {
+                        await fetch('/api/wallets/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: addr }) });
+                        fetchWallets();
+                      }
+                    }} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-sm">+ Add</button>
+                    <div className="ml-auto flex items-center gap-4 bg-slate-700 px-3 py-2 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Wallets:</span>
+                        <span className="text-sm font-bold text-white">{wallets.length}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">Total:</span>
+                        <span className="text-sm font-bold text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))} {currency}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {wallets.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-slate-400 border-b border-slate-700">
+                            <th className="p-2 text-left">#</th>
+                            <th className="p-2 text-left">
+                              <div className="flex items-center gap-1">
+                                Wallet Address
+                                <label className="cursor-pointer text-blue-400 hover:text-blue-300" title="Upload wallet addresses">
+                                  <Upload className="w-3 h-3" />
+                                  <input
+                                    type="file"
+                                    accept=".csv,.json,.txt"
+                                    className="hidden"
+                                    onChange={handleWalletUpload}
+                                  />
+                                </label>
+                              </div>
+                            </th>
+                            <th className="p-2 text-left">
+                              <div className="flex items-center gap-1">
+                                Private Key
+                                <label className="cursor-pointer text-yellow-400 hover:text-yellow-300" title="Upload private keys">
+                                  <Upload className="w-3 h-3" />
+                                  <input
+                                    type="file"
+                                    accept=".txt,.csv"
+                                    className="hidden"
+                                    onChange={handleKeyUpload}
+                                  />
+                                </label>
+                              </div>
+                            </th>
+                            <th className="p-2 text-left">Blockchain</th>
+                            <th className="p-2 text-right">Balance</th>
+                            <th className="p-2 text-center">Status</th>
+                            <th className="p-2 text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {wallets.map((wallet: any, idx: number) => (
+                            <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                              <td className="p-2 text-slate-400">{idx + 1}</td>
+                              <td className="p-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-slate-300">{wallet.address?.slice(0, 10)}...</span>
+                                  <label className="cursor-pointer text-blue-400 hover:text-blue-300">
+                                    <Upload className="w-3 h-3" />
+                                    <input
+                                      type="file"
+                                      accept=".csv,.json,.txt"
+                                      className="hidden"
+                                      onChange={() => handleIndividualWalletUpload(idx)}
+                                    />
+                                  </label>
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex items-center gap-2">
+                                  {wallet.hasKey ? (
+                                    <Key className="w-4 h-4 text-yellow-400" title="Private Key Configured" />
+                                  ) : (
+                                    <span className="text-slate-600 text-xs">-</span>
+                                  )}
+                                  <label className="cursor-pointer text-yellow-400 hover:text-yellow-300">
+                                    <Upload className="w-3 h-3" />
+                                    <input
+                                      type="file"
+                                      accept=".txt,.csv"
+                                      className="hidden"
+                                      onChange={() => handleIndividualKeyUpload(idx)}
+                                    />
+                                  </label>
+                                </div>
+                              </td>
+                              <td className="p-2 text-slate-300">{wallet.blockchain || 'Ethereum'}</td>
+                              <td className="p-2 text-right font-mono text-green-400">{getDisplayValue(wallet.balance || wallet.totalBalance || 0)}</td>
+                              <td className="p-2 text-center"><span className={`px-2 py-1 rounded text-xs ${wallet.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.valid ? 'Valid' : 'Invalid'}</span></td>
+                              <td className="p-2 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={async () => {
+                                      const newAddr = prompt('Edit wallet address:', wallet.address);
+                                      if (newAddr && newAddr !== wallet.address) {
+                                        await fetch(`/api/wallets/${wallet.address}`, {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ address: newAddr })
+                                        });
+                                        fetchWallets();
+                                      }
+                                    }}
+                                    className="text-blue-400 hover:text-blue-300"
+                                  >
+                                    ✎
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm('Are you sure you want to remove this wallet?')) {
+                                        await fetch(`/api/wallets/${wallet.address}`, { method: 'DELETE' });
+                                        fetchWallets();
+                                      }
+                                    }}
+                                    className="text-red-400 hover:text-red-300"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-slate-700/50 font-bold text-white">
+                            <td colSpan={3} className="p-2">TOTAL</td>
+                            <td className="p-2">{wallets.length} wallets</td>
+                            <td className="p-2 text-right text-green-400">{getDisplayValue(wallets.reduce((s: number, w: any) => s + (w.balance || w.totalBalance || 0), 0))}</td>
+                            <td className="p-2 text-center">
+                              <span className="text-yellow-400">{wallets.filter((w: any) => w.hasKey).length} with keys</span>
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -983,8 +1036,8 @@ export const DashboardLayout: React.FC = () => {
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Profit Withdrawal</h3>
-                <button 
-                  onClick={() => setProfitWithdrawalCollapsed(!profitWithdrawalCollapsed)} 
+                <button
+                  onClick={() => setProfitWithdrawalCollapsed(!profitWithdrawalCollapsed)}
                   className="text-slate-400 hover:text-white transition-colors p-1"
                   title={profitWithdrawalCollapsed ? 'Expand' : 'Collapse'}
                 >
@@ -996,78 +1049,78 @@ export const DashboardLayout: React.FC = () => {
                 </button>
               </div>
               {!profitWithdrawalCollapsed && (
-              <>
-              <div className="flex gap-2 mb-4">
-                <button onClick={async () => {
-                  await fetch('/api/wallets/withdraw', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: 'auto', threshold: autoThreshold })
-                  });
-                  setProfitMode('auto');
-                }} className={`px-4 py-2 rounded-lg ${profitMode === 'auto' ? 'bg-green-600' : 'bg-slate-700'}`}>
-                  Auto
-                </button>
-                <button onClick={() => setProfitMode('manual')} className={`px-4 py-2 rounded-lg ${profitMode === 'manual' ? 'bg-yellow-600' : 'bg-slate-700'}`}>
-                  Manual
-                </button>
-              </div>
-              {profitMode === 'auto' && (
-                <div className="mb-4">
-                  <label className="text-sm text-slate-400 mb-2 block">Auto-withdraw threshold (ETH)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={autoThreshold}
-                    onChange={(e) => setAutoThreshold(e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
-                  />
-                  <p className="text-green-400 text-sm mt-2">Auto-withdraw enabled - profits will be withdrawn when threshold is reached</p>
-                </div>
-              )}
-              {profitMode === 'manual' && (
-                <div className="mb-4">
-                  <label className="text-sm text-slate-400 mb-2 block">Manual withdrawal amount (ETH)</label>
-                  <input 
-                    type="number" 
-                    step="0.001"
-                    value={manualAmount}
-                    onChange={(e) => setManualAmount(e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
-                  />
-                  <button onClick={async () => {
-                    try {
-                      const res = await fetch('/api/wallets/withdraw', {
+                <>
+                  <div className="flex gap-2 mb-4">
+                    <button onClick={async () => {
+                      await fetch('/api/wallets/withdraw', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mode: 'manual', amount: manualAmount })
+                        body: JSON.stringify({ mode: 'auto', threshold: autoThreshold })
                       });
-                      const data = await res.json();
-                      
-                      const newRecord: WithdrawalRecord = {
-                        id: withdrawalRecords.length + 1,
-                        timestamp: new Date(),
-                        amount: parseFloat(manualAmount),
-                        status: data.success ? 'Completed' : 'Failed',
-                        txHash: data.txHash || 'pending'
-                      };
-                      setWithdrawalRecords(prev => [newRecord, ...prev]);
-                      
-                      if (data.success) {
-                        alert(`Withdrawal initiated! Amount: ${manualAmount} ETH`);
-                      } else {
-                        alert(`Withdrawal failed: ${data.message}`);
-                      }
-                    } catch (err) {
-                      console.error('Withdrawal error:', err);
-                      alert('Withdrawal request failed. Please try again.');
-                    }
-                  }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
-                    Withdraw {manualAmount} ETH
-                  </button>
-                </div>
-              )}
-              </>
+                      setProfitMode('auto');
+                    }} className={`px-4 py-2 rounded-lg ${profitMode === 'auto' ? 'bg-green-600' : 'bg-slate-700'}`}>
+                      Auto
+                    </button>
+                    <button onClick={() => setProfitMode('manual')} className={`px-4 py-2 rounded-lg ${profitMode === 'manual' ? 'bg-yellow-600' : 'bg-slate-700'}`}>
+                      Manual
+                    </button>
+                  </div>
+                  {profitMode === 'auto' && (
+                    <div className="mb-4">
+                      <label className="text-sm text-slate-400 mb-2 block">Auto-withdraw threshold (ETH)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={autoThreshold}
+                        onChange={(e) => setAutoThreshold(e.target.value)}
+                        className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
+                      />
+                      <p className="text-green-400 text-sm mt-2">Auto-withdraw enabled - profits will be withdrawn when threshold is reached</p>
+                    </div>
+                  )}
+                  {profitMode === 'manual' && (
+                    <div className="mb-4">
+                      <label className="text-sm text-slate-400 mb-2 block">Manual withdrawal amount (ETH)</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={manualAmount}
+                        onChange={(e) => setManualAmount(e.target.value)}
+                        className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white w-40"
+                      />
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch('/api/wallets/withdraw', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ mode: 'manual', amount: manualAmount })
+                          });
+                          const data = await res.json();
+
+                          const newRecord: WithdrawalRecord = {
+                            id: withdrawalRecords.length + 1,
+                            timestamp: new Date(),
+                            amount: parseFloat(manualAmount),
+                            status: data.success ? 'Completed' : 'Failed',
+                            txHash: data.txHash || 'pending'
+                          };
+                          setWithdrawalRecords(prev => [newRecord, ...prev]);
+
+                          if (data.success) {
+                            alert(`Withdrawal initiated! Amount: ${manualAmount} ETH`);
+                          } else {
+                            alert(`Withdrawal failed: ${data.message}`);
+                          }
+                        } catch (err) {
+                          console.error('Withdrawal error:', err);
+                          alert('Withdrawal request failed. Please try again.');
+                        }
+                      }} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-2 rounded-lg font-bold mt-3 block">
+                        Withdraw {manualAmount} ETH
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1075,8 +1128,8 @@ export const DashboardLayout: React.FC = () => {
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Withdrawal History</h3>
-                <button 
-                  onClick={() => setWithdrawalHistoryCollapsed(!withdrawalHistoryCollapsed)} 
+                <button
+                  onClick={() => setWithdrawalHistoryCollapsed(!withdrawalHistoryCollapsed)}
                   className="text-slate-400 hover:text-white transition-colors p-1"
                   title={withdrawalHistoryCollapsed ? 'Expand' : 'Collapse'}
                 >
@@ -1105,10 +1158,9 @@ export const DashboardLayout: React.FC = () => {
                             <td className="p-2 text-slate-400">{record.timestamp.toLocaleString()}</td>
                             <td className="p-2 text-right font-mono text-yellow-400">{record.amount.toFixed(4)} ETH</td>
                             <td className="p-2 text-center">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                record.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 
-                                'bg-yellow-500/20 text-yellow-400'
-                              }`}>
+                              <span className={`px-2 py-1 rounded text-xs ${record.status === 'Completed' ? 'bg-green-500/20 text-green-400' :
+                                  'bg-yellow-500/20 text-yellow-400'
+                                }`}>
                                 {record.status}
                               </span>
                             </td>
@@ -1134,8 +1186,8 @@ export const DashboardLayout: React.FC = () => {
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Trading Parameters</h3>
-                <button 
-                  onClick={() => setTradingParamsCollapsed(!tradingParamsCollapsed)} 
+                <button
+                  onClick={() => setTradingParamsCollapsed(!tradingParamsCollapsed)}
                   className="text-slate-400 hover:text-white transition-colors p-1"
                   title={tradingParamsCollapsed ? 'Expand' : 'Collapse'}
                 >
@@ -1146,64 +1198,64 @@ export const DashboardLayout: React.FC = () => {
                   )}
                 </button>
               </div>
-              
+
               {!tradingParamsCollapsed && (
-              <>
-              {/* Reinvestment Rate */}
-              <div className="mb-6">
-                <div className="flex justify-between mb-2">
-                  <label className="text-sm text-slate-400">Profit Reinvestment Rate</label>
-                  <span className="text-sm font-mono text-blue-400">{reinvestmentRate}%</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={reinvestmentRate}
-                  onChange={(e) => setReinvestmentRate(parseInt(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>0%</span>
-                  <span>100%</span>
-                </div>
-              </div>
+                <>
+                  {/* Reinvestment Rate */}
+                  <div className="mb-6">
+                    <div className="flex justify-between mb-2">
+                      <label className="text-sm text-slate-400">Profit Reinvestment Rate</label>
+                      <span className="text-sm font-mono text-blue-400">{reinvestmentRate}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={reinvestmentRate}
+                      onChange={(e) => setReinvestmentRate(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>0%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
 
-              {/* Capital Velocity */}
-              <div>
-                <div className="flex justify-between mb-2">
-                  <label className="text-sm text-slate-400">Capital Velocity/Day</label>
-                  <span className="text-sm font-mono text-purple-400">${capitalVelocity}M</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="500" 
-                  value={capitalVelocity}
-                  onChange={(e) => setCapitalVelocity(parseInt(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>$1M</span>
-                  <span>$500M</span>
-                </div>
-              </div>
+                  {/* Capital Velocity */}
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <label className="text-sm text-slate-400">Capital Velocity/Day</label>
+                      <span className="text-sm font-mono text-purple-400">${capitalVelocity}M</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="500"
+                      value={capitalVelocity}
+                      onChange={(e) => setCapitalVelocity(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>$1M</span>
+                      <span>$500M</span>
+                    </div>
+                  </div>
 
-              {/* Save Button */}
-              <button 
-                onClick={async () => {
-                  await fetch('/api/settings/trading', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reinvestmentRate, capitalVelocity })
-                  });
-                  alert('Settings saved!');
-                }}
-                className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold"
-              >
-                Save Configuration
-              </button>
-              </>
+                  {/* Save Button */}
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/settings/trading', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reinvestmentRate, capitalVelocity })
+                      });
+                      alert('Settings saved!');
+                    }}
+                    className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold"
+                  >
+                    Save Configuration
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1279,11 +1331,10 @@ export const DashboardLayout: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === item.id
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === item.id
                       ? 'bg-blue-600 text-white'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {item.label}
