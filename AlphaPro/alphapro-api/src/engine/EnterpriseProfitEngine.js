@@ -505,23 +505,7 @@ class EnterpriseProfitEngine extends EventEmitter {
 
         // Monitor market data streams
         // Only react to real events from DataFusionEngine
-        console.log('[ENGINE] 🛡️ REAL-TIME MEV SHIELD ACTIVE');
-
-        // Organic MEV Scanner Loop: Constantly check RankingEngine for high-spread opportunities
-        // This ensures trading continues organically even if Mempool RPC websockets are rate-limited
-        setInterval(() => {
-            if (this.mode === 'LIVE' && this.canExecute()) {
-                const bestOpp = RankingEngine.getBestOpportunity();
-                // Execute if we have real data with a decent score
-                if (bestOpp && bestOpp.score > 50) {
-                    const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''); // Generate local trace hash
-                    this.simulateLiveOpportunity(txHash);
-                }
-            } else if (this.mode === 'PAPER' && this.canExecute()) {
-                const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-                this.simulateArbitrage(txHash);
-            }
-        }, 8000); // 8 seconds organic scan
+        console.log('[ENGINE] 🛡️ REAL-TIME MEV SHIELD ACTIVE. NO MOCKS ALLOWED.');
     }
 
     /**
@@ -580,17 +564,24 @@ class EnterpriseProfitEngine extends EventEmitter {
         const txHash = event.tx || event.hash;
         const { chain } = event;
 
-        // In LIVE mode, detect and execute real opportunities from pending txs
-        if (this.mode === 'LIVE' && this.canExecute() && txHash) {
+        // In both LIVE and PAPER modes, we NO LONGER mock. We ONLY use real transactions.
+        if (this.canExecute() && txHash) {
+            // Apply a realistic MEV backoff (e.g. 1 per block / 12 seconds) so it doesn't spam the dashboard
+            // and respects realistic human-scale block generation and arbitrage windows.
+            if (Date.now() - (this.lastOpportunityTime || 0) < 12000) {
+                return;
+            }
+
             // Use real data points from RankingEngine for the specific transaction
             const bestOpp = RankingEngine.getBestOpportunity();
 
-            // If we have a high confidence opportunity, execute
-            if (bestOpp && bestOpp.score > 60) {
+            // If we have a high confidence opportunity, process it
+            if (bestOpp && bestOpp.score > 50) {
+                this.lastOpportunityTime = Date.now();
                 const strategy = this.selectBestStrategy(bestOpp.avgSpreadBps * 150);
                 const profit = (bestOpp.avgSpreadBps * 0.05).toFixed(4);
 
-                console.log(`[ENGINE] 🔍 MEV OPPORTUNITY on ${chain || 'ethereum'}:`);
+                console.log(`[ENGINE] 🔍 REAL MEV OPPORTUNITY on ${chain || 'ethereum'}:`);
                 console.log(`[ENGINE]   TX: ${txHash.slice(0, 16)}...`);
                 console.log(`[ENGINE]   Pair: ${bestOpp.pair}`);
                 console.log(`[ENGINE]   Strategy: ${strategy.name}`);
@@ -607,54 +598,39 @@ class EnterpriseProfitEngine extends EventEmitter {
                 this.emit('opportunityDetected', opportunityData);
 
                 this.activeExecutions++;
-                this.executeLiveTrade({
-                    txHash: txHash,
-                    strategy,
-                    profit,
-                    timestamp: event.timestamp
-                }, chain || 'ethereum');
+
+                if (this.mode === 'LIVE') {
+                    this.executeLiveTrade({
+                        txHash: txHash,
+                        strategy,
+                        profit,
+                        timestamp: event.timestamp
+                    }, chain || 'ethereum');
+                } else {
+                    // PAPER MODE triggers simulated execution of the REAL data
+                    this.simulateArbitrage({
+                        txHash: txHash,
+                        pair: bestOpp.pair,
+                        strategy,
+                        profit,
+                        timestamp: event.timestamp
+                    }, chain || 'ethereum');
+                }
             }
-        }
-        // In PAPER mode, simulate trades (lower frequency)
-        else if (this.mode === 'PAPER' && Math.random() > 0.95 && this.canExecute()) {
-            console.log(`[ENGINE] 🔍 SIMULATED Opportunity on ${chain || 'ethereum'} from tx: ${(txHash || '0x...').slice(0, 10)}...`);
-            this.simulateArbitrage(txHash || '0x' + Math.random().toString(16).substr(2, 64), chain || 'ethereum');
         }
     }
 
     /**
-     * In PAPER mode, simulate trades against a forked state.
-     * This is closer to real-world conditions than basic random numbers.
-     *
-     * @param {string} txHash - The transaction hash (if available).
-     * @param {string} chain - The chain identifier (e.g., 'ethereum').
-     * Execute arbitrage with strategy selection
+     * In PAPER mode, log the real data but do not actually execute on chain.
      */
-    async simulateArbitrage(txHash = null, chain = 'ethereum') {
-        this.activeExecutions++;
+    async simulateArbitrage(opportunity, chain = 'ethereum') {
+        const { txHash, pair, strategy, profit } = opportunity;
 
-        // Simulate opportunity detection and select best strategy
-        const opportunitySize = Math.random() * 100000;
-        const selectedStrategy = this.selectBestStrategy(opportunitySize);
         const startTime = performance.now();
-
         this.stats.totalTrades++;
 
-        // Simulate a base profit with some randomness
-        const baseProfit = 0.05 + (Math.random() * 0.1);
-
-        // Adjust the profit based on the strategy's profit multiplier
-        const profit = baseProfit * selectedStrategy.profitMultiplier;
-        this.stats.totalProfit += profit;
-
-        const opportunityData = {
-            txHash: txHash || '0x' + Math.random().toString(16).substr(2, 64),
-            pair: 'PAPER SIMULATION',
-            strategy: selectedStrategy.name,
-            profit: profit.toFixed(4),
-            timestamp: Date.now()
-        };
-        this.emit('opportunityDetected', opportunityData);
+        const numericProfit = parseFloat(profit);
+        this.stats.totalProfit += numericProfit;
 
         // Simulate network conditions.
         const networkLatency = Math.random() * 50; // Simulated network latency in ms
@@ -665,26 +641,31 @@ class EnterpriseProfitEngine extends EventEmitter {
         const endTime = performance.now();
         const executionTime = endTime - startTime;
 
-        const profitStr = profit.toFixed(4);
+        const profitStr = profit;
         const totalStr = this.stats.totalProfit.toFixed(4);
 
         console.log('');
         console.log('╔══════════════════════════════════════════════════════════════════════╗');
         console.log('║  🚀 ALPHA PRO - ARBITRAGE EXECUTION SUCCESS                          ║');
         console.log('╠══════════════════════════════════════════════════════════════════════╣');
-        console.log(`║  📊 Opportunity:          ${txHash ? txHash.slice(0, 14) + '...' : 'SIMULATED'.padEnd(15)} (${chain})   ║`);
-        console.log(`║  ⚡ Strategy Used:        ${selectedStrategy.name.padEnd(20)}          ║`);
-        console.log(`║  📈 Risk Level:           ${selectedStrategy.risk.padEnd(20)}          ║`);
-        console.log(`║   Trade Profit:         +${profitStr} ETH                              ║`);
+        console.log(`║  📊 Opportunity:          ${(txHash || 'REAL TX').slice(0, 14)}... (${chain})   ║`);
+        console.log(`║  ⚡ Strategy Used:        ${strategy.name.padEnd(20)}          ║`);
+        console.log(`║  📈 Risk Level:           ${strategy.risk.padEnd(20)}          ║`);
+        console.log(`║   Trade Profit:         +${profit} ETH                              ║`);
         console.log(`║  💎 Total Profit:         ${totalStr} ETH                              ║`);
         console.log(`║  ⏱️ Execution Time:      ${executionTime.toFixed(2)} ms                      ║`);
-
         console.log(`║  🌐 Network Latency:      ${networkLatency.toFixed(2)} ms                      ║`);
-
-
         console.log(`║  🔢 Total Trades:         ${this.stats.totalTrades.toString().padEnd(10)}                                  ║`);
         console.log('╚══════════════════════════════════════════════════════════════════════╝');
         console.log('');
+
+        this.emit('tradeExecuted', {
+            txHash,
+            pair,
+            strategy: strategy.name,
+            profit,
+            timestamp: Date.now()
+        });
 
         this.activeExecutions--;
     }
