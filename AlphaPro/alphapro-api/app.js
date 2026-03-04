@@ -430,7 +430,7 @@ app.get('/api/engine/stats', (req, res) => {
     const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
 
     // Win rate calculation - tracked from actual trade executions
-    const winRate = totalTrades > 0 ? (successfulTrades / totalTrades) * 100 : 0;
+    const winRate = totalTrades > 0 ? (status.stats.successfulTrades / totalTrades) * 100 : 0;
 
     res.status(200).json({
         mode,
@@ -1012,5 +1012,11 @@ server.listen(PORT, () => {
     console.log(`[AUTO-START] Starting AlphaPro Engine in ${initialMode} mode...`);
     profitEngine.setMode(initialMode);
     profitEngine.start();
+
+    // Initialize session metrics for the auto-started session
+    engineStartTime = Date.now();
+    const status = profitEngine.getStatus();
+    startTrades = status.stats.totalTrades;
+
     console.log(`[AUTO-START] ✅ AlphaPro Engine initialized in ${initialMode} mode!`);
 });

@@ -74,12 +74,12 @@ export const DashboardLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [currency, setCurrency] = useState('ETH');
   const [refreshInterval, setRefreshInterval] = useState('5');
-  const [engineStatus, setEngineStatus] = useState<'stopped' | 'running' | 'paused'>('stopped');
+  const [engineStatus, setEngineStatus] = useState<'stopped' | 'running' | 'paused'>('running');
   const [profitMode, setProfitMode] = useState<'auto' | 'manual'>('manual');
   const [wallets, setWallets] = useState<WalletData[]>([]);
   const [walletCount, setWalletCount] = useState(0);
   const [engineStats, setEngineStats] = useState<EngineStats>({
-    mode: 'PAPER',
+    mode: 'LIVE',
     totalProfit: 0,
     profitPerTrade: 0,
     tradesPerHour: 0,
