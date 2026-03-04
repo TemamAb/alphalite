@@ -662,7 +662,16 @@ export const DashboardLayout: React.FC = () => {
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Network className="text-purple-400" /> Blockchain Stream
-              {engineStatus === 'running' && <span className="ml-auto text-xs text-green-400 flex items-center gap-1"><Zap className="w-3 h-3" /> LIVE</span>}
+              {engineStatus === 'running' && engineStats.mode === 'LIVE' && (
+                <span className="ml-auto text-xs text-red-400 border border-red-900/50 bg-red-900/20 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Zap className="w-3 h-3 fill-red-400" /> PRODUCTION
+                </span>
+              )}
+              {engineStatus === 'running' && engineStats.mode === 'PAPER' && (
+                <span className="ml-auto text-xs text-green-400 border border-green-900/50 bg-green-900/20 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Play className="w-3 h-3 fill-green-400" /> SIMULATION
+                </span>
+              )}
             </h3>
             <div className="font-mono text-sm space-y-2 max-h-96 overflow-y-auto">
               {engineStatus === 'running' ? (

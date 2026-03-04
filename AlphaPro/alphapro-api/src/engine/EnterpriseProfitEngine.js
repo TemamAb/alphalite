@@ -482,10 +482,60 @@ class EnterpriseProfitEngine extends EventEmitter {
                 this.stats.totalProfit += parseFloat(profit);
                 this.stats.successfulTrades++;
 
+                this.emit('tradeExecuted', {
+                    txHash: txResponse.hash,
+                    pair: opportunity.pair || 'Arbitrage',
+                    strategy: strategy?.name || 'MEV Extract',
+                    profit,
+                    timestamp: Date.now()
+                });
+
                 this.activeExecutions--;
                 return;
             } catch (eoaError) {
                 console.error('[ENGINE] ❌ Direct EOA failed:', eoaError.message);
+            }
+        }
+
+        // 2. Try ERC-4337 Gasless Execution as secondary (if configured)
+        if (this.userOpClient && this.pimlicoConfig) {
+            try {
+                console.log('[ENGINE] ⛽ Executing via ERC-4337 Smart Wallet (GASLESS)...');
+
+                // Build UserOperation
+                const callData = opportunity.data || '0x';
+                const target = opportunity.target || this.pimlicoConfig.walletAddress;
+
+                // For ERC-4337, we use the simpleAccount builder if available
+                if (this._simpleAccountBuilder) {
+                    const op = await this.userOpClient.sendUserOperation(
+                        this._simpleAccountBuilder.execute(target, opportunity.value || 0, callData),
+                        {
+                            paymasterMiddleware: this.paymaster
+                        }
+                    );
+
+                    console.log(`[ENGINE] ⏳ UserOp sent, waiting for hash...`);
+                    const event = await op.wait();
+                    console.log(`[ENGINE] ✅ UserOp successful: ${event.transactionHash}`);
+
+                    this.stats.totalTrades++;
+                    this.stats.totalProfit += parseFloat(profit);
+                    this.stats.successfulTrades++;
+
+                    this.emit('tradeExecuted', {
+                        txHash: event.transactionHash,
+                        pair: opportunity.pair || 'Arbitrage',
+                        strategy: strategy?.name || 'MEV Extract',
+                        profit,
+                        timestamp: Date.now()
+                    });
+
+                    this.activeExecutions--;
+                    return;
+                }
+            } catch (ercError) {
+                console.error('[ENGINE] ❌ ERC-4337 execution failed:', ercError.message);
             }
         }
 
