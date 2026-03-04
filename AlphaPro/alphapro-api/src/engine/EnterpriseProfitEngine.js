@@ -647,6 +647,15 @@ class EnterpriseProfitEngine extends EventEmitter {
         const profit = baseProfit * selectedStrategy.profitMultiplier;
         this.stats.totalProfit += profit;
 
+        const opportunityData = {
+            txHash: txHash || '0x' + Math.random().toString(16).substr(2, 64),
+            pair: 'PAPER SIMULATION',
+            strategy: selectedStrategy.name,
+            profit: profit.toFixed(4),
+            timestamp: Date.now()
+        };
+        this.emit('opportunityDetected', opportunityData);
+
         // Simulate network conditions.
         const networkLatency = Math.random() * 50; // Simulated network latency in ms
 
