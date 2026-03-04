@@ -246,7 +246,7 @@ export const DashboardLayout: React.FC = () => {
     return () => { clearInterval(interval); clearInterval(priceInterval); };
   }, [refreshInterval, fetchEngineStats, fetchWallets, fetchTradingSettings, fetchEthPrice, fetchConfigStatus]);
 
-  // WebSocket Connection
+  // WebSocket Connection - Synchronized to UI Refresh Interval
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -255,6 +255,7 @@ export const DashboardLayout: React.FC = () => {
       : `${protocol}//${host}/ws`;
 
     const ws = new WebSocket(wsUrl);
+    let messageBuffer: BlockchainEvent[] = [];
 
     ws.onmessage = (event) => {
       try {
@@ -269,17 +270,27 @@ export const DashboardLayout: React.FC = () => {
             strategy: data.data.strategy || 'MEV',
             profit: data.data.profit || '0'
           };
-          setBlockchainStream(prev => [newEvent, ...prev].slice(0, 50)); // Keep last 50 events
+          messageBuffer.push(newEvent);
         }
       } catch (err) {
         console.error('Failed to parse WS message:', err);
       }
     };
 
+    // Drain buffer into state precisely according to the user's refresh selection
+    const drainInterval = setInterval(() => {
+      if (messageBuffer.length > 0) {
+        setBlockchainStream(prev => [...messageBuffer.reverse(), ...prev].slice(0, 50));
+        // Keep buffer clear after flushing to the UI
+        messageBuffer = [];
+      }
+    }, parseInt(refreshInterval) * 1000);
+
     return () => {
       ws.close();
+      clearInterval(drainInterval);
     };
-  }, []);
+  }, [refreshInterval]);
 
   const handleStartEngine = async () => {
     if (targetMode === 'LIVE') {
@@ -1159,7 +1170,7 @@ export const DashboardLayout: React.FC = () => {
                             <td className="p-2 text-right font-mono text-yellow-400">{record.amount.toFixed(4)} ETH</td>
                             <td className="p-2 text-center">
                               <span className={`px-2 py-1 rounded text-xs ${record.status === 'Completed' ? 'bg-green-500/20 text-green-400' :
-                                  'bg-yellow-500/20 text-yellow-400'
+                                'bg-yellow-500/20 text-yellow-400'
                                 }`}>
                                 {record.status}
                               </span>
@@ -1332,8 +1343,8 @@ export const DashboardLayout: React.FC = () => {
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`}
                 >
                   <Icon className="w-4 h-4" />
