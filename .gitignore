@@ -1,8 +1,9 @@
-# Dependency directories
 node_modules/
+**/node_modules/
 __pycache__/
-AlphaPro/node_modules/
-AlphaPro/alphapro-brain/__pycache__/
+**/__pycache__/
+*.log
+**/logs/
 
 # Environment variables
 .env
