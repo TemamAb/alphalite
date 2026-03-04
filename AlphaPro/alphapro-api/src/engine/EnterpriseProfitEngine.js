@@ -493,6 +493,7 @@ class EnterpriseProfitEngine extends EventEmitter {
         console.log(`[ENGINE] ⚠️ Trade logged for manual execution`);
         this.stats.totalTrades++;
         this.stats.totalProfit += parseFloat(profit);
+        this.stats.successfulTrades++;
         this.activeExecutions--;
     }
 
@@ -635,6 +636,7 @@ class EnterpriseProfitEngine extends EventEmitter {
 
         const startTime = performance.now();
         this.stats.totalTrades++;
+        this.stats.successfulTrades++;
 
         const numericProfit = parseFloat(profit);
         this.stats.totalProfit += numericProfit;
