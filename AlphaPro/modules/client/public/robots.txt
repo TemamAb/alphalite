@@ -1,0 +1,6 @@
+# robots.txt - Search engine robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Sitemap: https://app.alphapro.io/sitemap.xml

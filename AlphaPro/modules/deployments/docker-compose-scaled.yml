@@ -1,0 +1,81 @@
+# AlphaPro Production Docker Compose with Horizontal Scaling
+# Supports multiple API instances for high availability and performance
+
+services:
+  # 1. Load Balancer (nginx)
+  loadbalancer:
+    image: nginx:alpine
+    ports:
+      - "3001:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api1
+      - api2
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+
+  # 2. AI Optimization Engine (Python) - Single instance
+  brain:
+    build:
+      context: ../brain
+      dockerfile: Dockerfile
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+
+  # 3. API Instance 1 (Node.js) - Can scale to more
+  api1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - BRAIN_URL=http://brain:5000
+      - INSTANCE_ID=1
+    env_file:
+      - .env
+    depends_on:
+      - brain
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  # 4. API Instance 2 (Node.js) - For horizontal scaling
+  api2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - BRAIN_URL=http://brain:5000
+      - INSTANCE_ID=2
+    env_file:
+      - .env
+    depends_on:
+      - brain
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+networks:
+  alphapro-net:
+    driver: bridge

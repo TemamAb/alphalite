@@ -1,43 +1,28 @@
-# Multi-stage Build for AlphaPro Unified Service
-# Stage 1: Build React Frontend
-FROM node:20-alpine as client-build
-RUN apk add --no-cache python3 make g++
-WORKDIR /app/client
-COPY alphapro-api/client/package*.json ./
-RUN npm install
-COPY alphapro-api/client/ ./
-RUN npm run build
+# Use Node.js LTS Alpine for a small footprint
+FROM node:18-alpine as build
 
-# Stage 2: Build Node.js API - production dependencies only
-FROM node:20-alpine
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY alphapro-api/package*.json ./
-RUN npm install --production && npm install dotenv
+# Copy package files
+COPY package*.json ./
+RUN npm install
 
-# Copy source files
-COPY alphapro-api/src ./src
-COPY alphapro-api/app.js .
+# Copy the entire application source
+COPY . .
 
-# Copy config folder
-COPY alphapro-api/config ./config
+# Build the frontend
+RUN npm run build
 
-# Copy data sources and preflight check
-COPY data_sources.json .
-COPY PreFlightCheck.js .
+# Production Stage
+FROM node:18-alpine
 
-# Copy config service for environment variable handling
-COPY configService.js .
+WORKDIR /app
 
-# Copy built frontend static files
-COPY --from=client-build /app/client/dist ./client/dist
+COPY --from=build /app .
 
-# Environment Configuration
+# Set environment variables for Production Mode
 ENV NODE_ENV=production
-ENV PORT=3000
 ENV TRADING_MODE=LIVE
 
-EXPOSE 3000
-
-CMD ["node", "app.js"]
+# Start the engine (app.js should listen on process.env.PORT)
+CMD ["node", "modules/api/app.js"]

@@ -1,0 +1,102 @@
+# AlphaPro Full Stack Docker Compose - Production Mode
+# Run: docker-compose -f docker-compose.production.yml up -d
+#
+# REQUIRED: Set these environment variables before running:
+#   - ETH_RPC_URL (your Ethereum mainnet RPC)
+#   - ARBITRUM_RPC_URL (your Arbitrum RPC)
+#   - OPTIMISM_RPC_URL (your Optimism RPC)
+#   - POLYGON_RPC_URL (your Polygon RPC)
+#   - BASE_RPC_URL (your Base RPC)
+#   - JWT_SECRET (strong random string)
+#   - PIMLICO_API_KEY (for gasless transactions)
+#
+# Example:
+#   export ETH_RPC_URL="https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+#   export JWT_SECRET="your-secure-random-string"
+#   docker-compose -f docker-compose.production.yml up -d
+
+version: '3.8'
+
+services:
+  # AlphaPro API (Backend)
+  alphapro-api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    container_name: alphapro-api
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - TRADING_MODE=LIVE
+      - PORT=3000
+      # Security - JWT_SECRET required in production
+      - JWT_SECRET=${JWT_SECRET}
+      # 🔴 RPC URLs - MUST be configured (no defaults for production!)
+      - ETH_RPC_URL=${ETH_RPC_URL}
+      - ARBITRUM_RPC_URL=${ARBITRUM_RPC_URL}
+      - OPTIMISM_RPC_URL=${OPTIMISM_RPC_URL}
+      - POLYGON_RPC_URL=${POLYGON_RPC_URL}
+      - BASE_RPC_URL=${BASE_RPC_URL}
+      # Pimlico for gasless transactions (ERC-4337)
+      - PIMLICO_API_KEY=${PIMLICO_API_KEY}
+    volumes:
+      - ../logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - alphapro-network
+
+  # AlphaPro Brain (Python AI)
+  alphapro-brain:
+    build:
+      context: ../brain
+      dockerfile: Dockerfile
+    container_name: alphapro-brain
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - API_URL=http://alphapro-api:3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - alphapro-network
+
+  # AlphaPro Dashboard (Frontend)
+  alphapro-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://alphapro-api:3000
+        - NODE_ENV=production
+    container_name: alphapro-dashboard
+    ports:
+      - "3002:3002"
+    environment:
+      - VITE_API_URL=http://alphapro-api:3000
+    depends_on:
+      alphapro-api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - alphapro-network
+
+networks:
+  alphapro-network:
+    driver: bridge

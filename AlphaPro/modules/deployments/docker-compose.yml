@@ -1,0 +1,44 @@
+services:
+  # 1. AI Optimization Engine (Python)
+  brain:
+    build:
+      context: ../brain
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+
+  # 2. API Gateway & Frontend (Node.js)
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    env_file:
+      - ../../.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - BRAIN_URL=http://brain:5000
+    depends_on:
+      - brain
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  alphapro-net:
+    driver: bridge
