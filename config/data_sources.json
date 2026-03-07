@@ -1,0 +1,545 @@
+{
+  "tier1_execution": {
+    "alchemy": {
+      "type": "websocket",
+      "url": "wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF",
+      "rate_limit": "300M compute units/month",
+      "priority": 1
+    },
+    "infura": {
+      "type": "websocket",
+      "url": "wss://mainnet.infura.io/ws/v3/mK2nj6ZSi1mZ2THJMUHcF",
+      "rate_limit": "100k requests/day",
+      "priority": 2
+    }
+  },
+
+  "trading_pairs": {
+    "priority_tiers": {
+      "tier1_crud": {
+        "description": "High liquidity, high volume pairs for maximum arbitrage",
+        "min_liquidity": 1000000,
+        "min_volume_24h": 5000000,
+        "pairs_count": 500
+      },
+      "tier2_gems": {
+        "description": "Mid-cap opportunities with higher spread potential",
+        "min_liquidity": 100000,
+        "min_volume_24h": 100000,
+        "pairs_count": 2000
+      },
+      "tier3_degen": {
+        "description": "High risk, high reward small cap pairs",
+        "min_liquidity": 10000,
+        "min_volume_24h": 10000,
+        "pairs_count": 5000
+      }
+    },
+    
+    "core_tokens": {
+      "ethereum": [
+        {"symbol": "WETH", "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"},
+        {"symbol": "USDC", "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"},
+        {"symbol": "USDT", "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"},
+        {"symbol": "WBTC", "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"},
+        {"symbol": "DAI", "address": "0x6B175474E89094C44Da98b954Ee1cC3E3F333"},
+        {"symbol": "LINK", "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA"},
+        {"symbol": "UNI", "address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"},
+        {"symbol": "AAVE", "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9"},
+        {"symbol": "MKR", "address": "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2"},
+        {"symbol": "SNX", "address": "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F"},
+        {"symbol": "CRV", "address": "0xD533a949740bb3306d119CC777fa900bA034cd52"},
+        {"symbol": "COMP", "address": "0xc00e94Cb662C3520282E6f5717214004A7f26888"},
+        {"symbol": "SUSHI", "address": "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2"},
+        {"symbol": "ENS", "address": "0xC18359217b533C71FCc7013F4E3f8e04d2c3f27D"},
+        {"symbol": "LDO", "address": "0x5A98FCBeb4f1a7C7C31A34C1fA4eC8b8eD6f3C7A"},
+        {"symbol": "ARB", "address": "0x912CE59144191C1204E64559FEsw3D9e3f3d2C3"},
+        {"symbol": "OP", "address": "0x4200000000000000000000000000000000000042"},
+        {"symbol": "PEPE", "address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933"},
+        {"symbol": "SHIB", "address": "0x95aD61b0a150d79219dCF64E1E76Cc11FD675AD"},
+        {"symbol": "WIF", "address": "0xab52EBBd9b9e7F8C3E0c1B4C6D7A8F9E0D1C2B3A"}
+      ],
+      "polygon": [
+        {"symbol": "WMATIC", "address": "0x0d500B1d8E8aF31DFF1A9aC2A4bC8D6e5F7A8B9C"},
+        {"symbol": "USDC", "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"},
+        {"symbol": "USDT", "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"},
+        {"symbol": "QUICK", "address": "0xb5C064F955D8e7F38Fe0460C556a72987494EE17"},
+        {"symbol": "MATIC", "address": "0x0000000000000000000000000000000000000000"}
+      ],
+      "arbitrum": [
+        {"symbol": "WETH", "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"},
+        {"symbol": "USDC", "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"},
+        {"symbol": "USDT", "address": "0xFd086bC7CD5C481DCC394C643dbEA11d8cAbF3A7"},
+        {"symbol": "ARB", "address": "0x912CE59144191C1204E64559FEsw3D9e3f3d2C3"}
+      ],
+      "optimism": [
+        {"symbol": "WETH", "address": "0x4200000000000000000000000000000000000006"},
+        {"symbol": "USDC", "address": "0x7F5c764cBc14f9669B88837ca1490cCa17c31607"},
+        {"symbol": "USDT", "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58"},
+        {"symbol": "OP", "address": "0x4200000000000000000000000000000000000042"}
+      ],
+      "bsc": [
+        {"symbol": "WBNB", "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"},
+        {"symbol": "USDC", "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"},
+        {"symbol": "USDT", "address": "0x55d398326f99059fF775485246999027B3197955"},
+        {"symbol": "CAKE", "address": "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"},
+        {"symbol": "BUSD", "address": "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"}
+      ],
+      "avalanche": [
+        {"symbol": "WAVAX", "address": "0xB31f66AA3C1e785363F0875A1B74D27b1FDc0F0C"},
+        {"symbol": "USDC", "address": "0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664"},
+        {"symbol": "USDT", "address": "0x9702230A8E536e12Dc4cC0e21e1fA3B3b1eB3D2d"},
+        {"symbol": "JOE", "address": "0x6e84A6216eA6dA7138eC52de52eE017BCB00543C"}
+      ]
+    },
+
+    "pairs_by_strategy": {
+      "cross_exchange": {
+        "description": "Same token, different DEXs",
+        "scan_frequency_ms": 500,
+        "min_spread_bps": 5,
+        "max_slippage_bps": 100,
+        "pairs_list": [
+          "ETH/USDC", "BTC/USDC", "ETH/USDT", "BTC/USDT",
+          "ETH/WBTC", "LINK/ETH", "UNI/ETH", "AAVE/ETH",
+          "MKR/ETH", "SNX/ETH", "CRV/ETH", "COMP/ETH",
+          "SUSHI/ETH", "ENS/ETH", "LDO/ETH", "ARB/ETH",
+          "OP/ETH", "PEPE/ETH", "SHIB/ETH", "WIF/ETH"
+        ]
+      },
+      "triangular": {
+        "description": "Three-token cycles for price discrepancies",
+        "scan_frequency_ms": 1000,
+        "min_profit_bps": 10,
+        "max_trade_size_usd": 100000,
+        "cycles": [
+          ["ETH", "USDC", "USDT"],
+          ["ETH", "DAI", "USDC"],
+          ["BTC", "USDC", "USDT"],
+          ["ETH", "WBTC", "USDC"],
+          ["LINK", "ETH", "USDC"],
+          ["UNI", "ETH", "USDC"],
+          ["AAVE", "ETH", "USDC"],
+          ["CRV", "ETH", "USDC"],
+          ["SUSHI", "ETH", "USDC"],
+          ["LDO", "ETH", "USDC"]
+        ]
+      },
+      "flash_loan": {
+        "description": "Flash loan enabled strategies",
+        "scan_frequency_ms": 200,
+        "min_profit_usd": 100,
+        "max_gas_price_gwei": 100,
+        "supported_pairs": [
+          "ETH/USDC", "ETH/USDT", "BTC/USDC", "BTC/USDT",
+          "ETH/WBTC", "STETH/ETH", "WBTC/ETH"
+        ]
+      },
+      "sandwich": {
+        "description": "MEV sandwich opportunities",
+        "scan_frequency_ms": 100,
+        "min_mempool_value_usd": 1000,
+        "front_run_delay_ms": 0,
+        "target_tokens": ["WETH", "USDC", "USDT", "WBTC"]
+      },
+      "cross_chain": {
+        "description": "Arbitrage across different blockchains",
+        "scan_frequency_ms": 2000,
+        "bridge_slots": 15,
+        "chains": ["ethereum", "polygon", "arbitrum", "optimism", "bsc", "avalanche"]
+      }
+    },
+
+    "token_lists": {
+      "defi_prime": {
+        "url": "https://defiprime.com/token-list.json",
+        "description": "Top 500 DeFi tokens by TVL"
+      },
+      "coingecko_trending": {
+        "url": "https://api.coingecko.com/api/v3/search/trending",
+        "description": "Currently trending tokens"
+      },
+      "dexscreener_new": {
+        "url": "https://api.dexscreener.com/dex/pairs/new",
+        "description": "Newly created pairs"
+      }
+    },
+
+    "filters": {
+      "min_liquidity_usd": 10000,
+      "min_24h_volume_usd": 10000,
+      "max_price_impact_bps": 500,
+      "exclude_tokens": [
+        "honeypot", "safe-moon", "squid-game", "elon"
+      ],
+      "whitelist_tokens": []
+    }
+  },
+  "dex_aggregators": {
+    "1inch": {
+      "base_url": "https://api.1inch.io/v5.0",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "paraswap": {
+      "base_url": "https://apiv5.paraswap.io",
+      "rate_limit": "100 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom"]
+    },
+    "0x": {
+      "base_url": "https://api.0x.org",
+      "rate_limit": "50 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "kyberswap": {
+      "base_url": "https://aggregator-api.kyberswap.com",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom"]
+    },
+    "odos": {
+      "base_url": "https://api.odos.xyz",
+      "rate_limit": "100 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc"]
+    },
+    "openocean": {
+      "base_url": "https://open-api.openocean.finance",
+      "rate_limit": "60 requests/minute",
+      "networks": ["ethereum", "polygon", "arbitrum", "optimism", "avalanche", "bsc", "fantom", "cronos"]
+    }
+  },
+  "dex_protocols": {
+    "ethereum": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
+      },
+      "uniswap_v2": {
+        "factory": "0x5C69bEe701ef814a2B6B3cC4e8C1d24e4E8Bd6E2",
+        "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
+      },
+      "sushiswap": {
+        "factory": "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac",
+        "router": "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/v3-ethereum"
+      },
+      "curve": {
+        "factory": "0x90E00ACe048caE8C07E9B85fD8adfCa4Fe3b29F4",
+        "registry": "0x8F73e4C5BEC5F7fC5b60f9E8a82d6b6D29d1a0B0",
+        "graph": "https://api.thegraph.com/subgraphs/name/curvefi/curve-v1"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "graph": "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer-v2"
+      }
+    },
+    "polygon": {
+      "quickswap": {
+        "factory": "0x4112521738B77fbBC9d48e4F805C1F40F6F80b3F",
+        "router": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+        "graph": "https://api.thegraph.com/subgraphs/name/somewhere/quickswap-v3"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/matic"
+      },
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      },
+      "dodo": {
+        "factory": "0xFe9C62a09F72D3d4a73Eb2f12c88c4C1D2E89B77",
+        "router": "0xA867241c8c11cB46d0d3f6F2a3F0e5c7Bb80E5c"
+      }
+    },
+    "arbitrum": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum-one"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+        "graph": "https://api.thegraph.com/subgraphs/name/sushi-v3/arbitrum"
+      },
+      "camelot": {
+        "factory": "0x6EcCab4227591eB283a65b1Ad87aD7085F2E14b6",
+        "router": "0x8931470215BF8b9Ad2c46A6A88b0C86bC4b28bC1"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      },
+      "dodo": {
+        "factory": "0xA6cc1d4dC9F3eBb9C3Bf4F7c2F8E1f3d2E7f7e7",
+        "router": "0x9b1e3B15eF1d4C0b5c7e8f1a2b3c4d5e6f7a8b9c"
+      }
+    },
+    "optimism": {
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "graph": "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "velodrome": {
+        "factory": "0x25C602a5Ec28b6d8f2C65eBb2c2A8e5d2E3f4A5b",
+        "router": "0x3d4Cd6E4f3d8E1d7E3f5C9C8E2B1A0d9C8B7A6F5"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      }
+    },
+    "bsc": {
+      "pancakeswap_v3": {
+        "factory": "0x0BFbCF9fa4f9bc9363028a5b3b0Aad7E7F1F0B7E",
+        "router": "0x10ED43C718714eb63D5aA6B0F1Fb6D2e7a0c8D9E",
+        "graph": "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc"
+      },
+      "pancakeswap_v2": {
+        "factory": "0xBCfCcbde45cE874adCB698cC183deBcF17952812",
+        "router": "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "apeswap": {
+        "factory": "0x0841BD0C73492352d2a0E2059fD9fAF0a5eE8b6C",
+        "router": "0xC0788A3aD43d79aa53B09c2Ea3EDF490208645e4"
+      },
+      "biswap": {
+        "factory": "0x858E3312ed3A87694751B0E32cE0e6D40C20D031",
+        "router": "0x3a1D0ea8F3d0e7B4b9b4B4B4B4B4B4B4B4B4B4B4B"
+      },
+      "babyswap": {
+        "factory": "0x2C6EbaF6d3B8A77d8f7A7B8D6c5E4d3C2b1A0F9E",
+        "router": "0x15e6Dff5B4B4e3B2e1D9F8E7C6B5A4D3C2B1E0F9"
+      },
+      "mdex": {
+        "factory": "0x73cAbE9Ee6C71e9d92aF98D0cA8C2c3d4E5F6A7B",
+        "router": "0x7a0d0B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A"
+      }
+    },
+    "avalanche": {
+      "traderjoe": {
+        "factory": "0x9Ad6C38BE94206cA50bb0d90783181662f0C6F10",
+        "router": "0xD53e13D9D4C2e4B5C6D7E8F9A0B1C2D3E4F5A6B"
+      },
+      "pangolin": {
+        "factory": "0xE4e98809E4f4E5C6B7F8B5D9C6A4F3E2D1B0C9A8",
+        "router": "0xB4F4dD4C6A7D8B9C0D1E2F3A4B5C6D7E8F9A0B1C"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "uniswap_v3": {
+        "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+      }
+    },
+    "fantom": {
+      "spiritswap": {
+        "factory": "0xEF45d134b73241eDa7703fa787148D9C9F5350d3",
+        "router": "0x7ac55C94B1D75c8E8e3E4bB4B5C6D7E8F9A0B1C2"
+      },
+      "spookyswap": {
+        "factory": "0x152eE697c2C63de1f1F2B3a4C5D6E7F8A9B0C1D2",
+        "router": "0xF1b3E4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B1"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "beethoven": {
+        "factory": "0x20dd60eDd9441C8C0c740A34C6fD2f17e1B1C8A4",
+        "router": "0xB4F4dD4C6A7D8B9C0D1E2F3A4B5C6D7E8F9A0B1"
+      },
+      "saddle": {
+        "factory": "0x4f3E8b0c2e8B0d1C3A4b5D6E7F8A9B0C1D2E3F4A",
+        "router": "0x5D4D4F5C6D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1"
+      }
+    },
+    "base": {
+      "uniswap_v3": {
+        "factory": "0x33128a8fC17869897dcE245Ed6B8d3C2b8BdC6a",
+        "router": "0x4eDbC1B8C5D7E8F9A0B1C2D3E4F5A6B7C8D9E0F1"
+      },
+      "sushiswap": {
+        "factory": "0x7154F2B3C4d1Ea0f8C9E1B4D5E6F7A8B9C0D1E2F",
+        "router": "0x4A6D4B3C2D1E0F9A8B7C6D5E4F3A2B1C0D9E8F7A"
+      },
+      "aerodrome": {
+        "factory": "0x420DD5b8C7c3A6E6E5f6D7E8F9A0B1C2D3E4F5A6B",
+        "router": "0x789E0C0D1E2F3A4B5C6D7E8F9A0B1C2D3E4F5A6B"
+      }
+    },
+    "scroll": {
+      "zebra": {
+        "factory": "0x69B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4B4",
+        "router": "0x789ABCDEF0123456789ABCDEF0123456789ABCD"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "linea": {
+      "iziswap": {
+        "factory": "0x2a10db0b60e54f96e4b30bf89c9a1f9c3d0e8b9f",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "mantle": {
+      "cleopatra": {
+        "factory": "0x1234567890abcdef1234567890abcdef12345678",
+        "router": "0xabcdef1234567890abcdef1234567890abcdef12"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "gnosis": {
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      },
+      "balancer": {
+        "factory": "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      }
+    },
+    "cronos": {
+      "cronaswap": {
+        "factory": "0xD6AbE4D2e6E5B5D4C6D7E8F9A0B1C2D3E4F5A6B",
+        "router": "0x789ABCDEF0123456789ABCDEF0123456789ABCD"
+      },
+      "vvs": {
+        "factory": "0x567ea0BAfA9A4bC6D0c6D7E8F9A0B1C2D3E4F5A6",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      }
+    },
+    "moonbeam": {
+      "stellaswap": {
+        "factory": "0x9876543210abcdef9876543210abcdef98765432",
+        "router": "0xfedcba0987654321fedcba0987654321fedcba09"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    },
+    "kava": {
+      "eternal": {
+        "factory": "0xabcdef1234567890abcdef1234567890abcdef12",
+        "router": "0x1234567890abcdef1234567890abcdef12345678"
+      },
+      "sushiswap": {
+        "factory": "0xc35DADB65012eC5796536bD9864eD8773aBc74C",
+        "router": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"
+      }
+    }
+  },
+  "tier2_discovery": {
+    "dexscreener": {
+      "type": "rest",
+      "base_url": "https://api.dexscreener.com/latest/dex",
+      "rate_limit": "300 requests/minute",
+      "endpoints": {
+        "tokens": "/tokens/",
+        "pairs": "/pairs/",
+        "orders": "/orders/"
+      }
+    },
+    "birdeye": {
+      "type": "rest",
+      "base_url": "https://public-api.birdeye.so",
+      "rate_limit": "60 requests/minute",
+      "endpoints": {
+        "tokens": "/defi/tokenlist",
+        "price": "/defi/token_overview",
+        "history": "/defi/history"
+      }
+    },
+    "dextools": {
+      "type": "rest",
+      "base_url": "https://api.dextools.io/v2",
+      "rate_limit": "100 requests/minute",
+      "endpoints": {
+        "pairs": "/pairs",
+        "trending": "/trending"
+      }
+    },
+    "coingecko": {
+      "type": "rest",
+      "base_url": "https://api.coingecko.com/api/v3",
+      "rate_limit": "30 requests/minute",
+      "endpoints": {
+        "coins": "/coins/",
+        "markets": "/coins/markets",
+        "price": "/simple/price"
+      }
+    },
+    "coinmarketcap": {
+      "type": "rest",
+      "base_url": "https://pro-api.coinmarketcap.com/v1",
+      "rate_limit": "333 requests/minute",
+      "endpoints": {
+        "quotes": "/quote",
+        "map": "/cryptocurrency/map"
+      }
+    }
+  },
+  "lending_protocols": {
+    "aave": {
+      "ethereum": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A3",
+      "polygon": "0x8dFf5E27E6FC3A4023753458460F5921B37AbF4D",
+      "arbitrum": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+    },
+    "compound": {
+      "ethereum": "0x3d5A3E70266a40B852A65C7B1c48f12f5B4dE27E"
+    },
+    "makerdao": {
+      "ethereum": "0x35D1b3F3D7966A1DFe207aa2514e8358aF24eB71"
+    },
+    "lido": {
+      "ethereum": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
+    },
+    "yearn": {
+      "ethereum": "0x2f08119C6f07c006675E6DD8282e0746D56cF7c2"
+    }
+  },
+  "nft_aggregators": {
+    "opensea": {
+      "base_url": "https://api.opensea.io/v2",
+      "rate_limit": "5 requests/second"
+    },
+    "blur": {
+      "base_url": "https://api.blur.io/v1",
+      "rate_limit": "10 requests/second"
+    },
+    "looksrare": {
+      "base_url": "https://api.looksrare.org/api/v1",
+      "rate_limit": "10 requests/minute"
+    }
+  }
+}

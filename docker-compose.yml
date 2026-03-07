@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Nginx Reverse Proxy - The single entry point for the application
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx # Use the specific Dockerfile for the proxy
+    container_name: alphapro-proxy
+    ports:
+      - "80:80" # Expose the main app on port 80
+      - "443:443" # For future SSL
+    depends_on:
+      - engine
+      - brain
+      - dashboard
+    restart: unless-stopped
+
+  # The Node.js Engine/API Service
+  engine:
+    build:
+      context: .
+      dockerfile: ./modules/api/Dockerfile
+    container_name: alphapro-engine
+    env_file:
+      - .env
+    # Ports are not exposed to the host; access is through the nginx proxy
+    restart: unless-stopped
+
+  # The Python Brain Service
+  brain:
+    build:
+      context: ./modules/brain
+      dockerfile: Dockerfile
+    container_name: alphapro-brain
+    env_file:
+      - .env
+    # Ports are not exposed to the host; access is through the nginx proxy
+    restart: unless-stopped
+
+  # The React Dashboard Service
+  dashboard:
+    build:
+      context: ./modules/dashboard
+      dockerfile: Dockerfile
+      args:
+        # The API is now served from the same origin under /api/
+        # An empty string means relative paths will be used (e.g., /api/...)
+        VITE_API_URL: ""
+    container_name: alphapro-dashboard
+    # The dashboard is not exposed directly. The nginx proxy serves it.
+    restart: unless-stopped

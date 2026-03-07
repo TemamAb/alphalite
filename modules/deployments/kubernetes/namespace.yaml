@@ -1,0 +1,8 @@
+# namespace.yaml - Kubernetes namespace for AlphaPro
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alphapro
+  labels:
+    name: alphapro
+    environment: production

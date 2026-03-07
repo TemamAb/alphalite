@@ -1,0 +1,324 @@
+# AlphaPro Multi-Instance Production Deployment
+# Runs 10 parallel instances for fault tolerance and stability
+# Each instance is independent - if one fails, others continue
+
+services:
+  # ============================================================
+  # INSTANCE 1 (Primary)
+  # ============================================================
+  alphapro-api-1:
+    build: ../api
+    container_name: alphapro-api-1
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-1
+    env_file:
+      - ../../.env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  alphapro-brain-1:
+    build: ../brain
+    container_name: alphapro-brain-1
+    ports:
+      - "5001:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 2
+  # ============================================================
+  alphapro-api-2:
+    build: ../api
+    container_name: alphapro-api-2
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-2
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-2:
+    build: ../brain
+    container_name: alphapro-brain-2
+    ports:
+      - "5002:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 3
+  # ============================================================
+  alphapro-api-3:
+    build: ../api
+    container_name: alphapro-api-3
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-3
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-3:
+    build: ../brain
+    container_name: alphapro-brain-3
+    ports:
+      - "5003:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 4
+  # ============================================================
+  alphapro-api-4:
+    build: ../api
+    container_name: alphapro-api-4
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-4
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-4:
+    build: ../brain
+    container_name: alphapro-brain-4
+    ports:
+      - "5004:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 5
+  # ============================================================
+  alphapro-api-5:
+    build: ../api
+    container_name: alphapro-api-5
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-5
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-5:
+    build: ../brain
+    container_name: alphapro-brain-5
+    ports:
+      - "5005:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 6
+  # ============================================================
+  alphapro-api-6:
+    build: ../api
+    container_name: alphapro-api-6
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-6
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-6:
+    build: ../brain
+    container_name: alphapro-brain-6
+    ports:
+      - "5006:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 7
+  # ============================================================
+  alphapro-api-7:
+    build: ../api
+    container_name: alphapro-api-7
+    ports:
+      - "3007:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-7
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-7:
+    build: ../brain
+    container_name: alphapro-brain-7
+    ports:
+      - "5007:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 8
+  # ============================================================
+  alphapro-api-8:
+    build: ../api
+    container_name: alphapro-api-8
+    ports:
+      - "3008:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-8
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-8:
+    build: ../brain
+    container_name: alphapro-brain-8
+    ports:
+      - "5008:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 9
+  # ============================================================
+  alphapro-api-9:
+    build: ../api
+    container_name: alphapro-api-9
+    ports:
+      - "3009:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-9
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-9:
+    build: ../brain
+    container_name: alphapro-brain-9
+    ports:
+      - "5009:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  # ============================================================
+  # INSTANCE 10 (Backup)
+  # ============================================================
+  alphapro-api-10:
+    build: ../api
+    container_name: alphapro-api-10
+    ports:
+      - "3010:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-10
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+  alphapro-brain-10:
+    build: ../brain
+    container_name: alphapro-brain-10
+    ports:
+      - "5010:5000"
+    environment:
+      - PORT=5000
+      - BRAIN_PORT=5000
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+
+networks:
+  alphapro-net:
+    driver: bridge

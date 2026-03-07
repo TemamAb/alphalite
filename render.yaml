@@ -1,0 +1,58 @@
+# AlphaPro Render Configuration
+# This file is auto-detected by Render.com when pushed to GitHub
+# Render will automatically detect this and create the services
+
+services:
+  # Main AlphaPro Application
+  # Serves both the React dashboard (frontend) and Node.js API (backend)
+  # Uses the unified Dockerfile that builds frontend and serves it via the API
+  - type: web
+    name: alphapro
+    runtime: docker
+    plan: starter
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      # Core Configuration
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: TRADING_MODE
+        value: LIVE
+      
+      # Blockchain RPC Configuration
+      # Note: These should be updated with your production RPC URLs
+      - key: ETH_RPC_URL
+        sync: false
+      - key: ARBITRUM_RPC_URL
+        sync: false
+      - key: POLYGON_RPC_URL
+        sync: false
+      
+      # Wallet Configuration - CRITICAL for trading
+      # These must be set in Render Dashboard for the engine to work
+      # The user should enter these in the Settings section of the dashboard
+      # OR set them as environment variables in Render
+      - key: WALLET_ADDRESS
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: PIMLICO_API_KEY
+        sync: false
+      
+      # Security Keys - Generate strong random values for production
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      
+      # AI/ML Service
+      - key: OPENAI_API_KEY
+        sync: false
+      
+      # Database (optional - for production use)
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

@@ -1,0 +1,118 @@
+# AlphaPro Production Deployment Configuration for Render.com
+# IMPORTANT: Do NOT hardcode sensitive values!
+# Use Render's Environment Variables and Secrets feature instead.
+# All secrets MUST be configured in Render Dashboard > Environment > Secrets
+
+services:
+  # The Brain (Python Sidecar) - AI Analysis
+  - name: alphapro-brain
+    runtime: python
+    buildCommand: pip install -r alphapro-brain/requirements.txt
+    startCommand: python alphapro-brain/app.py
+    plan: starter
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+
+  # The Core (Node API + React Frontend)
+  - name: alphapro-api
+    runtime: docker
+    dockerfilePath: Dockerfile
+    rootDir: .
+    plan: standard
+    envVars:
+      # ============================================
+      # 🔴 CRITICAL: Set these in Render Secrets!
+      # ============================================
+      
+      # Trading Configuration
+      - key: NODE_ENV
+        value: production
+      - key: TRADING_MODE
+        value: LIVE
+      - key: PORT
+        value: "3000"
+
+      # ⚠️ REQUIRED FOR LIVE TRADING - MUST be set in Render Secrets
+      - key: PRIVATE_KEY
+        fromSecret: private_key
+        sync: false
+      
+      # Wallet Address (Smart Wallet for gasless transactions)
+      - key: WALLET_ADDRESS
+        fromSecret: wallet_address
+
+      # ============================================
+      # 🔑 API KEYS - MUST be set in Render Secrets
+      # ============================================
+      
+      # Gasless Transaction Configuration (Pimlico)
+      - key: PIMLICO_API_KEY
+        fromSecret: pimlico_api_key
+      - key: BUNDLER_URL
+        fromSecret: bundler_url
+      - key: PAYMASTER_URL
+        fromSecret: paymaster_url
+      - key: ENTRYPOINT_ADDRESS
+        value: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+
+      # Blockchain RPC Endpoints - MUST use your own API keys from Render Secrets
+      - key: ETH_RPC_URL
+        fromSecret: eth_rpc_url
+      - key: ARBITRUM_RPC_URL
+        fromSecret: arbitrum_rpc_url
+      - key: OPTIMISM_RPC_URL
+        fromSecret: optimism_rpc_url
+      - key: POLYGON_RPC_URL
+        fromSecret: polygon_rpc_url
+      - key: BASE_RPC_URL
+        fromSecret: base_rpc_url
+
+      # WebSocket URLs for Real-time Mempool
+      - key: ETH_WS_URL
+        fromSecret: eth_ws_url
+      - key: ARBITRUM_WS_URL
+        fromSecret: arbitrum_ws_url
+      - key: POLYGON_WS_URL
+        fromSecret: polygon_ws_url
+      - key: OPTIMISM_WS_URL
+        fromSecret: optimism_ws_url
+      - key: BASE_WS_URL
+        fromSecret: base_ws_url
+
+      # Alchemy API Key
+      - key: ALCHEMY_API_KEY
+        fromSecret: alchemy_api_key
+
+      # Infura API Key (Backup)
+      - key: INFURA_API_KEY
+        fromSecret: infura_api_key
+
+      # Birdeye API Key
+      - key: BIRDEYE_API_KEY
+        fromSecret: birdeye_api_key
+
+      # AI Service (Configured via Render Secrets)
+      - key: OPENAI_API_KEY
+        fromSecret: openai_api_key
+
+      # Brain Service
+      - key: BRAIN_URL
+        value: http://alphapro-brain:5000
+
+      # ============================================
+      # 🔒 SECURITY - MUST be set in Render Secrets
+      # ============================================
+      
+      - key: ADMIN_API_KEY
+        fromSecret: admin_api_key
+      - key: JWT_SECRET
+        fromSecret: jwt_secret
+
+      # Market Data APIs (Free tier - can use defaults)
+      - key: COINGECKO_API_URL
+        value: https://api.coingecko.com/api/v3
+      - key: DEXSCREENER_API_URL
+        value: https://api.dexscreener.com/latest/dex
+      - key: BIRDEYE_API_URL
+        value: https://public-api.birdeye.so

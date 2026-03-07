@@ -1,0 +1,49 @@
+# ingress.yaml - Kubernetes Ingress for AlphaPro
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alphapro-ingress
+  namespace: alphapro
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  tls:
+    - hosts:
+        - api.alphapro.io
+        - brain.alphapro.io
+        - app.alphapro.io
+      secretName: alphapro-tls
+  rules:
+    - host: api.alphapro.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alphapro-api
+                port:
+                  number: 80
+    - host: brain.alphapro.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alphapro-brain
+                port:
+                  number: 80
+    - host: app.alphapro.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: alphapro-client
+                port:
+                  number: 80
