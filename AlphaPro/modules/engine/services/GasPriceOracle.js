@@ -1,72 +1,61 @@
 /**
  * Gas Price Oracle
  * Dynamically fetches and calculates optimal gas fees for UserOperations.
- * Ensures transactions are priced competitively for HFT execution.
+ * Uses ethers v5 compatible API.
  */
 const { ethers } = require('ethers');
 
+// Lazy-load bribeConfigService to avoid circular dependency
+let bribeConfigService;
+function getBribeConfig() {
+    if (!bribeConfigService) {
+        try { bribeConfigService = require('./BribeConfigService'); }
+        catch (e) { bribeConfigService = { getBribeShare: () => 5 }; }
+    }
+    return bribeConfigService;
+}
+
 class GasPriceOracle {
     constructor() {
-        this.provider = new ethers.providers.JsonRpcProvider(process.env.ETH_RPC_URL);
+        try {
+            const rpcUrl = process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com';
+            this.provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+        } catch (e) {
+            console.warn('[ORACLE] Provider init failed:', e.message);
+            this.provider = null;
+        }
     }
 
-    /**
-     * Get optimal gas fees for a high-priority UserOperation
-     * @param {number} expectedProfitEth - The expected profit in ETH
-     * @param {object} strategy - The strategy object { name, risk }
-     * @returns {Promise<{maxFeePerGas: BigNumber, maxPriorityFeePerGas: BigNumber, bribeEth: string}>}
-     */
     async getGasFees(expectedProfitEth = 0, strategy = { name: 'Unknown', risk: 'Medium' }) {
         try {
+            if (!this.provider) throw new Error('No provider');
             const feeData = await this.provider.getFeeData();
-            
-            // Default fallback values if provider fails to return data
+
             let maxFeePerGas = feeData.maxFeePerGas || ethers.utils.parseUnits('30', 'gwei');
             let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || ethers.utils.parseUnits('1.5', 'gwei');
 
-            // --- STRATEGIC BIDDING LOGIC ---
-            
-            // 1. Baseline HFT Multiplier (Ensure we are above the floor)
-            const baseMultiplier = 120; // 1.2x
-            maxFeePerGas = maxFeePerGas.mul(baseMultiplier).div(100);
-            maxPriorityFeePerGas = maxPriorityFeePerGas.mul(baseMultiplier).div(100);
+            maxFeePerGas = maxFeePerGas.mul(120).div(100);
+            maxPriorityFeePerGas = maxPriorityFeePerGas.mul(120).div(100);
 
-            // 2. Profit-Sharing Bribe Calculation (The "Winner's Edge")
-            // If the trade is profitable, we share a % with the miner/bundler to guarantee inclusion.
             let bribeEth = '0';
-            
-            if (expectedProfitEth > 0.001) { // Only bribe if profit is meaningful (> $2-3)
-                // Get bribe share % from the config service (checks for overrides)
-                const bribeSharePercent = bribeConfigService.getBribeShare(strategy.name, strategy.risk);
-                const bribeShare = bribeSharePercent / 100;
-
-                // Calculate bribe amount in ETH
-                const bribeAmount = expectedProfitEth * bribeShare;
+            if (expectedProfitEth > 0.001) {
+                const bribeSharePercent = getBribeConfig().getBribeShare(strategy.name, strategy.risk);
+                const bribeAmount = expectedProfitEth * (bribeSharePercent / 100);
                 bribeEth = bribeAmount.toFixed(6);
 
-                // Convert bribe to Gas Price (Priority Fee)
-                // Assuming an average gas limit of 300,000 for an arb trade
-                const estimatedGasLimit = 300000;
                 const bribeWei = ethers.utils.parseEther(bribeAmount.toFixed(18));
-                const bribePerGas = bribeWei.div(estimatedGasLimit);
-
-                // Add bribe to priority fee
+                const bribePerGas = bribeWei.div(300000);
                 maxPriorityFeePerGas = maxPriorityFeePerGas.add(bribePerGas);
-                
-                // Ensure maxFeePerGas is high enough to cover the new priority fee + base fee
-                if (maxFeePerGas.lt(maxPriorityFeePerGas.add(feeData.lastBaseFeePerGas || 0))) {
-                    maxFeePerGas = maxPriorityFeePerGas.add(feeData.lastBaseFeePerGas || 0).mul(120).div(100);
+
+                const baseFee = feeData.lastBaseFeePerGas || ethers.BigNumber.from(0);
+                if (maxFeePerGas.lt(maxPriorityFeePerGas.add(baseFee))) {
+                    maxFeePerGas = maxPriorityFeePerGas.add(baseFee).mul(120).div(100);
                 }
             }
 
-            return {
-                maxFeePerGas,
-                maxPriorityFeePerGas,
-                bribeEth
-            };
+            return { maxFeePerGas, maxPriorityFeePerGas, bribeEth };
         } catch (error) {
-            console.warn('[ORACLE] Failed to fetch gas fees, using safe defaults:', error.message);
-            // Return safe defaults for Mainnet
+            console.warn('[ORACLE] Failed to fetch gas fees:', error.message);
             return {
                 maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'),
                 maxPriorityFeePerGas: ethers.utils.parseUnits('2', 'gwei'),

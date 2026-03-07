@@ -1,24 +1,36 @@
 {
   "name": "alphapro",
-  "version": "1.0.0",
-  "description": "",
-  "main": "configService.js",
+  "version": "2.0.0",
+  "description": "AlphaPro Enterprise Flash Loan & MEV Arbitrage System",
+  "main": "modules/api/app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node modules/api/app.js",
+    "dev": "nodemon modules/api/app.js",
+    "prove": "node prove-profit.js",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f engine",
+    "preflight": "node PreFlightCheck.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "flash-loan",
+    "arbitrage",
+    "mev",
+    "defi",
+    "blockchain"
+  ],
+  "author": "AlphaPro Team",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "axios": "^1.13.6",
-    "dotenv": "^17.3.1",
-    "ethers": "^6.16.0",
-    "pg": "^8.19.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.6.1",
+    "ethers": "5.7.2",
+    "pg": "^8.11.3",
     "reconnecting-websocket": "^4.4.0",
-    "redis": "^5.11.0",
-    "undici": "^7.22.0",
-    "userop": "^0.4.0-beta.5",
-    "ws": "^8.19.0"
+    "redis": "^4.6.10",
+    "undici": "5.28.3",
+    "userop": "^0.3.1",
+    "ws": "^8.14.2"
   }
 }

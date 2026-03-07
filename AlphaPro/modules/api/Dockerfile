@@ -1,28 +1,27 @@
-# AlphaPro API Dockerfile
-# Build: docker build -t alphapro-api .
-# Run: docker run -p 3001:3000 -e TRADING_MODE=LIVE alphapro-api
+# --- API Service Dockerfile ---
 
+# Use a lightweight Node.js image consistent with the project's environment
 FROM node:18-alpine
 
-WORKDIR /app
+# Install build essentials required for compiling native Node.js modules
+RUN apk add --no-cache python3 make g++
 
-# Install dependencies
-COPY package*.json ./
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Copy package.json and the lock file to leverage Docker's layer caching.
+# This step is only re-run when these files change.
+COPY package.json ./
+COPY package-lock.json* ./
+
+# Install production dependencies
 RUN npm install --omit=dev
 
-# Copy source code
+# Copy the rest of the application source code into the container
 COPY . .
 
-# Set production environment
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose port
+# The API server will run on port 3000 inside the container
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
-
-# Start the server
-CMD ["node", "app.js"]
+# Define the command to start the application
+CMD [ "node", "app.js" ]

@@ -1,21 +1,28 @@
 // authMiddleware.js - Authentication middleware for API routes
+// SECURE VERSION: No fallback secrets in production
 
 const jwt = require('jsonwebtoken');
 
-// CRITICAL: JWT_SECRET MUST be provided in production
+// CRITICAL: JWT_SECRET MUST be provided in production - NO FALLBACKS
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+// Strict validation: Fail fast in production if no secret configured
+if (!JWT_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET environment variable is REQUIRED in production');
+    }
+    // In development, log warning but don't use hardcoded fallback
+    console.error('[AUTH] 🔴 CRITICAL: JWT_SECRET not set!');
+    console.error('[AUTH] 🔴 Running in INSECURE mode. Set JWT_SECRET for production.');
 }
 
-// Fallback for development only - NEVER use in production
-const DEV_SECRET = process.env.JWT_SECRET || (() => {
-    console.warn('[AUTH] ⚠️ WARNING: Using development JWT secret. Set JWT_SECRET for production!');
-    return 'alphapro-dev-secret-do-not-use-in-prod';
-})();
-
-const getSecret = () => JWT_SECRET || DEV_SECRET;
+// Helper to get secret with proper error handling
+const getSecret = () => {
+    if (!JWT_SECRET) {
+        throw new Error('JWT_SECRET not configured. Authentication disabled.');
+    }
+    return JWT_SECRET;
+};
 
 const authMiddleware = (req, res, next) => {
     try {

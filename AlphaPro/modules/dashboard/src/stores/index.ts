@@ -1,18 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Deployment, DeploymentStats, Wallet, EngineStatus } from '@/types';
+import type { User, Deployment, DeploymentStats, Wallet, EngineStatus, AuthState as AuthStateTypes, SystemHealth, ApiMetrics, BrainMetrics, EngineMetrics, TradeStats, WebSocketMessage } from '@/types';
 
 // Auth Store
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
+type AuthState = AuthStateTypes & {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
-}
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -25,7 +20,7 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         try {
           set({ isLoading: true, error: null });
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/login`, {
+          const response = await fetch(`/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
@@ -55,18 +50,28 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       checkAuth: async () => {
-        // Check stored token validity
-        const token = localStorage.getItem('auth_token');
+        // This function should validate the token with the backend
+        const token = get().token;
         if (token) {
+          try {
+            set({ isLoading: true });
+            const response = await fetch(`/api/auth/me`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (!response.ok) {
+              throw new Error('Token validation failed');
+            }
+            const user = await response.json();
+            set({ isAuthenticated: true, user, isLoading: false });
+          } catch (error) {
+            // Token is invalid, log out the user
+            set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          }
+        } else {
           set({
-            isAuthenticated: true,
-            token,
-            user: {
-              id: '1',
-              email: 'admin@alphapro.io',
-              role: 'admin',
-              createdAt: new Date().toISOString(),
-            },
+            isLoading: false
           });
         }
       },
@@ -98,19 +103,15 @@ interface DashboardState {
   error: string | null;
   lastUpdate: Date | null;
   
-  // Refresh Interval (1s to 30s)
-  refreshInterval: number;
-  
   // Actions
-  fetchStats: () => Promise<void>;
   fetchDeployments: () => Promise<void>;
   selectDeployment: (id: string) => void;
   addWallet: (wallet: Omit<Wallet, 'id' | 'createdAt'>) => Promise<void>;
   removeWallet: (id: string) => Promise<void>;
   updateEngineStatus: (status: Partial<EngineStatus>) => Promise<void>;
-  setRefreshInterval: (interval: number) => void;
   fetchWalletBalances: () => Promise<void>;
   clearError: () => void;
+  updateStatsFromRealtime: (tradeStats: TradeStats, engineMetrics: EngineMetrics) => void;
 }
 
 export const useDashboardStore = create<DashboardState>()(
@@ -134,8 +135,8 @@ export const useDashboardStore = create<DashboardState>()(
       wallets: [],
       
       engineStatus: {
-        isRunning: false,
-        mode: 'live', // live production mode only
+        isRunning: false, // This will be updated from the API
+        mode: 'offline', // Default status before first fetch
         strategies: [],
         totalProfit: 0,
         dailyProfit: 0,
@@ -145,62 +146,15 @@ export const useDashboardStore = create<DashboardState>()(
       error: null,
       lastUpdate: null,
       
-      // Refresh interval in ms (default 5 seconds)
-      refreshInterval: 5000,
-      
-      // Actions
-      fetchStats: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-          
-          // Fetch dashboard data from API
-          const response = await fetch(`${API_URL}/api/dashboard`);
-          
-          if (!response.ok) {
-            throw new Error('Failed to fetch dashboard data');
-          }
-          
-          const data = await response.json();
-          
-          // Map API response to DeploymentStats
-          const engineStats = data.engine?.stats || {};
-          const stats: DeploymentStats = {
-            totalDeployments: data.rankings?.length || 0,
-            healthyDeployments: data.engine?.mode ? 1 : 0,
-            avgLatency: engineStats.avgLatency || 0,
-            totalRequests: engineStats.totalTrades || 0,
-            uptime: 99.9,
-            profitToday: engineStats.totalProfit || 0,
-            lossToday: engineStats.totalGasFees || 0,
-          };
-          
-          // Also fetch engine status
-          const engineResponse = await fetch(`${API_URL}/api/engine/state`);
-          let engineStatus = get().engineStatus;
-          if (engineResponse.ok) {
-            const engineData = await engineResponse.json();
-            engineStatus = {
-              isRunning: engineData.mode === 'LIVE',
-              mode: engineData.mode?.toLowerCase() || 'live',
-              strategies: data.engine?.strategies || [],
-              totalProfit: engineStats.profitToday,
-              dailyProfit: engineStats.profitToday,
-            };
-          }
-          
-          set({ stats, engineStatus, lastUpdate: new Date(), isLoading: false });
-        } catch (error) {
-          set({ error: 'Failed to fetch stats', isLoading: false });
-        }
-      },
-      
       fetchDeployments: async () => {
         set({ isLoading: true, error: null });
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          // Deployments already in initial state
-          set({ isLoading: false, lastUpdate: new Date() });
+          const response = await fetch('/api/deployments');
+          if (!response.ok) {
+            throw new Error('Failed to fetch deployments');
+          }
+          const deployments: Deployment[] = await response.json();
+          set({ deployments, isLoading: false, lastUpdate: new Date() });
         } catch (error) {
           set({ error: 'Failed to fetch deployments', isLoading: false });
         }
@@ -214,13 +168,19 @@ export const useDashboardStore = create<DashboardState>()(
       addWallet: async (wallet: Omit<Wallet, 'id' | 'createdAt'>) => {
         set({ isLoading: true, error: null });
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          
-          const newWallet: Wallet = {
-            ...wallet,
-            id: Date.now().toString(),
-            createdAt: new Date().toISOString(),
-          };
+          // Per security review, NEVER send private key to the server from the client.
+          const { privateKey, ...walletData } = wallet;
+          const response = await fetch('/api/wallets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(walletData),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to add wallet');
+          }
+
+          const newWallet: Wallet = await response.json();
           
           set((state) => ({
             wallets: [...state.wallets, newWallet],
@@ -234,8 +194,14 @@ export const useDashboardStore = create<DashboardState>()(
       removeWallet: async (id: string) => {
         set({ isLoading: true, error: null });
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          
+          const response = await fetch(`/api/wallets/${id}`, {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to remove wallet');
+          }
+
           set((state) => ({
             wallets: state.wallets.filter((w) => w.id !== id),
             isLoading: false,
@@ -248,10 +214,20 @@ export const useDashboardStore = create<DashboardState>()(
       updateEngineStatus: async (status: Partial<EngineStatus>) => {
         set({ isLoading: true, error: null });
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          
+          const response = await fetch('/api/engine/state', {
+            method: 'POST', // Or PATCH
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(status),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update engine status');
+          }
+
+          const updatedStatus = await response.json();
+
           set((state) => ({
-            engineStatus: { ...state.engineStatus, ...status },
+            engineStatus: { ...state.engineStatus, ...updatedStatus },
             isLoading: false,
           }));
         } catch (error) {
@@ -261,19 +237,15 @@ export const useDashboardStore = create<DashboardState>()(
       
       clearError: () => set({ error: null }),
       
-      setRefreshInterval: (interval: number) => set({ refreshInterval: interval }),
-      
       fetchWalletBalances: async () => {
         const { wallets } = get();
         if (wallets.length === 0) return;
-        
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         
         // Fetch balance for each wallet from blockchain
         const updatedWallets = await Promise.all(
           wallets.map(async (wallet) => {
             try {
-              const response = await fetch(`${API_URL}/api/wallets/${wallet.address}/balance`);
+              const response = await fetch(`/api/wallets/${wallet.address}/balance`);
               if (response.ok) {
                 const data = await response.json();
                 return { ...wallet, balance: data.balance || 0 };
@@ -287,6 +259,34 @@ export const useDashboardStore = create<DashboardState>()(
         
         set({ wallets: updatedWallets });
       },
+
+      updateStatsFromRealtime: (tradeStats: TradeStats, engineMetrics: EngineMetrics) => {
+        set((state) => {
+          // Derive stats that depend on other state slices
+          const healthyDeployments = state.deployments.filter(d => d.status === 'healthy').length;
+
+          const newStats: DeploymentStats = {
+            totalDeployments: state.deployments.length,
+            healthyDeployments: healthyDeployments,
+            avgLatency: tradeStats.avgExecutionTime,
+            totalRequests: tradeStats.totalTrades,
+            uptime: 0, // Uptime is per-deployment, not a global stat in this model
+            profitToday: tradeStats.totalProfit,
+            lossToday: tradeStats.totalGasFees,
+          };
+
+          const newEngineStatus: EngineStatus = {
+            isRunning: engineMetrics.status === 'running',
+            mode: engineMetrics.mode.toLowerCase(),
+            // Preserve strategies as they are not part of the metrics stream
+            strategies: state.engineStatus.strategies,
+            totalProfit: tradeStats.totalProfit,
+            dailyProfit: engineMetrics.profit24h,
+          };
+          
+          return { stats: newStats, engineStatus: newEngineStatus, lastUpdate: new Date() };
+        });
+      },
     }),
     {
       name: 'dashboard-storage',
@@ -297,6 +297,122 @@ export const useDashboardStore = create<DashboardState>()(
     }
   )
 );
+
+// --- Enterprise Upgrade: Real-time System & Metrics Store (via WebSocket) ---
+
+interface SystemState {
+  // WebSocket connection
+  ws: WebSocket | null;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  
+  // Real-time data from backend (as defined in types/index.ts)
+  systemHealth: SystemHealth | null;
+  apiMetrics: ApiMetrics | null;
+  brainMetrics: BrainMetrics | null;
+  engineMetrics: EngineMetrics | null;
+  tradeStats: TradeStats | null;
+
+  // Actions
+  connect: () => void;
+  disconnect: () => void;
+}
+
+let wsRetryTimeout: number;
+let wsRetryAttempts = 0;
+
+export const useSystemStore = create<SystemState>()((set, get) => ({
+  ws: null,
+  connectionStatus: 'disconnected',
+  systemHealth: null,
+  apiMetrics: null,
+  brainMetrics: null,
+  engineMetrics: null,
+  tradeStats: null,
+
+  connect: () => {
+    if (get().ws || get().connectionStatus === 'connecting') {
+      return; // Already connected or connecting
+    }
+
+    set({ connectionStatus: 'connecting' });
+
+    // Use the host of the current page to construct the WebSocket URL
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('[WS] Connection established');
+      set({ connectionStatus: 'connected' });
+      wsRetryAttempts = 0; // Reset retry attempts on successful connection
+      clearTimeout(wsRetryTimeout);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        
+        switch (message.type) {
+          case 'health':
+            set({ systemHealth: message.payload as SystemHealth });
+            break;
+          case 'metrics': {
+            const metricsPayload = message.payload as { type: string; data: unknown };
+            switch (metricsPayload.type) {
+              case 'api':
+                set({ apiMetrics: metricsPayload.data as ApiMetrics });
+                break;
+              case 'brain':
+                set({ brainMetrics: metricsPayload.data as BrainMetrics });
+                break;
+              case 'engine':
+                set({ engineMetrics: metricsPayload.data as EngineMetrics });
+                break;
+              case 'trades':
+                set({ tradeStats: metricsPayload.data as TradeStats });
+                break;
+            }
+            break;
+          }
+          default:
+            console.warn(`[WS] Received unknown message type: ${(message as any).type}`);
+        }
+      } catch (error) {
+        console.error('[WS] Error parsing message:', error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[WS] WebSocket error:', error);
+      set({ connectionStatus: 'error' });
+    };
+
+    ws.onclose = () => {
+      set({ ws: null, connectionStatus: 'disconnected' });
+
+      // Per architecture review: Implement exponential backoff with jitter for reconnection
+      const baseDelay = 1000; // 1 second
+      const maxDelay = 30000; // 30 seconds
+      const jitter = Math.random() * 500;
+      const delay = Math.min(maxDelay, baseDelay * 2 ** wsRetryAttempts) + jitter;
+      
+      console.log(`[WS] Reconnecting in ${Math.round(delay / 1000)}s... (Attempt ${wsRetryAttempts + 1})`);
+      
+      wsRetryTimeout = window.setTimeout(() => {
+        wsRetryAttempts++;
+        get().connect();
+      }, delay);
+    };
+
+    set({ ws });
+  },
+
+  disconnect: () => {
+    clearTimeout(wsRetryTimeout);
+    get().ws?.close();
+  },
+}));
 
 // Re-export for convenience
 export { useAuthStore as useStore };

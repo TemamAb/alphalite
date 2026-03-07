@@ -1,13 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useDashboardStore } from '@/stores';
-import Tooltip from '@/components/Tooltip';
+import DataTable from '@/components/DataTable';
 import CollapsiblePanel from '@/components/CollapsiblePanel';
+import Tooltip from '@/components/Tooltip';
 import {
   RefreshCw,
   ArrowUpRight,
   CheckCircle,
   AlertTriangle,
+  DollarSign,
+  Zap,
+  Clock,
+  Wallet,
 } from 'lucide-react';
+import {
+  generateProfitDataByDay,
+  generateLatencyDataByDay,
+  generateBribeDataByDay,
+  formatCurrency,
+  formatMs,
+  formatEth,
+} from '@/utils/dateUtils';
 
 interface HomeStats {
   profitPerTrade: number;
@@ -19,6 +32,41 @@ interface HomeStats {
   totalTrades: number;
   winRate: number;
 }
+
+// Column definitions for Profit Metrics table
+const profitColumns = [
+  { key: 'profitPerTrade', label: 'PROFIT/TRADE', format: (v: number) => formatCurrency(v) },
+  { key: 'tradesPerHour', label: 'TRADES/HR', format: (v: number) => v.toFixed(1) },
+  { key: 'profitPerHour', label: 'PROFIT/HR', format: (v: number) => formatCurrency(v) },
+  { key: 'todayProfit', label: 'TODAY PROFIT', format: (v: number) => formatCurrency(v) },
+  { key: 'capitalVelocity', label: 'CAPITAL VELOCITY', format: (v: number) => `${v}x` },
+  { key: 'gasFees', label: 'GAS FEES', format: (v: number) => formatCurrency(v) },
+];
+
+// Column definitions for Capital Velocity table
+const capitalVelocityColumns = [
+  { key: 'velocity', label: 'VELOCITY', format: (v: number) => `${v.toFixed(2)}x` },
+  { key: 'turnover', label: 'TURNOVER', format: (v: number) => formatCurrency(v) },
+  { key: 'efficiency', label: 'EFFICIENCY', format: (v: number) => `${v.toFixed(1)}%` },
+  { key: 'rotation', label: 'ROTATION', format: (v: number) => v.toFixed(1) },
+];
+
+// Column definitions for Latency Metrics table
+const latencyColumns = [
+  { key: 'cacheLookup', label: 'CACHE', format: (v: number) => formatMs(v) },
+  { key: 'apiHotPath', label: 'API', format: (v: number) => formatMs(v) },
+  { key: 'blockDetection', label: 'BLOCK', format: (v: number) => formatMs(v) },
+  { key: 'executionPath', label: 'EXEC', format: (v: number) => formatMs(v) },
+  { key: 'externalFetch', label: 'EXTERNAL', format: (v: number) => formatMs(v) },
+];
+
+// Column definitions for Bribe Metrics table
+const bribeColumns = [
+  { key: 'bribeAmount', label: 'BRIBE', format: (v: number) => formatEth(v) },
+  { key: 'successRate', label: 'SUCCESS %', format: (v: number) => `${v.toFixed(1)}%` },
+  { key: 'roi', label: 'ROI %', format: (v: number) => `${v.toFixed(1)}%` },
+  { key: 'totalPaid', label: 'TOTAL PAID', format: (v: number) => formatEth(v) },
+];
 
 export default function Home() {
   const { stats, engineStatus, wallets, isLoading, fetchStats, fetchWalletBalances } = useDashboardStore();
@@ -32,6 +80,22 @@ export default function Home() {
     totalTrades: 0,
     winRate: 0,
   });
+
+  // Historical data for DataTable
+  const [profitData] = useState(generateProfitDataByDay(7));
+  const [latencyData] = useState(generateLatencyDataByDay(7));
+  const [bribeData] = useState(generateBribeDataByDay(7));
+  
+  // Capital Velocity data
+  const [capitalVelocityData] = useState([
+    { day: 'Today', velocity: 12.5, turnover: 125000, efficiency: 85.2, rotation: 3.2 },
+    { day: 'Yesterday', velocity: 10.8, turnover: 108000, efficiency: 82.5, rotation: 2.9 },
+    { day: '2 days ago', velocity: 11.2, turnover: 112000, efficiency: 84.0, rotation: 3.0 },
+    { day: '3 days ago', velocity: 9.5, turnover: 95000, efficiency: 78.3, rotation: 2.5 },
+    { day: '4 days ago', velocity: 13.2, turnover: 132000, efficiency: 88.1, rotation: 3.5 },
+    { day: '5 days ago', velocity: 10.1, turnover: 101000, efficiency: 80.2, rotation: 2.7 },
+    { day: '6 days ago', velocity: 11.8, turnover: 118000, efficiency: 85.5, rotation: 3.1 },
+  ]);
 
   useEffect(() => {
     fetchStats();
@@ -54,16 +118,7 @@ export default function Home() {
       totalTrades,
       winRate: 65.5,
     });
-  }, [stats, engineStatus, wallets]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  }, [stats, engineStatus, wallets, fetchStats, fetchWalletBalances]);
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -72,8 +127,19 @@ export default function Home() {
     }).format(value);
   };
 
+  // Calculate totals for summary cards
+  const totalTodayProfit = profitData[0]?.todayProfit || 0;
+  const avgLatency = latencyData[0] ? 
+    (latencyData[0].apiHotPath + latencyData[0].executionPath) / 2 : 0;
+  const totalBribes = bribeData[0]?.totalPaid || 0;
+
+  const handleRefresh = () => {
+    fetchStats();
+    fetchWalletBalances();
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -82,10 +148,7 @@ export default function Home() {
         </div>
         <Tooltip content="Refresh all dashboard data from API endpoints">
           <button
-            onClick={() => {
-              fetchStats();
-              fetchWalletBalances();
-            }}
+            onClick={handleRefresh}
             disabled={isLoading}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 text-slate-300 text-xs font-mono rounded hover:bg-slate-700 disabled:opacity-50"
           >
@@ -93,6 +156,38 @@ export default function Home() {
             REFRESH
           </button>
         </Tooltip>
+      </div>
+
+      {/* Summary Cards - Enterprise Grade */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+            <div className="text-xs text-slate-400">TODAY PROFIT</div>
+          </div>
+          <div className="text-2xl font-bold text-emerald-400">{formatCurrency(totalTodayProfit)}</div>
+        </div>
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4 text-cyan-400" />
+            <div className="text-xs text-slate-400">AVG LATENCY</div>
+          </div>
+          <div className="text-2xl font-bold text-cyan-400">{formatMs(avgLatency)}</div>
+        </div>
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-purple-400" />
+            <div className="text-xs text-slate-400">BRIBES TODAY</div>
+          </div>
+          <div className="text-2xl font-bold text-purple-400">{formatEth(totalBribes)}</div>
+        </div>
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Wallet className="w-4 h-4 text-green-400" />
+            <div className="text-xs text-slate-400">ENGINE</div>
+          </div>
+          <div className="text-2xl font-bold text-green-400">{engineStatus.isRunning ? 'RUNNING' : 'STOPPED'}</div>
+        </div>
       </div>
 
       {/* Engine Status */}
@@ -129,113 +224,122 @@ export default function Home() {
         </div>
       </CollapsiblePanel>
 
-      {/* Profit Metrics */}
+      {/* Profit Metrics with DataTable */}
       <CollapsiblePanel 
         title="PROFIT METRICS" 
         tooltip="Trading profit and performance data"
-        defaultExpanded={true}
+        defaultExpanded={false}
+        preview={
+          <div className="p-3 bg-slate-800/30">
+            <table className="w-full text-xs font-mono"><tbody><tr>
+              <td className="py-1 text-slate-300 font-medium">Today</td>
+              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.profitPerTrade || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{profitData[0]?.tradesPerHour?.toFixed(1) || '0.0'}</td>
+              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.profitPerHour || 0)}</td>
+              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.todayProfit || 0)}</td>
+              <td className="py-1 text-right text-cyan-400">{profitData[0]?.capitalVelocity?.toFixed(2) || '0.00'}x</td>
+              <td className="py-1 text-right text-red-400">{formatCurrency(profitData[0]?.gasFees || 0)}</td>
+            </tr></tbody></table>
+          </div>
+        }
       >
         <div className="p-3">
-          <table className="w-full text-xs font-mono">
-            <thead>
-              <tr className="text-slate-500 border-b border-slate-700/30">
-                <th className="text-left py-2 font-medium">METRIC</th>
-                <th className="text-right py-2 font-medium">VALUE</th>
-                <th className="text-right py-2 font-medium">CHANGE</th>
-              </tr>
-            </thead>
-            <tbody>
-              <Tooltip content="Net profit divided by total number of trades executed">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">PROFIT/TRADE</td>
-                  <td className="py-2 text-right text-slate-200">{formatCurrency(homeStats.profitPerTrade)}</td>
-                  <td className="py-2 text-right text-green-400 flex items-center justify-end gap-1">
-                    <ArrowUpRight className="w-3 h-3" /> +5.2%
-                  </td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Average number of trades executed per hour">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">TRADES/HOUR</td>
-                  <td className="py-2 text-right text-slate-200">{formatNumber(homeStats.tradesPerHour)}</td>
-                  <td className="py-2 text-right text-green-400 flex items-center justify-end gap-1">
-                    <ArrowUpRight className="w-3 h-3" /> +12.8%
-                  </td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Total profit generated per hour of operation">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">PROFIT/HOUR</td>
-                  <td className="py-2 text-right text-slate-200">{formatCurrency(homeStats.profitPerHour)}</td>
-                  <td className="py-2 text-right text-green-400 flex items-center justify-end gap-1">
-                    <ArrowUpRight className="w-3 h-3" /> +8.4%
-                  </td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Net profit after subtracting gas fees for today">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">TODAY PROFIT</td>
-                  <td className="py-2 text-right text-green-400">{formatCurrency(stats.profitToday - stats.lossToday)}</td>
-                  <td className="py-2 text-right text-slate-500">-</td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Total gas fees spent on transactions today">
-                <tr className="cursor-help">
-                  <td className="py-2 text-slate-400">GAS FEES TODAY</td>
-                  <td className="py-2 text-right text-red-400">{formatCurrency(stats.lossToday)}</td>
-                  <td className="py-2 text-right text-slate-500">-</td>
-                </tr>
-              </Tooltip>
-            </tbody>
-          </table>
+          <DataTable 
+            data={profitData} 
+            columns={profitColumns}
+            firstColumnLabel="DAY"
+            defaultSort="desc"
+            showTotals={true}
+          />
         </div>
       </CollapsiblePanel>
 
-      {/* Wallet & Performance */}
+      {/* Capital Velocity Metrics with DataTable */}
       <CollapsiblePanel 
-        title="WALLET & PERFORMANCE" 
-        tooltip="Wallet balances and system performance metrics"
-        defaultExpanded={true}
+        title="CAPITAL VELOCITY" 
+        tooltip="Capital turnover and efficiency metrics"
+        defaultExpanded={false}
+        preview={
+          <div className="p-3 bg-slate-800/30">
+            <table className="w-full text-xs font-mono"><tbody><tr>
+              <td className="py-1 text-slate-300 font-medium">Today</td>
+              <td className="py-1 text-right text-emerald-400">{capitalVelocityData[0]?.velocity?.toFixed(2) || '0.00'}x</td>
+              <td className="py-1 text-right text-cyan-400">{formatCurrency(capitalVelocityData[0]?.turnover || 0)}</td>
+              <td className="py-1 text-right text-purple-400">{capitalVelocityData[0]?.efficiency?.toFixed(1) || '0.0'}%</td>
+              <td className="py-1 text-right text-slate-200">{capitalVelocityData[0]?.rotation?.toFixed(1) || '0.0'}</td>
+            </tr></tbody></table>
+          </div>
+        }
       >
         <div className="p-3">
-          <table className="w-full text-xs font-mono">
-            <tbody>
-              <Tooltip content="Total ETH balance across all connected wallets">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400 w-1/3">SMART WALLET</td>
-                  <td className="py-2 text-right text-slate-200">{formatNumber(homeStats.smartWalletBalance)} ETH</td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Number of wallets currently connected">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">CONNECTED WALLETS</td>
-                  <td className="py-2 text-right text-slate-200">{wallets.length}</td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Total number of trades executed since start">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">TOTAL TRADES</td>
-                  <td className="py-2 text-right text-slate-200">{homeStats.totalTrades.toLocaleString()}</td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Percentage of profitable trades vs total trades">
-                <tr className="border-b border-slate-700/30 cursor-help">
-                  <td className="py-2 text-slate-400">WIN RATE</td>
-                  <td className="py-2 text-right text-green-400">{homeStats.winRate}%</td>
-                </tr>
-              </Tooltip>
-              <Tooltip content="Average time from trade signal to execution completion">
-                <tr className="cursor-help">
-                  <td className="py-2 text-slate-400">LATENCY</td>
-                  <td className="py-2 text-right text-slate-200">{homeStats.latency} ms</td>
-                </tr>
-              </Tooltip>
-            </tbody>
-          </table>
+          <DataTable 
+            data={capitalVelocityData} 
+            columns={capitalVelocityColumns}
+            firstColumnLabel="DAY"
+            defaultSort="desc"
+            showTotals={true}
+          />
         </div>
       </CollapsiblePanel>
 
-      {/* MEV & Trading */}
+      {/* Latency Metrics with DataTable */}
+      <CollapsiblePanel 
+        title="LATENCY METRICS" 
+        tooltip="System latency breakdown by component"
+        defaultExpanded={false}
+        preview={
+          <div className="p-3 bg-slate-800/30">
+            <table className="w-full text-xs font-mono"><tbody><tr>
+              <td className="py-1 text-slate-300 font-medium">Today</td>
+              <td className="py-1 text-right text-slate-200">{formatMs(latencyData[0]?.cacheLookup || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{formatMs(latencyData[0]?.apiHotPath || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{formatMs(latencyData[0]?.blockDetection || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{formatMs(latencyData[0]?.executionPath || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{formatMs(latencyData[0]?.externalFetch || 0)}</td>
+            </tr></tbody></table>
+          </div>
+        }
+      >
+        <div className="p-3">
+          <DataTable 
+            data={latencyData} 
+            columns={latencyColumns}
+            firstColumnLabel="DAY"
+            defaultSort="desc"
+            showTotals={true}
+          />
+        </div>
+      </CollapsiblePanel>
+
+      {/* Bribe Metrics with DataTable */}
+      <CollapsiblePanel 
+        title="BRIBE METRICS" 
+        tooltip="Vote bribe tracking and ROI analysis"
+        defaultExpanded={false}
+        preview={
+          <div className="p-3 bg-slate-800/30">
+            <table className="w-full text-xs font-mono"><tbody><tr>
+              <td className="py-1 text-slate-300 font-medium">Today</td>
+              <td className="py-1 text-right text-slate-200">{formatEth(bribeData[0]?.bribeAmount || 0)}</td>
+              <td className="py-1 text-right text-slate-200">{bribeData[0]?.successRate?.toFixed(1) || '0.0'}%</td>
+              <td className="py-1 text-right text-slate-200">{bribeData[0]?.roi?.toFixed(1) || '0.0'}%</td>
+              <td className="py-1 text-right text-slate-200">{formatEth(bribeData[0]?.totalPaid || 0)}</td>
+            </tr></tbody></table>
+          </div>
+        }
+      >
+        <div className="p-3">
+          <DataTable 
+            data={bribeData} 
+            columns={bribeColumns}
+            firstColumnLabel="DAY"
+            defaultSort="desc"
+            showTotals={true}
+          />
+        </div>
+      </CollapsiblePanel>
+
+      {/* MEV & Trading - From Root Dashboard */}
       <CollapsiblePanel 
         title="MEV & TRADING" 
         tooltip="Maximal Extractable Value and frontrunning statistics"
@@ -281,7 +385,7 @@ export default function Home() {
         </div>
       </CollapsiblePanel>
 
-      {/* System Alerts */}
+      {/* System Alerts - From Root Dashboard */}
       <CollapsiblePanel 
         title="SYSTEM ALERTS" 
         tooltip="Current system status and notifications"

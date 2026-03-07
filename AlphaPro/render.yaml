@@ -1,0 +1,98 @@
+# ============================================================
+# render.yaml — AlphaPro Enterprise Flash Loan System
+# Render Cloud Auto-Deploy Configuration
+# Push to GitHub → Render auto-detects → deploys all services
+# ============================================================
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # SERVICE 1: Node.js Profit Engine + REST API
+  # URL: https://alphapro-engine.onrender.com
+  # ──────────────────────────────────────────────────────────
+  - type: web
+    name: alphapro-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRADING_MODE
+        value: LIVE
+      - key: PORT
+        value: 10000
+      - key: BRAIN_URL
+        fromService:
+          type: web
+          name: alphapro-brain
+          property: host
+          prefix: "http://"
+          suffix: ""
+      # Secret env vars — set these in the Render Dashboard UI
+      - key: ETH_RPC_URL
+        sync: false
+      - key: POLYGON_RPC_URL
+        sync: false
+      - key: ARBITRUM_RPC_URL
+        sync: false
+      - key: OPTIMISM_RPC_URL
+        sync: false
+      - key: BASE_RPC_URL
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: WALLET_ADDRESS
+        sync: false
+      - key: PIMLICO_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ALCHEMY_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # ──────────────────────────────────────────────────────────
+  # SERVICE 2: Python AI Oracle (Brain)
+  # URL: https://alphapro-brain.onrender.com
+  # ──────────────────────────────────────────────────────────
+  - type: web
+    name: alphapro-brain
+    runtime: docker
+    dockerfilePath: ./modules/brain/Dockerfile
+    dockerContext: ./modules/brain
+    plan: starter
+    healthCheckPath: /status
+    autoDeploy: true
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  # ──────────────────────────────────────────────────────────
+  # SERVICE 3: React Dashboard (Static Site)
+  # URL: https://alphapro-dashboard.onrender.com
+  # ──────────────────────────────────────────────────────────
+  - type: web
+    name: alphapro-dashboard
+    runtime: docker
+    dockerfilePath: ./modules/dashboard/Dockerfile
+    dockerContext: ./modules/dashboard
+    plan: starter
+    healthCheckPath: /
+    autoDeploy: true
+    buildCommand:  ""
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: alphapro-engine
+          property: host
+          prefix: "https://"
+          suffix: ""

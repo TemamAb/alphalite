@@ -1,54 +1,165 @@
+# AlphaPro Production Docker Compose
+# Full stack deployment with PostgreSQL, Redis, API, Brain AI, and Nginx
+# 
+# Ports:
+#   - Nginx: 80 (HTTP), 443 (HTTPS)
+#   - API: 3001 (direct access)
+#   - Brain: 5001 (direct access)
+#   - PostgreSQL: 5432
+#   - Redis: 6379
+
 version: '3.8'
 
 services:
-  # Node.js Profit Engine & API
-  engine:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: alphapro-engine
-    ports:
-      - "3000:3000"
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: alphapro_postgres
     environment:
-      - NODE_ENV=production
-      - TRADING_MODE=LIVE
-      - BRAIN_URL=http://brain:5000
-      # Pass through critical secrets from local .env
-      - ETH_RPC_URL=${ETH_RPC_URL}
-      - PRIVATE_KEY=${PRIVATE_KEY}
-      - WALLET_ADDRESS=${WALLET_ADDRESS}
-      - PIMLICO_API_KEY=${PIMLICO_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-    depends_on:
-      - brain
-    restart: unless-stopped
+      POSTGRES_DB: aineon
+      POSTGRES_USER: aineon
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aineon"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Python AI Oracle
+  # ============================================================
+  # Redis Cache
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ============================================================
+  # Brain AI Service (Python Flask)
+  # ============================================================
   brain:
     build:
       context: ./modules/brain
       dockerfile: Dockerfile
-    container_name: alphapro-brain
-    ports:
-      - "5000:5000"
-    restart: unless-stopped
+    container_name: alphapro_brain
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://aineon:password@postgres:5432/aineon
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # React Dashboard
+  # ============================================================
+  # API Service (Node.js)
+  # ============================================================
+  api:
+    build:
+      context: ./modules/api
+      dockerfile: Dockerfile
+    container_name: alphapro_api
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://aineon:password@postgres:5432/aineon
+      - REDIS_URL=redis://redis:6379
+      - BRAIN_URL=http://brain:5000
+      - TRADING_MODE=LIVE
+    env_file:
+      - ./.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      brain:
+        condition: service_healthy
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================================
+  # Dashboard/Frontend (Static React with Nginx)
+  # ============================================================
   dashboard:
     build:
       context: ./modules/dashboard
       dockerfile: Dockerfile
-    container_name: alphapro-dashboard
-    ports:
-      - "8080:80"
-    restart: unless-stopped
+    container_name: alphapro_dashboard
+    depends_on:
+      - api
     networks:
       - alphapro-net
+    restart: unless-stopped
+
+  # ============================================================
+  # Nginx Reverse Proxy & Load Balancer
+  # ============================================================
+  nginx:
+    image: nginx:alpine
+    container_name: alphapro_nginx
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - dashboard
+      - brain
+    networks:
+      - alphapro-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   alphapro-net:
     driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

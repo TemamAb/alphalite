@@ -7,8 +7,18 @@ const router = express.Router();
 // Import Ranking Engine for low-latency cache access
 const rankingEngine = require('../../engine/services/RankingEngine');
 
-// In-memory trade storage (should be replaced with database in production)
-// Uses Map for O(1) lookups, with array for ordered history
+// Import TradeExecutor for production execution
+const TradeExecutor = require('../../engine/services/TradeExecutor');
+
+// Initialize TradeExecutor
+let tradeExecutor;
+try {
+    tradeExecutor = new TradeExecutor();
+} catch (e) {
+    console.warn('[TRADING] TradeExecutor init failed:', e.message);
+}
+
+// In-memory trade storage (with optional database persistence)
 const tradeHistory = new Map();
 const tradeOrder = [];
 let tradeIdCounter = 1;
@@ -16,7 +26,7 @@ let tradeIdCounter = 1;
 // Position tracking
 const positions = new Map(); // token -> position data
 
-// Route to execute a trade
+// Route to execute a trade - PRODUCTION IMPLEMENTED
 router.post('/executeTrade', async (req, res) => {
     try {
         const { tokenIn, tokenOut, amountIn, minAmountOut, path, chain, dex } = req.body;
@@ -26,14 +36,76 @@ router.post('/executeTrade', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields: tokenIn, amountIn' });
         }
         
-        // PRODUCTION EXECUTION LOGIC
-        // 1. Initialize Pimlico Paymaster
-        // 2. Construct UserOperation for Flash Loan
-        // 3. Submit to Bundler
+        // Validate trading mode
+        const tradingMode = process.env.TRADING_MODE || 'LIVE';
+        if (tradingMode !== 'LIVE') {
+            return res.status(403).json({ error: 'Trading is only allowed in LIVE mode' });
+        }
         
-        // CLEANUP: Mock execution removed. 
-        // This endpoint now strictly requires the gasless flashloan implementation.
-        throw new Error("Production execution logic required. Mocking disabled.");
+        // Check if executor is properly configured
+        if (!tradeExecutor || !tradeExecutor.signingWallet) {
+            return res.status(503).json({ 
+                error: 'Trading executor not configured. Please configure PRIVATE_KEY and PIMLICO_API_KEY',
+                code: 'EXECUTOR_NOT_CONFIGURED'
+            });
+        }
+        
+        // Build opportunity object from request
+        const opportunity = {
+            tokenIn,
+            tokenOut,
+            amountIn: parseFloat(amountIn),
+            minAmountOut: parseFloat(minAmountOut) || 0,
+            path: path || [],
+            chainId: chain || 1,
+            dex: dex || 'uniswap',
+            pair: `${tokenIn}-${tokenOut}`,
+            strategy: { name: 'Direct Trade' },
+            profit: 0
+        };
+        
+        console.log(`[TRADE] Executing trade: ${tokenIn} -> ${tokenOut}, Amount: ${amountIn}`);
+        
+        // Execute the trade using TradeExecutor
+        const result = await tradeExecutor.execute(opportunity, parseFloat(amountIn));
+        
+        // Record trade in history
+        const tradeId = tradeIdCounter++;
+        const tradeRecord = {
+            id: tradeId,
+            tokenIn,
+            tokenOut,
+            amountIn: parseFloat(amountIn),
+            minAmountOut: parseFloat(minAmountOut) || 0,
+            chain: chain || 'ethereum',
+            dex: dex || 'uniswap',
+            status: result.success ? 'success' : 'failed',
+            hash: result.hash || null,
+            gasUsed: result.gasUsed || 0,
+            netProfit: result.success ? (opportunity.profit || 0) : 0,
+            timestamp: new Date().toISOString(),
+            error: result.reason || null
+        };
+        
+        tradeHistory.set(tradeId, tradeRecord);
+        tradeOrder.push(tradeId);
+        
+        // Update positions
+        if (!positions.has(tokenIn)) {
+            positions.set(tokenIn, { totalVolume: 0, tradeCount: 0, totalProfit: 0 });
+        }
+        const pos = positions.get(tokenIn);
+        pos.totalVolume += parseFloat(amountIn);
+        pos.tradeCount++;
+        if (result.success) pos.totalProfit += (opportunity.profit || 0);
+        
+        res.json({
+            success: result.success,
+            tradeId,
+            hash: result.hash,
+            message: result.success ? 'Trade executed successfully' : 'Trade failed',
+            details: result
+        });
 
     } catch (error) {
         console.error("[TRADE] Error executing trade:", error);

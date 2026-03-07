@@ -6,13 +6,15 @@ interface CollapsiblePanelProps {
   tooltip?: string;
   children: React.ReactNode;
   defaultExpanded?: boolean;
+  preview?: React.ReactNode;
 }
 
 export default function CollapsiblePanel({ 
   title, 
   tooltip, 
   children, 
-  defaultExpanded = true 
+  defaultExpanded = true,
+  preview 
 }: CollapsiblePanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -34,6 +36,13 @@ export default function CollapsiblePanel({
           <span className="text-xs text-slate-500 hidden md:inline">{tooltip}</span>
         )}
       </button>
+      
+      {/* Preview row shown when collapsed */}
+      {!isExpanded && preview && (
+        <div className="border-t border-slate-700/30">
+          {preview}
+        </div>
+      )}
       
       {isExpanded && (
         <div className="border-t border-slate-700/30">

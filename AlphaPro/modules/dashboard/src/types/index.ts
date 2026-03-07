@@ -48,13 +48,13 @@ export interface Wallet {
   balance: number;
   chain: string;
   createdAt: string;
-  privateKey?: string; // For trading - stored locally, never sent to server
+  privateKey?: string;
 }
 
 // Engine Types
 export interface EngineStatus {
   isRunning: boolean;
-  mode: 'live'; // Production mode only
+  mode: string; // Should not be restricted to 'live' only
   strategies: string[];
   totalProfit: number;
   dailyProfit: number;
@@ -122,7 +122,7 @@ export interface BrainRecommendation {
 
 // Engine Types
 export interface EngineMetrics {
-  mode: 'LIVE'; // Production mode only
+  mode: 'LIVE';
   status: 'running' | 'paused' | 'error';
   profit24h: number;
   trades24h: number;
@@ -140,27 +140,12 @@ export interface TradeStats {
 }
 
 // Auth Types
-export interface User {
-  id: string;
-  email: string;
-  role: 'admin' | 'operator' | 'viewer' | 'user';
-  createdAt: string;
-}
-
 export interface AuthState {
+  token: string | null;
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-}
-
-// Dashboard Types
-export interface DashboardStats {
-  totalDeployments: number;
-  healthyDeployments: number;
-  totalRequests: number;
-  avgLatency: number;
-  uptime: number;
 }
 
 // API Response Types

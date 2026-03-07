@@ -25,13 +25,14 @@ import {
 import VolatilityGauge from './VolatilityGauge';
 import LiquidityMonitor from './LiquidityMonitor';
 import WhaleFeed from './WhaleFeed';
+import BribeMonitor from './BribeMonitor';
 
 // Header Component
 function Header() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { stats, refreshInterval, setRefreshInterval, fetchStats, fetchDeployments, wallets, fetchWalletBalances, engineStatus } = useDashboardStore();
-  const [currency, setCurrency] = useState<'ETH' | 'USD'>('USD');
+  const [currency, setCurrency] = useState<'ETH' | 'USD'>('ETH');
   const [localRefreshInterval, setLocalRefreshInterval] = useState('5s');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -167,8 +168,8 @@ function Header() {
         {/* Wallet Balance - from store wallets */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg">
           <Wallet className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm text-white">
-            {wallets.length > 0 ? displayBalance : 'No wallet'}
+          <span className="text-sm text-white font-medium">
+            Wallet Balance: {wallets.length > 0 ? `${totalWalletBalance.toFixed(3)} ETH` : 'No wallet'}
           </span>
         </div>
 
@@ -256,32 +257,37 @@ function Sidebar() {
 
       {/* System Status */}
       {!isCollapsed && (
-        <div className="p-4 border-t border-slate-700">
-          <div className="text-xs text-slate-500 mb-2">SYSTEM STATUS</div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">API Instances</span>
-              <span className="text-green-400">{stats.healthyDeployments}/{stats.totalDeployments}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Avg Latency</span>
-              <span className="text-white">{stats.avgLatency.toFixed(0)}ms</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Requests/min</span>
-              <span className="text-white">{stats.totalRequests.toLocaleString()}</span>
+        <>
+          <div className="p-4 border-t border-slate-700">
+            <div className="text-xs text-slate-500 mb-2">SYSTEM STATUS</div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">API Instances</span>
+                <span className="text-green-400">{stats.healthyDeployments}/{stats.totalDeployments}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Avg Latency</span>
+                <span className="text-white">{stats.avgLatency.toFixed(0)}ms</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Requests/min</span>
+                <span className="text-white">{stats.totalRequests.toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Volatility Gauge Widget */}
-        <div className="px-2 pb-4"><VolatilityGauge /></div>
+          {/* Volatility Gauge Widget */}
+          <div className="px-2 pb-4"><VolatilityGauge /></div>
 
-        {/* Liquidity Monitor Widget */}
-        <div className="px-2 pb-4"><LiquidityMonitor /></div>
+          {/* Liquidity Monitor Widget */}
+          <div className="px-2 pb-4"><LiquidityMonitor /></div>
 
-        {/* Whale Feed Widget */}
-        <div className="px-2 pb-4"><WhaleFeed /></div>
+          {/* Whale Feed Widget */}
+          <div className="px-2 pb-4"><WhaleFeed /></div>
+
+          {/* Bribe Monitor Widget */}
+          <div className="px-2 pb-4"><BribeMonitor /></div>
+        </>
       )}
     </aside>
   );

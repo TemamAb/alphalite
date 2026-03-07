@@ -1,29 +1,55 @@
+# ============================================================
+# .gitignore — AlphaPro Enterprise
+# ============================================================
+
+# ---- Node.js ----
 node_modules/
-**/node_modules/
+modules/*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---- Python ----
 __pycache__/
-**/__pycache__/
-*.log
-**/logs/
-
-# Environment variables
-.env
-.env.local
-AlphaPro/.env
-AlphaPro/.env.local
-
-# Build outputs
+*.py[cod]
+*$py.class
+*.egg-info/
 dist/
 build/
-AlphaPro/alphapro-api/client/dist/
-AlphaPro/alphapro-api/client/build/
+.eggs/
+.venv/
+venv/
+env/
 
-# Logs
+# ---- Environment / Secrets (NEVER commit these) ----
+.env
+.env.local
+.env.*.local
+# Keep the example as documentation
+!.env.example
+
+# ---- Build outputs ----
+modules/dashboard/dist/
+modules/dashboard/build/
+*.tsbuildinfo
+
+# ---- Logs ----
+logs/
 *.log
-start.log
+modules/*/logs/
 
-# OS files
+# ---- OS ----
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Docker volumes
-pgdata/
+# ---- Editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# ---- Docker (local volumes) ----
+docker-compose.override.yml

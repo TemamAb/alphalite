@@ -1,8 +1,56 @@
-node_modules
-npm-debug.log
-dist
-build
-.git
+# ============================================================
+# .dockerignore — Keep Docker build context lean
+# ============================================================
+
+# Node.js dependencies (re-installed in container)
+node_modules/
+modules/*/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment files (secrets managed via Render env vars)
 .env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Development tools
+.git/
+.gitignore
+.github/
+
+# Test files
+modules/tests/
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation  
+*.md
+CODE_QUALITY_AUDIT.md
+PRODUCTION_ANALYSIS.md
+docs/
+
+# OS artifacts
 .DS_Store
-coverage
+Thumbs.db
+
+# Logs
+logs/
+*.log

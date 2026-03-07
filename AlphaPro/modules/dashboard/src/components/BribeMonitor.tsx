@@ -162,7 +162,7 @@ const BribeMonitor: React.FC = () => {
                             </div>
                             <div className="mt-4 p-3 bg-blue-900/10 border border-blue-800/30 rounded text-xs text-blue-300 flex items-center gap-2">
                                 <Activity className="w-4 h-4" />
-                                Insight: Bribes > 0.1 ETH show a 95%+ inclusion rate in the next block.
+                                Insight: Bribes &gt; 0.1 ETH show a 95%+ inclusion rate in the next block.
                             </div>
                         </div>
                     </CollapsiblePanel>
