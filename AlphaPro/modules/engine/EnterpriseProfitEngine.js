@@ -429,14 +429,22 @@ class EnterpriseProfitEngine extends EventEmitter {
     }
 
     _getRpcUrl(chainId) {
-        const rpcMap = {
-            1: process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
-            137: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-            42161: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
-            10: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
-            8453: process.env.BASE_RPC_URL || 'https://base-mainnet.public.blastapi.io',
-        };
-        return rpcMap[chainId] || rpcMap[1];
+        // Find the chain name from the chainId by searching the CHAIN_IDS map
+        const chainName = Object.keys(CHAIN_IDS).find(key => CHAIN_IDS[key] === chainId);
+
+        // Use the chain name to look up the configured RPC URL
+        if (chainName && this.rpcEndpoints[chainName]) {
+            return this.rpcEndpoints[chainName];
+        }
+
+        // Fallback for mainnet if chainId is 1 and an 'ethereum' RPC is configured
+        if (chainId === 1 && this.rpcEndpoints['ethereum']) {
+            return this.rpcEndpoints['ethereum'];
+        }
+        
+        console.error(`[ENGINE] ❌ CRITICAL: No RPC URL configured in environment variables for chainId ${chainId}. Transaction verification will fail.`);
+        // Return null to ensure failure instead of using an insecure public node.
+        return null;
     }
 
     subscribeToEvents() {

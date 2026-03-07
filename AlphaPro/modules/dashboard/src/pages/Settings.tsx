@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useDashboardStore } from '@/stores';
+import { useDashboardStore, useAuthStore } from '@/stores';
 import { walletApi, engineApi } from '@/services/api';
 import Tooltip from '@/components/Tooltip';
 import CollapsiblePanel from '@/components/CollapsiblePanel';
@@ -101,6 +101,8 @@ export default function Settings() {
   // Profit state - fetched from API
   const [availableProfit, setAvailableProfit] = useState(0);
   const [isLoadingProfit, setIsLoadingProfit] = useState(false);
+  const { token } = useAuthStore.getState();
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   // Fetch transactions and profit from API on mount
   useEffect(() => {
@@ -109,9 +111,9 @@ export default function Settings() {
       setIsLoadingProfit(true);
       try {
         // Fetch transactions from API
-        const txResponse = await fetch('/api/transactions', {
+        const txResponse = await fetch(`${API_URL}/api/transactions`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
         if (txResponse.ok) {
@@ -123,9 +125,9 @@ export default function Settings() {
         }
 
         // Fetch profit from API
-        const profitResponse = await fetch('/api/engine/profit', {
+        const profitResponse = await fetch(`${API_URL}/api/engine/profit`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
         if (profitResponse.ok) {
@@ -144,7 +146,7 @@ export default function Settings() {
       }
     };
     fetchData();
-  }, []);
+  }, [token, API_URL]);
 
   // Profit Reinvestment state
   const [reinvestEnabled, setReinvestEnabled] = useState(false);
