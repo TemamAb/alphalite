@@ -7,7 +7,7 @@ services:
   # Serves both the React dashboard (frontend) and Node.js API (backend)
   # Uses the unified Dockerfile that builds frontend and serves it via the API
   - type: web
-    name: alphapro
+    name: alphalite
     runtime: docker
     plan: starter
     dockerContext: .

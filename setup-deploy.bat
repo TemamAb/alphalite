@@ -27,7 +27,7 @@ git commit -m "AlphaPro production deployment with Render configuration"
 
 echo.
 echo Step 4: Setting up GitHub remote...
-git remote add origin https://github.com/TemamAb/alphapro.git
+git remote add origin https://github.com/TemamAb/alphalite.git
 
 echo.
 echo Step 5: Pushing to GitHub...

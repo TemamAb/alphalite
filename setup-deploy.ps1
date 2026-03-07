@@ -27,7 +27,7 @@ git commit -m "AlphaPro production deployment with Render configuration"
 
 Write-Host ""
 Write-Host "Step 4: Setting up GitHub remote..." -ForegroundColor Yellow
-git remote add origin https://github.com/TemamAb/alphapro.git
+git remote add origin https://github.com/TemamAb/alphalite.git
 
 Write-Host ""
 Write-Host "Step 5: Pushing to GitHub..." -ForegroundColor Yellow
