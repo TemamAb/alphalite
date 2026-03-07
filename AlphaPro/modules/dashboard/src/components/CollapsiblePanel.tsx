@@ -7,6 +7,7 @@ interface CollapsiblePanelProps {
   children: React.ReactNode;
   defaultExpanded?: boolean;
   preview?: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
 export default function CollapsiblePanel({ 
@@ -14,7 +15,8 @@ export default function CollapsiblePanel({
   tooltip, 
   children, 
   defaultExpanded = true,
-  preview 
+  preview,
+  icon
 }: CollapsiblePanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 

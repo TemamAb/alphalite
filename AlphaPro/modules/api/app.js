@@ -28,7 +28,13 @@ wss.on('connection', (ws) => {
 app.use(express.json());
 
 // --- API Routes ---
-// All your API routes should be defined here, prefixed with /api
+// Import API routes
+const tradingRoutes = require('./routes/tradingRoutes');
+
+// Mount API routes with /api prefix
+app.use('/api', tradingRoutes);
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

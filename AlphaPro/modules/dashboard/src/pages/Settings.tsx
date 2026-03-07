@@ -102,7 +102,10 @@ export default function Settings() {
   const [availableProfit, setAvailableProfit] = useState(0);
   const [isLoadingProfit, setIsLoadingProfit] = useState(false);
   const { token } = useAuthStore.getState();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Allow empty string for relative paths (production/docker), fallback only if undefined
+  const API_URL = typeof import.meta.env.VITE_API_URL === 'string' 
+    ? import.meta.env.VITE_API_URL 
+    : 'http://localhost:3000';
 
   // Fetch transactions and profit from API on mount
   useEffect(() => {

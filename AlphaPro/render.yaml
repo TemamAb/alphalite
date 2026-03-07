@@ -1,98 +1,58 @@
-# ============================================================
-# render.yaml — AlphaPro Enterprise Flash Loan System
-# Render Cloud Auto-Deploy Configuration
-# Push to GitHub → Render auto-detects → deploys all services
-# ============================================================
+# AlphaPro Render Configuration
+# This file is auto-detected by Render.com when pushed to GitHub
+# Render will automatically detect this and create the services
 
 services:
-  # ──────────────────────────────────────────────────────────
-  # SERVICE 1: Node.js Profit Engine + REST API
-  # URL: https://alphapro-engine.onrender.com
-  # ──────────────────────────────────────────────────────────
+  # Main AlphaPro Application
+  # Serves both the React dashboard (frontend) and Node.js API (backend)
+  # Uses the unified Dockerfile that builds frontend and serves it via the API
   - type: web
-    name: alphapro-engine
+    name: alphapro
     runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
     plan: starter
-    healthCheckPath: /api/health
-    autoDeploy: true
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     envVars:
+      # Core Configuration
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3000
       - key: TRADING_MODE
         value: LIVE
-      - key: PORT
-        value: 10000
-      - key: BRAIN_URL
-        fromService:
-          type: web
-          name: alphapro-brain
-          property: host
-          prefix: "http://"
-          suffix: ""
-      # Secret env vars — set these in the Render Dashboard UI
+      
+      # Blockchain RPC Configuration
+      # Note: These should be updated with your production RPC URLs
       - key: ETH_RPC_URL
-        sync: false
-      - key: POLYGON_RPC_URL
         sync: false
       - key: ARBITRUM_RPC_URL
         sync: false
-      - key: OPTIMISM_RPC_URL
+      - key: POLYGON_RPC_URL
         sync: false
-      - key: BASE_RPC_URL
+      
+      # Wallet Configuration - CRITICAL for trading
+      # These must be set in Render Dashboard for the engine to work
+      # The user should enter these in the Settings section of the dashboard
+      # OR set them as environment variables in Render
+      - key: WALLET_ADDRESS
         sync: false
       - key: PRIVATE_KEY
         sync: false
-      - key: WALLET_ADDRESS
-        sync: false
       - key: PIMLICO_API_KEY
         sync: false
+      
+      # Security Keys - Generate strong random values for production
       - key: JWT_SECRET
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
-      - key: ALCHEMY_API_KEY
-        sync: false
+      
+      # AI/ML Service
       - key: OPENAI_API_KEY
         sync: false
-
-  # ──────────────────────────────────────────────────────────
-  # SERVICE 2: Python AI Oracle (Brain)
-  # URL: https://alphapro-brain.onrender.com
-  # ──────────────────────────────────────────────────────────
-  - type: web
-    name: alphapro-brain
-    runtime: docker
-    dockerfilePath: ./modules/brain/Dockerfile
-    dockerContext: ./modules/brain
-    plan: starter
-    healthCheckPath: /status
-    autoDeploy: true
-    envVars:
-      - key: FLASK_ENV
-        value: production
-      - key: PORT
-        value: 10000
-
-  # ──────────────────────────────────────────────────────────
-  # SERVICE 3: React Dashboard (Static Site)
-  # URL: https://alphapro-dashboard.onrender.com
-  # ──────────────────────────────────────────────────────────
-  - type: web
-    name: alphapro-dashboard
-    runtime: docker
-    dockerfilePath: ./modules/dashboard/Dockerfile
-    dockerContext: ./modules/dashboard
-    plan: starter
-    healthCheckPath: /
-    autoDeploy: true
-    buildCommand:  ""
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: alphapro-engine
-          property: host
-          prefix: "https://"
-          suffix: ""
+      
+      # Database (optional - for production use)
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

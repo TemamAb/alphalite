@@ -91,7 +91,7 @@ class EnterpriseProfitEngine extends EventEmitter {
         this.bestOpportunity = null;
 
         // Default to LIVE mode for production
-        this.mode = this.config.tradingMode || 'LIVE';
+        this.mode = process.env.TRADING_MODE || this.config.tradingMode || 'LIVE';
         this.stats = { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
         // FORGED STRATEGIES: Add new, advanced strategies to the pool
         this.strategyRankings = [
@@ -186,7 +186,7 @@ class EnterpriseProfitEngine extends EventEmitter {
         const pimlicoApiKey = this.config.pimlicoApiKey;
         const privateKey = this.config.privateKey;
         const walletAddress = this.config.walletAddress;
-        const tradingMode = this.config.tradingMode || 'LIVE';
+        const tradingMode = this.mode; // Use the mode determined in constructor
 
         // PAPER trading mode - uses real market data but simulates execution
         if (tradingMode === 'PAPER') {

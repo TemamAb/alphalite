@@ -1,10 +1,46 @@
 # Dependency directories
 node_modules/
 __pycache__/
+*.pyc
 
-# Environment variables
+# Environment variables - NEVER commit these!
 .env
+.env.local
+.env.*.local
 
 # Build outputs
 dist/
 build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Docker
+.dockerignore is kept in repo
+
+# Package locks (optional - can keep these)
+# package-lock.json
+# yarn.lock
+
+# Prisma
+*.db
+
+# Secrets backup files
+*.bak
+*.orig

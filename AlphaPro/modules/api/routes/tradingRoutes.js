@@ -5,10 +5,10 @@ const express = require('express');
 const router = express.Router();
 
 // Import Ranking Engine for low-latency cache access
-const rankingEngine = require('../../engine/services/RankingEngine');
+const rankingEngine = require('../../modules/engine/services/RankingEngine');
 
 // Import TradeExecutor for production execution
-const TradeExecutor = require('../../engine/services/TradeExecutor');
+const TradeExecutor = require('../../modules/engine/services/TradeExecutor');
 
 // Initialize TradeExecutor
 let tradeExecutor;

@@ -11,7 +11,7 @@ type AuthState = AuthStateTypes & {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -102,8 +102,10 @@ interface DashboardState {
   isLoading: boolean;
   error: string | null;
   lastUpdate: Date | null;
+  refreshInterval: number;
   
   // Actions
+  fetchStats: () => Promise<void>;
   fetchDeployments: () => Promise<void>;
   selectDeployment: (id: string) => void;
   addWallet: (wallet: Omit<Wallet, 'id' | 'createdAt'>) => Promise<void>;
@@ -112,6 +114,7 @@ interface DashboardState {
   fetchWalletBalances: () => Promise<void>;
   clearError: () => void;
   updateStatsFromRealtime: (tradeStats: TradeStats, engineMetrics: EngineMetrics) => void;
+  setRefreshInterval: (interval: number) => void;
 }
 
 export const useDashboardStore = create<DashboardState>()(
@@ -145,7 +148,24 @@ export const useDashboardStore = create<DashboardState>()(
       isLoading: false,
       error: null,
       lastUpdate: null,
+      refreshInterval: 5000,
       
+      setRefreshInterval: (interval: number) => set({ refreshInterval: interval }),
+      
+      fetchStats: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch('/api/stats');
+          if (!response.ok) {
+            throw new Error('Failed to fetch stats');
+          }
+          const stats: DeploymentStats = await response.json();
+          set({ stats, isLoading: false, lastUpdate: new Date() });
+        } catch (error) {
+          set({ error: 'Failed to fetch stats', isLoading: false });
+        }
+      },
+
       fetchDeployments: async () => {
         set({ isLoading: true, error: null });
         try {

@@ -1,34 +1,33 @@
-# --- Stage 1: Build Environment ---
-# Use a Node.js image to build the frontend application.
-FROM node:20-alpine AS build
+# Dockerfile for the React Dashboard
+# Stage 1: Build the React app
+FROM node:18-alpine as builder
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to leverage Docker cache
-COPY package.json ./
-COPY package-lock.json ./
+# Copy package files
+COPY package.json package-lock.json* ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application source code
+# Copy the rest of the app's source code
 COPY . .
 
-# Build the application for production
+# Make the API URL available at build time from the docker-compose args
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+# Increase memory for the build process to prevent out-of-memory errors,
+# which can cause the cryptic 'file already closed' error.
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
+# Build the app for production
 RUN npm run build
 
-# --- Stage 2: Production Environment ---
-# Use a lightweight Nginx image to serve the static files.
-FROM nginx:1.25-alpine
+# Stage 2: Serve the static files with a lightweight Nginx server
+FROM nginx:1.23-alpine
 
-# Copy the built static files from the build stage to the Nginx public directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy the build output from the builder stage
+COPY --from=builder /usr/src/app/dist /usr/share/nginx/html
 
-# Copy the custom Nginx configuration file
+# Copy the Nginx configuration to handle SPA routing
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80 for the web server
-EXPOSE 80
-
-# Command to run Nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
