@@ -24,7 +24,7 @@ FROM node:20-alpine
 WORKDIR /usr/src/app
 
 # Install build essentials required for compiling native Node.js modules.
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ openssl1.1-compat
 
 # Copy API package files from modules/api
 COPY modules/api/package.json modules/api/package-lock.json* ./
