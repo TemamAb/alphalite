@@ -47,11 +47,13 @@ COPY --from=dashboard-builder /dashboard/dist ./client/dist
 # Set the environment to production to enable serving of static files in app.js.
 ENV NODE_ENV=production
 
+# Create a writable tmp directory for temporary files (as root, before switching user)
+RUN mkdir -p /usr/src/app/tmp
+
 # Security: Run as non-root user to mitigate potential RCE impact
 USER node
 
-# Create a writable tmp directory for temporary files
-RUN mkdir -p /usr/src/app/tmp && chown -R node:node /usr/src/app
+RUN chown -R node:node /usr/src/app
 
 # Expose the port the API server will run on.
 EXPOSE 3000
