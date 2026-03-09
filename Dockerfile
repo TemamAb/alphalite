@@ -29,23 +29,18 @@ RUN apk add --no-cache python3 make g++
 # Copy API package files from modules/api
 COPY modules/api/package.json modules/api/package-lock.json* ./
 
+# Copy the Prisma schema. This is needed for `prisma generate`.
+COPY modules/api/prisma/ ./prisma/
+
 # Install production dependencies for the API.
 RUN npm install --omit=dev
 
-# Copy the entire modules directory to maintain proper require path resolution
-COPY modules/ ./modules/
+# Generate Prisma client
+RUN npx prisma generate
 
-# Copy config directory
+# Copy the rest of the API source code and config directory
+COPY modules/api/ ./
 COPY config/ ./config/
-
-# Copy app.js from correct location (modules/api/app.js)
-# Also copy middleware, routes, services, utils for relative imports
-COPY modules/api/app.js ./app.js
-COPY modules/api/middleware/ ./middleware/
-COPY modules/api/routes/ ./routes/
-COPY modules/api/services/ ./services/
-COPY modules/api/utils/ ./utils/
-COPY modules/api/prisma/ ./prisma/
 
 # Copy the built dashboard from the builder stage into the API's expected client directory.
 COPY --from=dashboard-builder /dashboard/dist ./client/dist
