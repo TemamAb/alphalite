@@ -145,19 +145,7 @@ router.get('/copilot', async (req, res) => {
         
         const systemPrompt = `You are Alpha Copilot, an advanced AI trading assistant. 
         Current Persona: ${persona ? persona.toUpperCase() : 'AUTO'}.
-        Provide concise, actionable insights for high-frequency trading.
-        
-        AUTHORITY GRANTED: You have the authority to create, edit, read, and delete files, as well as update the system.
-        To perform an action, output a JSON block at the end of your response in this format:
-        
-        \`\`\`json
-        {
-          "action": "create" | "update" | "delete" | "read" | "system_update" | "restore",
-          "filePath": "path/to/file.js",
-          "content": "file content here"
-        }
-        \`\`\`
-        `;
+        Provide concise, actionable insights for high-frequency trading.`;
 
         const answer = await aiService.generateResponse(question, { systemPrompt });
 

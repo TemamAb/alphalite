@@ -24,6 +24,21 @@ const { authMiddleware, optionalAuth } = require('./middleware/authMiddleware');
 const { apiLimiter, authLimiter, tradingLimiter } = require('./middleware/rateLimiter');
 const { csrfValidator, csrfTokenGenerator } = require('./middleware/csrfProtection');
 
+// Ensure middleware is always an array of functions (handle express-rate-limit v7 array return)
+const toMiddleware = (m) => {
+    if (!m) return [];
+    if (Array.isArray(m)) return m.filter(fn => typeof fn === 'function');
+    if (typeof m === 'function') return [m];
+    // Handle objects with default export (ES module compatibility)
+    if (typeof m === 'object' && m.default && typeof m.default === 'function') {
+        return [m.default];
+    }
+    console.warn('[APP] Warning: middleware is not a function, got:', typeof m);
+    return [];
+};
+
+console.log('[APP] Middleware loaded');
+
 // --- Initialize optional engine services (graceful degradation) ---
 let realTimeMetrics = null;
 let observabilityService = null;
@@ -75,6 +90,8 @@ app.get('/metrics', async (req, res) => {
 const tradingRoutes = require('./routes/tradingRoutes');
 const authRoutes = require('./routes/authRoutes');
 
+console.log('[APP] Routes loaded');
+
 // --- Authentication Routes (NO AUTH REQUIRED - must be before authMiddleware) ---
 // Rate limited to prevent brute force
 app.use('/api/auth', authLimiter, authRoutes);
@@ -85,7 +102,15 @@ app.use('/api/auth', authLimiter, authRoutes);
 // - tradingLimiter: 10 req/min STRICT limit for trading
 // - authMiddleware: JWT authentication required
 // - csrfValidator: Validates X-CSRF-Token header/cookie
-app.use('/api', apiLimiter, tradingLimiter, authMiddleware, csrfValidator, tradingRoutes);
+// Use toMiddleware helper to ensure each is an array of functions
+const protectedMiddleware = [
+    ...toMiddleware(apiLimiter),
+    ...toMiddleware(tradingLimiter),
+    ...toMiddleware(authMiddleware),
+    ...toMiddleware(csrfValidator),
+    tradingRoutes
+];
+app.use('/api', ...protectedMiddleware);
 
 // --- Start Real-Time Metrics Service ---
 if (realTimeMetrics && realTimeMetrics.start) {
