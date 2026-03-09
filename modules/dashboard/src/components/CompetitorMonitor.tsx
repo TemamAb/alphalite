@@ -118,7 +118,7 @@ const CompetitorMonitor: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <span>{((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, displayCompetitors.length)} of {displayCompetitors.length}</span>
+                            <span>{((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, paginatedCompetitors.length)} of {paginatedCompetitors.length}</span>
                         </div>
                         <div className="flex gap-1">
                             <button

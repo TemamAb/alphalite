@@ -29,11 +29,6 @@ interface DailyStats {
     gasProfitRatio: number; // Gas / Profit ratio in %
 }
 
-interface AIGenome {
-    chain: Record<string, number>;
-    dex: Record<string, number>;
-    pair: Record<string, number>;
-}
 
 const StrategiesPage: React.FC = () => {
     const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
