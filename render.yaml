@@ -4,6 +4,18 @@
 # All secrets MUST be configured in Render Dashboard > Environment > Secrets
 
 services:
+  # PostgreSQL Database (Required for API)
+  - name: alphapro-db
+    runtime: postgres
+    plan: starter
+    branch: master
+
+  # Redis Cache (Required for API)
+  - name: alphapro-redis
+    runtime: redis
+    plan: starter
+    branch: master
+
   # The Brain (Python Sidecar) - AI Analysis
   - name: alphapro-brain
     runtime: python
@@ -28,6 +40,14 @@ services:
     branch: master
     envVars:
       # ============================================
+      # DATABASE & CACHE - Auto-provisioned by Render
+      # ============================================
+      - key: DATABASE_URL
+        fromSecret: database_url
+      - key: REDIS_URL
+        fromSecret: redis_url
+
+      # ============================================
       # 🔴 CRITICAL: Set these in Render Secrets!
       # ============================================
       
@@ -35,7 +55,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: TRADING_MODE
-        value: LIVE
+        value: PAPER
       - key: PORT
         value: "3000"
 
@@ -135,3 +155,4 @@ services:
         value: https://alphapro-api.onrender.com
       - key: VITE_WS_URL
         value: wss://alphapro-api.onrender.com/ws
+

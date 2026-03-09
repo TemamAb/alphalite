@@ -1,10 +1,14 @@
+# =============================================================================
+# AlphaPro Production Dockerfile
+# Builds: Dashboard (React) + API (Node.js) in a single container
+# =============================================================================
+
 # --- Stage 1: Build Dashboard (Frontend) ---
-# Use the specified Node.js version for the dashboard build environment.
 FROM node:20-alpine3.18 AS dashboard-builder
 
 WORKDIR /dashboard
 
-# Copy dashboard package files - FROM ROOT context, look in modules/dashboard
+# Copy dashboard package files - FROM ROOT context
 COPY modules/dashboard/package.json modules/dashboard/package-lock.json* ./
 
 # Install dashboard dependencies
@@ -18,7 +22,6 @@ RUN npm run build
 
 
 # --- Stage 2: Build API (Backend) & Create Final Production Image ---
-# Use Node.js 20 for better AWS SDK compatibility
 FROM node:20-alpine3.18
 
 WORKDIR /usr/src/app
@@ -29,17 +32,22 @@ RUN apk update && apk add --no-cache python3 make g++ openssl1.1-compat
 # Copy API package files from modules/api
 COPY modules/api/package.json modules/api/package-lock.json* ./
 
-# Copy the Prisma schema. This is needed for `prisma generate`.
-COPY modules/api/prisma/ ./prisma/
-
 # Install production dependencies for the API.
 RUN npm install --omit=dev
 
-# Generate Prisma client
+# Copy the Prisma schema. This is needed for `prisma generate`.
+COPY modules/api/prisma/ ./prisma/
+
+# Generate Prisma client for production
 RUN npx prisma generate
 
-# Copy the rest of the API source code and config directory
+# Copy the rest of the API source code
 COPY modules/api/ ./
+
+# Copy engine services
+COPY modules/engine/ ./modules/engine/
+
+# Copy config directory
 COPY config/ ./config/
 
 # Copy the built dashboard from the builder stage into the API's expected client directory.
@@ -55,7 +63,7 @@ RUN mkdir -p /usr/src/app/tmp && chmod 777 /usr/src/app/tmp
 EXPOSE 3000
 
 # Define the command to start the application.
-CMD [ "node", "app.js" ]
+CMD [ "node", "modules/api/app.js" ]
 
 # =============================================================================
 # SECURITY NOTES:
@@ -68,3 +76,4 @@ CMD [ "node", "app.js" ]
 #   tmpfs:
 #     - /tmp
 # =============================================================================
+
