@@ -1,6 +1,6 @@
 # --- Stage 1: Build Dashboard (Frontend) ---
 # Use the specified Node.js version for the dashboard build environment.
-FROM node:20-alpine AS dashboard-builder
+FROM node:20-alpine3.18 AS dashboard-builder
 
 WORKDIR /dashboard
 
@@ -19,12 +19,12 @@ RUN npm run build
 
 # --- Stage 2: Build API (Backend) & Create Final Production Image ---
 # Use Node.js 20 for better AWS SDK compatibility
-FROM node:20-alpine
+FROM node:20-alpine3.18
 
 WORKDIR /usr/src/app
 
 # Install build essentials required for compiling native Node.js modules.
-RUN apk add --no-cache python3 make g++ openssl1.1-compat
+RUN apk update && apk add --no-cache python3 make g++ openssl1.1-compat
 
 # Copy API package files from modules/api
 COPY modules/api/package.json modules/api/package-lock.json* ./
