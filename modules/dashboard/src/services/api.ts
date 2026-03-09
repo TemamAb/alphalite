@@ -2,25 +2,64 @@ import type { Deployment, DeploymentStats, SystemHealth, ApiMetrics, Wallet, Eng
 
 const API_BASE_URL = ''; // Use relative URLs for nginx proxy or set VITE_API_URL
 
-// Generic fetch wrapper with error handling
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+// Request timeout in milliseconds
+const REQUEST_TIMEOUT = 30000; // 30 seconds
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Generic fetch wrapper with timeout and retry logic
+async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MAX_RETRIES): Promise<T> {
   const token = localStorage.getItem('auth_token');
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-  });
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Network error' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      // If it's a 5xx error and we have retries left, retry the request
+      if (response.status >= 500 && retries > 0) {
+        console.warn(`[API] Server error ${response.status}, retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchApi(endpoint, options, retries - 1);
+      }
+      
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    
+    // Handle abort error (timeout)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${REQUEST_TIMEOUT}ms`);
+    }
+    
+    // Handle network errors with retry
+    if (retries > 0 && error instanceof TypeError && error.message.includes('Network')) {
+      console.warn(`[API] Network error, retrying... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return fetchApi(endpoint, options, retries - 1);
+    }
+    
+    throw error;
   }
-
-  return response.json();
 }
 
 // Deployment API
@@ -112,13 +151,27 @@ export const walletApi = {
 };
 
 // Engine API
+// Extended to support Engine-Deployment linking
+export interface EngineStartOptions {
+  deploymentId?: string;
+  deploymentName?: string;
+  walletAddress?: string;
+  mode?: 'live' | 'test';
+}
+
 export const engineApi = {
   getStatus: () => fetchApi<EngineStatus>('/api/engine/status'),
   
-  start: (mode: 'live') =>
+  start: (mode: 'live', options?: EngineStartOptions) =>
     fetchApi<EngineStatus>('/api/engine/state', {
       method: 'POST',
-      body: JSON.stringify({ action: 'start', mode: 'LIVE' }),
+      body: JSON.stringify({ 
+        action: 'start', 
+        mode: mode.toUpperCase(),
+        deploymentId: options?.deploymentId,
+        deploymentName: options?.deploymentName,
+        walletAddress: options?.walletAddress
+      }),
     }),
   
   stop: () =>

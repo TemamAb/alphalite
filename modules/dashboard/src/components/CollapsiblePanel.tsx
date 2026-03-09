@@ -7,6 +7,7 @@ interface CollapsiblePanelProps {
   children: React.ReactNode;
   defaultExpanded?: boolean;
   preview?: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
 export default function CollapsiblePanel({ 
@@ -14,7 +15,8 @@ export default function CollapsiblePanel({
   tooltip, 
   children, 
   defaultExpanded = true,
-  preview 
+  preview,
+  icon
 }: CollapsiblePanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -30,6 +32,7 @@ export default function CollapsiblePanel({
           ) : (
             <ChevronRight className="w-4 h-4 text-slate-400" />
           )}
+          {icon && <span className="text-slate-400">{icon}</span>}
           <span className="text-sm font-medium text-slate-200 font-mono">{title}</span>
         </div>
         {tooltip && (

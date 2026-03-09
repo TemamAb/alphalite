@@ -1,52 +1,91 @@
 version: '3.8'
 
 services:
-  # Nginx Reverse Proxy - The single entry point for the application
-  nginx:
+  # AlphaPro Engine API
+  alphapro:
     build:
       context: .
-      dockerfile: Dockerfile.nginx # Use the specific Dockerfile for the proxy
-    container_name: alphapro-proxy
+      dockerfile: Dockerfile
+    container_name: alphapro_engine
+    restart: unless-stopped
     ports:
-      - "80:80" # Expose the main app on port 80
-      - "443:443" # For future SSL
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://alphapro:alphapro_secure_pwd@postgres:5432/alphapro
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env
+    volumes:
+      - ./config:/usr/src/app/config
+    networks:
+      - alphapro-net
     depends_on:
-      - engine
-      - brain
-      - dashboard
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # The Node.js Engine/API Service
-  engine:
-    build:
-      context: .
-      dockerfile: ./modules/api/Dockerfile
-    container_name: alphapro-engine
-    env_file:
-      - .env
-    # Ports are not exposed to the host; access is through the nginx proxy
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: alphapro_postgres
     restart: unless-stopped
+    environment:
+      - POSTGRES_USER=alphapro
+      - POSTGRES_PASSWORD=alphapro_secure_pwd
+      - POSTGRES_DB=alphapro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapro -d alphapro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # The Python Brain Service
-  brain:
-    build:
-      context: ./modules/brain
-      dockerfile: Dockerfile
-    container_name: alphapro-brain
-    env_file:
-      - .env
-    # Ports are not exposed to the host; access is through the nginx proxy
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro_redis
     restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
-  # The React Dashboard Service
-  dashboard:
-    build:
-      context: ./modules/dashboard
-      dockerfile: Dockerfile
-      args:
-        # The API is now served from the same origin under /api/
-        # An empty string means relative paths will be used (e.g., /api/...)
-        VITE_API_URL: ""
-    container_name: alphapro-dashboard
-    # The dashboard is not exposed directly. The nginx proxy serves it.
-    restart: unless-stopped
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  alphapro-net:
+    driver: bridge
+

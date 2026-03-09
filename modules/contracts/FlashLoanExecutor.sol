@@ -4,418 +4,24 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title FlashLoanExecutor
- * @dev Enterprise-grade flash loan executor with complete arbitrage logic
- * Supports multi-hop swaps across Uniswap V3, Sushiswap, and Curve
- * Integrates Chainlink price feeds for validation
+ * @dev Enterprise-grade Flash Loan Executor with UUPS upgradeability,
+ *      Role-Based Access Control, and Circuit Breakers.
+ *      Implements Protocol 7 (Sentinel Mandate) enforcement on-chain.
  */
-contract FlashLoanExecutor is 
-    Initializable, 
-    UUPSUpgradeable, 
-    AccessControlUpgradeable, 
-    ReentrancyGuardUpgradeable 
-{
-    using SafeERC20 for IERC20;
-    using Address for address;
 
-    // ============ Roles ============
-    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
+// --- Interfaces ---
 
-    // ============ Core Addresses ============
-    IPool public LENDING_POOL;
-    address public TREASURY_WALLET;
-    address publicKeeper;
-
-    // ============ DEX Router Interfaces ============
-    address public uniswapV3Router;
-    address public sushiswapRouter;
-    address public curvePool;
-
-    // ============ Chainlink Price Feeds ============
-    mapping(address => address) public priceFeeds; // token -> price feed
-    mapping(address => bool) public isTokenSupported;
-
-    // ============ Circuit Breaker ============
-    bool public circuitBreakerActive;
-    uint256 public maxTradeAmount;
-    uint256 public minProfitThreshold;
-    uint256 public priceDeviationThreshold; // in basis points (10000 = 100%)
-
-    // ============ Trading State ============
-    struct Trade {
-        uint256 id;
-        address token;
-        uint256 amount;
-        uint256 profit;
-        uint256 timestamp;
-        bool executed;
-    }
-    
-    mapping(uint256 => Trade) public trades;
-    uint256 public tradeCounter;
-    uint256 public totalProfit;
-    uint256 public successfulTrades;
-    uint256 public failedTrades;
-
-    // ============ Events ============
-    event FlashLoanExecuted(address indexed token, uint256 amount, uint256 profit);
-    event TradeExecuted(uint256 indexed tradeId, uint256 profit);
-    event TradeFailed(uint256 indexed tradeId, string reason);
-    event CircuitBreakerTriggered(string reason);
-    event ProfitWithdrawn(address indexed to, uint256 amount);
-    event PriceFeedUpdated(address indexed token, address feed);
-    event GovernanceUpdated(string field, address value);
-
-    // ============ Custom Errors ============
-    error CircuitBreakerActive();
-    error AmountExceedsMaxTrade();
-    error InsufficientProfit();
-    error PriceDeviationTooHigh();
-    error InvalidPath();
-    error SwapFailed(bytes reason);
-    error ZeroAddress();
-    error Unauthorized();
-
-    // ============ Modifiers ============
-    modifier whenNotPaused() {
-        if (circuitBreakerActive) revert CircuitBreakerActive();
-        _;
-    }
-
-    modifier onlyExecutor() {
-        if (!hasRole(EXECUTOR_ROLE, msg.sender) && msg.sender != publicKeeper) revert Unauthorized();
-        _;
-    }
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(
-        address _lendingPool,
-        address _treasury,
-        address _uniswapV3Router,
-        address _sushiswapRouter,
-        address _curvePool
-    ) public initializer {
-        __AccessControl_init();
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(UPGRADER_ROLE, msg.sender);
-        _grantRole(EXECUTOR_ROLE, msg.sender);
-        _grantRole(KEEPER_ROLE, msg.sender);
-
-        if (_lendingPool == address(0)) revert ZeroAddress();
-        if (_treasury == address(0)) revert ZeroAddress();
-
-        LENDING_POOL = IPool(_lendingPool);
-        TREASURY_WALLET = _treasury;
-        publicKeeper = msg.sender;
-
-        // Set DEX routers
-        uniswapV3Router = _uniswapV3Router;
-        sushiswapRouter = _sushiswapRouter;
-        curvePool = _curvePool;
-
-        // Default circuit breaker settings
-        maxTradeAmount = 1_000_000e18; // 1M tokens
-        minProfitThreshold = 1e16; // 0.01 ETH minimum profit
-        priceDeviationThreshold = 500; // 5% max deviation
-
-        // Enable support for common tokens
-        _setupTokenSupport();
-    }
-
-    /**
-     * @dev Setup supported tokens with Chainlink price feeds
-     */
-    function _setupTokenSupport() internal {
-        // Ethereum mainnet price feeds (replace with actual addresses for production)
-        // These would be Chainlink price feed addresses
-    }
-
-    /**
-     * @dev Add or update a token's price feed
-     */
-    function setPriceFeed(address token, address feed) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0) || feed == address(0)) revert ZeroAddress();
-        priceFeeds[token] = feed;
-        isTokenSupported[token] = true;
-        emit PriceFeedUpdated(token, feed);
-    }
-
-    /**
-     * @dev Update circuit breaker settings
-     */
-    function updateCircuitBreaker(
-        bool _active,
-        uint256 _maxTradeAmount,
-        uint256 _minProfit,
-        uint256 _deviationThreshold
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        circuitBreakerActive = _active;
-        maxTradeAmount = _maxTradeAmount;
-        minProfitThreshold = _minProfit;
-        priceDeviationThreshold = _deviationThreshold;
-    }
-
-    /**
-     * @dev Update governance addresses
-     */
-    function updateGovernance(string calldata field, address value) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (value == address(0)) revert ZeroAddress();
-        
-        if (keccak256(abi.encodePacked(field)) == keccak256(abi.encodePacked("treasury"))) {
-            TREASURY_WALLET = value;
-        } else if (keccak256(abi.encodePacked(field)) == keccak256(abi.encodePacked("uniswap"))) {
-            uniswapV3Router = value;
-        } else if (keccak256(abi.encodePacked(field)) == keccak256(abi.encodePacked("sushi"))) {
-            sushiswapRouter = value;
-        } else if (keccak256(abi.encodePacked(field)) == keccak256(abi.encodePacked("curve"))) {
-            curvePool = value;
-        }
-        
-        emit GovernanceUpdated(field, value);
-    }
-
-    /**
-     * @dev Request flash loan and execute arbitrage
-     */
-    function requestFlashLoan(
-        address token,
-        uint256 amount,
-        bytes calldata params
-    ) external onlyExecutor whenNotPaused nonReentrant {
-        if (amount > maxTradeAmount) revert AmountExceedsMaxTrade();
-
-        address[] memory assets = new address[](1);
-        assets[0] = token;
-        
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = amount;
-        
-        uint256[] memory modes = new uint256[](1);
-        modes[0] = 0; // 0 = repay flash loan
-        
-        // Encode execution params
-        bytes memory executionData = abi.encode(
-            token,
-            amount,
-            params
-        );
-
-        LENDING_POOL.flashLoan(
-            address(this),
-            assets,
-            amounts,
-            modes,
-            address(this),
-            executionData,
-            0
-        );
-    }
-
-    /**
-     * @dev Callback from lending pool - execute arbitrage logic
-     */
-    function executeOperation(
-        address[] calldata assets,
-        uint256[] calldata amounts,
-        uint256[] calldata premiums,
-        address /* initiator */,
-        bytes calldata params
-    ) external override returns (bool) {
-        // Verify caller is lending pool
-        require(msg.sender == address(LENDING_POOL), "Caller must be Lending Pool");
-
-        (address token, uint256 loanAmount, bytes memory executionData) = 
-            abi.decode(params, (address, uint256, bytes));
-
-        uint256 amountOwing = amounts[0] + premiums[0];
-        
-        // Record trade
-        uint256 tradeId = ++tradeCounter;
-        trades[tradeId] = Trade({
-            id: tradeId,
-            token: token,
-            amount: loanAmount,
-            profit: 0,
-            timestamp: block.timestamp,
-            executed: false
-        });
-
-        // Execute arbitrage
-        uint256 profit = 0;
-        try this._executeArbitrage(token, loanAmount, executionData) returns (uint256 _profit) {
-            profit = _profit;
-            
-            // Validate profit
-            if (profit < minProfitThreshold) {
-                // Revert - not enough profit to cover costs
-                revert InsufficientProfit();
-            }
-
-            // Update trade
-            trades[tradeId].profit = profit;
-            trades[tradeId].executed = true;
-            successfulTrades++;
-            totalProfit += profit;
-
-            // Approve repayment
-            IERC20(assets[0]).forceApprove(address(LENDING_POOL), amountOwing);
-
-            emit FlashLoanExecuted(token, loanAmount, profit);
-            emit TradeExecuted(tradeId, profit);
-
-        } catch (bytes memory reason) {
-            failedTrades++;
-            emit TradeFailed(tradeId, _getRevertReason(reason));
-            
-            // Ensure we can still repay the loan
-            IERC20(assets[0]).forceApprove(address(LENDING_POOL), amountOwing);
-        }
-
-        return true;
-    }
-
-    /**
-     * @dev Internal arbitrage execution logic
-     * Supports multi-hop swaps via Uniswap V3
-     */
-    function _executeArbitrage(
-        address tokenIn,
-        uint256 amountIn,
-        bytes calldata /* executionData */
-    ) external returns (uint256) {
-        // This is called via try-catch, so it executes in the context of this contract
-        
-        // Step 1: Validate price if feed exists
-        if (priceFeeds[tokenIn] != address(0)) {
-            _validatePrice(tokenIn);
-        }
-
-        // Step 2: Execute swap via Uniswap V3 (simplified for compilation)
-        // In production, this would include multi-hop path construction
-        // Example: TokenA -> ETH -> TokenB -> TokenA
-        
-        // For now, simulate a successful swap and return profit
-        // Actual implementation would swap through DEXes and calculate profit
-        
-        // Approve router
-        IERC20(tokenIn).forceApprove(uniswapV3Router, amountIn);
-        
-        // Return simulated profit (in production, this is actual swap result)
-        // Profit comes from price difference between DEXs
-        uint256 estimatedProfit = amountIn / 100; // 1% estimated profit
-        
-        return estimatedProfit;
-    }
-
-    /**
-     * @dev Validate price from Chainlink to prevent sandwich attacks
-     */
-    function _validatePrice(address token) internal view {
-        address feed = priceFeeds[token];
-        if (feed == address(0)) return;
-        
-        // In production, would call Chainlink feed latestAnswer()
-        // and compare with expected price range
-        // For now, this is a placeholder
-    }
-
-    /**
-     * @dev Emergency circuit breaker trigger
-     */
-    function triggerCircuitBreaker(string calldata reason) external onlyRole(KEEPER_ROLE) {
-        circuitBreakerActive = true;
-        emit CircuitBreakerTriggered(reason);
-    }
-
-    /**
-     * @dev Resume operations after circuit breaker
-     */
-    function resumeOperations() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        circuitBreakerActive = false;
-    }
-
-    /**
-     * @dev Withdraw profits to treasury
-     */
-    function withdrawProfit(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        require(amount > 0, "Cannot withdraw 0");
-        require(amount <= totalProfit, "Insufficient profit");
-        
-        totalProfit -= amount;
-        
-        // Send ETH or WETH to treasury
-        (bool success, ) = TREASURY_WALLET.call{value: amount}("");
-        require(success, "Transfer failed");
-        
-        emit ProfitWithdrawn(TREASURY_WALLET, amount);
-    }
-
-    /**
-     * @dev Withdraw stuck tokens
-     */
-    function withdrawTokens(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (amount == 0) {
-            amount = IERC20(token).balanceOf(address(this));
-        }
-        IERC20(token).safeTransfer(TREASURY_WALLET, amount);
-    }
-
-    /**
-     * @dev Get trade details
-     */
-    function getTrade(uint256 tradeId) external view returns (Trade memory) {
-        return trades[tradeId];
-    }
-
-    /**
-     * @dev Get contract statistics
-     */
-    function getStats() external view returns (
-        uint256 _totalProfit,
-        uint256 _successfulTrades,
-        uint256 _failedTrades,
-        bool _circuitBreaker
-    ) {
-        return (totalProfit, successfulTrades, failedTrades, circuitBreakerActive);
-    }
-
-    /**
-     * @dev Helper to extract revert reason
-     */
-    function _getRevertReason(bytes memory returnData) internal pure returns (string memory) {
-        if (returnData.length == 0) return "Unknown error";
-        
-        // Try to decode as string
-        if (returnData.length >= 4 && bytes4(returnData) == bytes4(keccak256("Error(string)"))) {
-            return abi.decode(returnData[4:], (string));
-        }
-        
-        return "Execution failed";
-    }
-
-    // ============ UUPS Upgrade Authorization ============
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
-
-    // ============ Receive ETH ============
-    receive() external payable {}
+interface IChainlinkOracle {
+    function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 }
 
-// ============ Aave V3 Pool Interface ============
 interface IPool {
     function flashLoan(
         address receiverAddress,
@@ -428,12 +34,7 @@ interface IPool {
     ) external;
 }
 
-// ============ Uniswap V3 Router Interface ============
-interface IUniswapV3Router {
-    function exactInputSingle(
-        struct ExactInputSingleParams calldata params
-    ) external payable returns (uint256 amountOut);
-    
+interface ISwapRouter {
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;
@@ -444,4 +45,248 @@ interface IUniswapV3Router {
         uint256 amountOutMinimum;
         uint160 sqrtPriceLimitX96;
     }
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}
+
+contract FlashLoanExecutor is 
+    Initializable, 
+    UUPSUpgradeable, 
+    AccessControlUpgradeable, 
+    PausableUpgradeable, 
+    ReentrancyGuardUpgradeable 
+{
+    using SafeERC20 for IERC20;
+
+    // --- Roles ---
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant SENTINEL_ROLE = keccak256("SENTINEL_ROLE");
+
+    // --- Configuration ---
+    IPool public lendingPool;
+    ISwapRouter public swapRouter;
+    
+    // --- Circuit Breaker State ---
+    uint256 public maxLossThreshold; // Max allowed loss in basis points (if any logic allows loss)
+    bool public circuitBreakerTriggered;
+    uint256 public constant ORACLE_TIMEOUT = 1 hours;
+    
+    // Token -> Oracle Address
+    mapping(address => address) public priceFeeds;
+
+    // --- Events ---
+    event FlashLoanRequested(address indexed token, uint256 amount);
+    event TradeExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+    event ProfitGenerated(address indexed token, uint256 profit);
+    event CircuitBreakerTriggered(string reason);
+    event Withdrawn(address indexed token, uint256 amount, address indexed to);
+    event OracleUpdated(address indexed token, address indexed oracle);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @dev Initialization function for UUPS proxy
+     */
+    function initialize(
+        address _admin, 
+        address _operator,
+        address _lendingPool,
+        address _swapRouter
+    ) public initializer {
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
+        __PausableUpgradeable_init();
+        __ReentrancyGuardUpgradeable_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(UPGRADER_ROLE, _admin);
+        _grantRole(OPERATOR_ROLE, _operator);
+        _grantRole(SENTINEL_ROLE, _admin); // Admin acts as default Sentinel
+        
+        lendingPool = IPool(_lendingPool);
+        swapRouter = ISwapRouter(_swapRouter);
+        
+        circuitBreakerTriggered = false;
+    }
+
+    /**
+     * @dev Required by UUPS module to authorize upgrades
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+    // --- Core Logic ---
+
+    /**
+     * @dev Initiates a flash loan. Only callable by operators.
+     * @param token The asset to borrow
+     * @param amount The amount to borrow
+     * @param params Encoded parameters for the execution logic
+     */
+    function requestFlashLoan(
+        address token,
+        uint256 amount,
+        bytes calldata params
+    ) external onlyRole(OPERATOR_ROLE) whenNotPaused nonReentrant {
+        require(!circuitBreakerTriggered, "Circuit breaker active");
+        _checkOracleStaleness(token); // Enforce oracle health check
+
+        address[] memory assets = new address[](1);
+        assets[0] = token;
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount;
+
+        uint256[] memory modes = new uint256[](1);
+        modes[0] = 0; // 0 = no debt, must repay in same block
+
+        emit FlashLoanRequested(token, amount);
+
+        lendingPool.flashLoan(
+            address(this),
+            assets,
+            amounts,
+            modes,
+            address(this),
+            params,
+            0
+        );
+    }
+
+    /**
+     * @dev Callback function called by Aave V3 Pool after transferring assets
+     */
+    function executeOperation(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool) {
+        require(msg.sender == address(lendingPool), "Caller must be lending pool");
+        require(initiator == address(this), "Initiator must be this contract");
+
+        // Decode params to determine strategy
+        // For simplicity in this verification, we assume a simple swap strategy
+        // In production, this would decode a struct with specific execution steps
+        (address targetToken, uint24 fee) = abi.decode(params, (address, uint24));
+
+        address asset = assets[0];
+        uint256 amount = amounts[0];
+        uint256 premium = premiums[0];
+        uint256 amountToRepay = amount + premium;
+
+        // 1. Execute Arbitrage Strategy
+        uint256 acquiredAmount = _executeSwap(asset, targetToken, amount, fee);
+        
+        // 2. Swap back to original asset (if needed)
+        uint256 finalAmount = _executeSwap(targetToken, asset, acquiredAmount, fee);
+
+        // 3. Verify Profitability
+        if (finalAmount < amountToRepay) {
+            // REVERT if unprofitable - this ensures the flash loan fails and we only lose gas
+            revert("Unprofitable trade");
+        }
+
+        uint256 profit = finalAmount - amountToRepay;
+        emit ProfitGenerated(asset, profit);
+
+        // 4. Approve repayment
+        IERC20(asset).safeApprove(address(lendingPool), amountToRepay);
+
+        return true;
+    }
+
+    /**
+     * @dev Internal swap execution using Uniswap V3
+     */
+    function _executeSwap(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint24 fee
+    ) internal returns (uint256 amountOut) {
+        IERC20(tokenIn).safeApprove(address(swapRouter), amountIn);
+
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: fee,
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: amountIn,
+            amountOutMinimum: 0, // Slippage protection handled by simulation in Engine
+            sqrtPriceLimitX96: 0
+        });
+
+        amountOut = swapRouter.exactInputSingle(params);
+        emit TradeExecuted(tokenIn, tokenOut, amountIn, amountOut);
+    }
+
+    // --- Oracle & Security ---
+
+    /**
+     * @dev Checks for stale prices from Chainlink to prevent trading on bad data
+     */
+    function _checkOracleStaleness(address token) internal view {
+        address feed = priceFeeds[token];
+        if (feed != address(0)) {
+            (,, uint256 startedAt,,) = IChainlinkOracle(feed).latestRoundData();
+            require(block.timestamp - startedAt < ORACLE_TIMEOUT, "Oracle price stale");
+        }
+    }
+
+    /**
+     * @dev Emergency function to trigger circuit breaker
+     */
+    function triggerCircuitBreaker(string memory reason) external onlyRole(SENTINEL_ROLE) {
+        circuitBreakerTriggered = true;
+        _pause();
+        emit CircuitBreakerTriggered(reason);
+    }
+
+    /**
+     * @dev Reset circuit breaker
+     */
+    function resetCircuitBreaker() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        circuitBreakerTriggered = false;
+        _unpause();
+    }
+
+    // --- Admin Functions ---
+
+    /**
+     * @dev Withdraw assets (profit) from the contract
+     */
+    function withdraw(address token, uint256 amount, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) {
+            (bool success, ) = to.call{value: amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(token).safeTransfer(to, amount);
+        }
+        emit Withdrawn(token, amount, to);
+    }
+
+    /**
+     * @dev Set oracle feed for a token
+     */
+    function setPriceFeed(address token, address feed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        priceFeeds[token] = feed;
+        emit OracleUpdated(token, feed);
+    }
+
+    /**
+     * @dev Rescue stuck funds (emergency only)
+     */
+    function rescueFunds(address token, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransfer(to, balance);
+        emit Withdrawn(token, balance, to);
+    }
+
+    // --- Receive ETH ---
+    receive() external payable {}
 }

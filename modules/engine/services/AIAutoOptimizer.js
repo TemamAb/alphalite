@@ -8,10 +8,13 @@
  */
 const rankingEngine = require('./RankingEngine');
 const brainConnector = require('./BrainConnector');
+const profitEngine = require('../EnterpriseProfitEngine');
+const competitorAnalysis = require('./CompetitorAnalysisService');
 
 class AIAutoOptimizer {
     constructor() {
         this.optimizationInterval = 30000; // 30 seconds
+        this.mutationRate = 0.1; // Default 10%
         this.timer = null;
         this.generation = 1;
         this.bestFitness = 0;
@@ -43,7 +46,7 @@ class AIAutoOptimizer {
         const internalFitness = this.evaluateInternalPerformance();
         
         // SOURCE 2: Competitor Forging (External Market Analysis)
-        const externalFitness = this.evaluateMarketMisses();
+        const externalFitness = await this.evaluateMarketMisses();
 
         // Dynamic Weighting based on Regime
         let internalWeight = 0.6;
@@ -54,7 +57,12 @@ class AIAutoOptimizer {
         if (regime === 'LOW_VOLATILITY') internalWeight = 0.4;
 
         // Calculate Total Fitness with dynamic weights
-        const totalFitness = (internalFitness * internalWeight) + (externalFitness * (1 - internalWeight));
+        const weightedInternal = internalFitness * internalWeight;
+        const weightedExternal = externalFitness * (1 - internalWeight);
+        const totalFitness = weightedInternal + weightedExternal;
+
+        const selfLearningPct = totalFitness > 0 ? (weightedInternal / totalFitness) * 100 : 0;
+        const competitorForgingPct = totalFitness > 0 ? (weightedExternal / totalFitness) * 100 : 0;
 
         // Evolution Logic
         if (totalFitness > this.bestFitness) {
@@ -75,7 +83,11 @@ class AIAutoOptimizer {
             fitness: totalFitness,
             timestamp: Date.now(),
             source: internalFitness > externalFitness ? 'Self-Learning' : 'Competitor-Forging',
-            regime: regime
+            regime: regime,
+            composition: {
+                selfLearning: selfLearningPct,
+                competitorForging: competitorForgingPct
+            }
         });
 
         // Keep history clean
@@ -87,19 +99,28 @@ class AIAutoOptimizer {
      * Metric: Profit per trade * Win Rate
      */
     evaluateInternalPerformance() {
-        // In a real system, this would query the TradeHistory service
-        // Mocking recent performance for the audit context
-        const recentWinRate = 0.85 + (Math.random() * 0.1); // 85-95%
-        const avgProfit = 0.05; // ETH
-        return recentWinRate * avgProfit * 100;
+        const stats = profitEngine.getStatus().stats;
+        
+        if (!stats || stats.totalTrades === 0) return 0;
+
+        const winRate = stats.successfulTrades / stats.totalTrades;
+        const avgProfit = stats.totalProfit / stats.totalTrades;
+
+        // Fitness Score = Win Rate * Avg Profit (ETH) * Scaling Factor
+        // Example: 0.8 * 0.05 * 1000 = 40
+        return winRate * avgProfit * 1000;
     }
 
     /**
      * Source 2: Look at opportunities we missed but the market took.
      * If high-volume pairs had low scores in our engine, our weights are wrong.
      */
-    evaluateMarketMisses() {
+    async evaluateMarketMisses() {
         const topPairs = rankingEngine.getTopPairs(10);
+        
+        // Get real competitor activity score (0-10)
+        const competitorScore = await competitorAnalysis.getMarketMisses();
+
         let alignmentScore = 0;
 
         // We want our top ranked pairs to match high-volume market pairs
@@ -111,14 +132,17 @@ class AIAutoOptimizer {
             }
         }
         
-        return (alignmentScore / 10) * 10; // Normalize to 0-10 scale
+        const internalAlignment = (alignmentScore / 10) * 10;
+        
+        // Combine internal alignment with external competitor activity
+        return (internalAlignment + competitorScore) / 2;
     }
 
     /**
      * Genetic Mutation: Randomly adjust weights to find better local maxima.
      */
     mutateGenome() {
-        const mutationRate = 0.1; // 10% change max
+        const mutationRate = this.mutationRate;
 
         // Helper to mutate a single weight object
         const mutateCategory = (category) => {
@@ -149,13 +173,29 @@ class AIAutoOptimizer {
             generation: this.generation,
             bestFitness: this.bestFitness,
             currentWeights: this.currentGenome,
-            history: this.evolutionHistory.slice(-10) // Last 10 generations
+            history: this.evolutionHistory.slice(-10), // Last 10 generations
+            config: {
+                mutationRate: this.mutationRate,
+                optimizationInterval: this.optimizationInterval
+            }
         };
     }
     
     triggerOptimization() {
         // Manual trigger for testing/demo
         this.evolve();
+    }
+
+    updateConfig(newConfig) {
+        if (newConfig.mutationRate) this.mutationRate = parseFloat(newConfig.mutationRate);
+        if (newConfig.optimizationInterval) {
+            this.optimizationInterval = parseInt(newConfig.optimizationInterval);
+            if (this.timer) {
+                clearInterval(this.timer);
+                this.timer = setInterval(() => this.evolve(), this.optimizationInterval);
+            }
+        }
+        console.log(`[AI-OPTIMIZER] Config updated: Rate=${this.mutationRate}, Interval=${this.optimizationInterval}`);
     }
 }
 

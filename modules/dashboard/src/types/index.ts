@@ -18,6 +18,10 @@ export interface Deployment {
     memory: number;
     disk: number;
   };
+  // Engine integration
+  engineActive?: boolean;
+  engineStartedAt?: string;
+  linkedWallet?: string;
 }
 
 export type DeploymentStatus = 'healthy' | 'degraded' | 'down' | 'starting';
@@ -58,6 +62,10 @@ export interface EngineStatus {
   strategies: string[];
   totalProfit: number;
   dailyProfit: number;
+  // Deployment integration
+  activeDeploymentId?: string;
+  activeDeploymentName?: string;
+  startedAt?: string;
 }
 
 // Health Types
@@ -158,6 +166,6 @@ export interface ApiResponse<T> {
 
 // WebSocket Types
 export interface WebSocketMessage {
-  type: 'health' | 'metrics' | 'deployment' | 'alert';
+  type: 'health' | 'metrics' | 'deployment' | 'alert' | 'trade' | 'log';
   payload: unknown;
 }

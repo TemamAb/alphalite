@@ -8,7 +8,9 @@ import BlockchainStream from './pages/BlockchainStream';
 import AlphaCopilot from './pages/AlphaCopilot';
 import Health from './pages/Health';
 import Settings from './pages/Settings';
+import AIOptimizer from './components/AIOptimizer';
 import { useAuthStore } from './stores';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -18,11 +20,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [checkAuth]);
   
   // Production mode - authentication REQUIRED for security
-  // In development, allow access without authentication for testing
+  // Auth can only be disabled via explicit env var in production builds
   if (!isAuthenticated) {
-    // Toggle this based on environment
-    const isDevMode = import.meta.env.DEV || true; // Set to false in production
-    if (!isDevMode) {
+    // Check environment - auth is REQUIRED by default, only disabled via explicit flag
+    const authDisabled = import.meta.env.VITE_AUTH_DISABLED === 'true';
+    if (!authDisabled) {
       return <Navigate to="/login" replace />;
     }
   }
@@ -32,28 +34,31 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Home />} />
-          <Route path="home" element={<Home />} />
-          <Route path="strategies" element={<Strategies />} />
-          <Route path="security" element={<Security />} />
-          <Route path="blockchain" element={<BlockchainStream />} />
-          <Route path="copilot" element={<AlphaCopilot />} />
-          <Route path="health" element={<Health />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Home />} />
+            <Route path="home" element={<Home />} />
+            <Route path="strategies" element={<Strategies />} />
+            <Route path="security" element={<Security />} />
+            <Route path="blockchain" element={<BlockchainStream />} />
+            <Route path="copilot" element={<AlphaCopilot />} />
+            <Route path="ai-optimizer" element={<AIOptimizer />} />
+            <Route path="health" element={<Health />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

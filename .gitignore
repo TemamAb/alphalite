@@ -7,6 +7,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+# EXCEPT - always keep the template file
+!.env.example
 
 # Build outputs
 dist/

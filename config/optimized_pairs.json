@@ -1,0 +1,201 @@
+{
+  "name": "AlphaPro Adaptive Configuration",
+  "version": "3.3.1",
+  "principle": "Adaptive Pareto - Dynamic 80/20 with +/- ranges",
+  "description": "Flexible pair scanning with adaptive optimization - NOT hardcoded",
+
+  "adaptive_config": {
+    "description": "Core 80/20 concept with flexible adaptation ranges",
+    
+    "base_targets": {
+      "tier1_percent": 20,
+      "profit_percent": 80,
+      "note": "Starting point - system adapts from here"
+    },
+    
+    "adaptive_ranges": {
+      "tier1_range": {
+        "min_percent": 10,
+        "max_percent": 30,
+        "description": "System will auto-adjust between 10-30% of pairs"
+      },
+      "profit_range": {
+        "min_percent": 60,
+        "max_percent": 95,
+        "description": "System targets 60-95% profit from top pairs"
+      }
+    },
+    
+    "adaptation": {
+      "factor": 0.1,
+      "description": "10% adjustment per optimization cycle",
+      "interval_ms": 60000,
+      "description": "Re-evaluate every 60 seconds"
+    }
+  },
+
+  "scanner_config": {
+    "total_max_pairs": 200,
+    "min_pairs_for_analysis": 20,
+    "scan_interval_ms": 100,
+    
+    "performance_thresholds": {
+      "success_rate_min": 0.5,
+      "profit_threshold_usd": 25,
+      "circuit_breaker_failures": 5,
+      "rebalance_trigger": "auto"
+    }
+  },
+
+  "tier_definitions": {
+    "tier1": {
+      "description": "CORE - High priority, always scanned",
+      "scan_frequency_ms": 100,
+      "selection": "score_based",
+      "auto_promote": true,
+      "auto_demote": true
+    },
+    "tier2": {
+      "description": "PERFORMERS - Medium priority",
+      "scan_frequency_ms": 250,
+      "selection": "score_based",
+      "auto_promote": true,
+      "auto_demote": true
+    },
+    "tier3": {
+      "description": "DISCOVERY - Low priority, exploration",
+      "scan_frequency_ms": 1000,
+      "selection": "random_exploration",
+      "auto_promote": true,
+      "auto_demote": false
+    }
+  },
+
+  "pair_scoring": {
+    "algorithm": "adaptive_weighted",
+    "components": {
+      "success_rate": {
+        "weight": 0.5,
+        "description": "Historical success rate"
+      },
+      "profit_avg": {
+        "weight": 0.3,
+        "description": "Average profit per execution"
+      },
+      "recency_bonus": {
+        "weight": 0.2,
+        "description": "Recent success streak bonus"
+      }
+    },
+    "penalties": {
+      "consecutive_failures": 5,
+      "penalty_per_failure": 5,
+      "max_penalty": 30
+    }
+  },
+
+  "optimization_rules": {
+    "expand_condition": {
+      "profit_from_top_20_percent": "< 60%",
+      "action": "Add more pairs to Tier 2"
+    },
+    "contract_condition": {
+      "profit_from_top_20_percent": "> 95%",
+      "action": "Focus more on top performers"
+    },
+    "rebalance_condition": {
+      "always": true,
+      "action": "Recalculate scores and reassign tiers"
+    },
+    "circuit_breaker": {
+      "consecutive_failures": 5,
+      "action": "Demote to Tier 3 automatically"
+    }
+  },
+
+  "initial_pairs": {
+    "description": "Starting pairs - system will adapt from here",
+    "priority_start": [
+      { "pair": "WETH/USDC", "chain": "ethereum", "score": 90 },
+      { "pair": "WETH/USDT", "chain": "ethereum", "score": 88 },
+      { "pair": "WBTC/USDC", "chain": "ethereum", "score": 86 },
+      { "pair": "USDC/USDT", "chain": "ethereum", "score": 95 },
+      { "pair": "LINK/WETH", "chain": "ethereum", "score": 80 },
+      { "pair": "UNI/WETH", "chain": "ethereum", "score": 78 },
+      { "pair": "AAVE/WETH", "chain": "ethereum", "score": 76 },
+      { "pair": "MKR/WETH", "chain": "ethereum", "score": 74 },
+      { "pair": "SNX/WETH", "chain": "ethereum", "score": 72 },
+      { "pair": "CRV/WETH", "chain": "ethereum", "score": 70 },
+      { "pair": "ARB/WETH", "chain": "arbitrum", "score": 75 },
+      { "pair": "OP/WETH", "chain": "optimism", "score": 73 },
+      { "pair": "MATIC/WETH", "chain": "polygon", "score": 71 },
+      { "pair": "WBNB/USDT", "chain": "bsc", "score": 70 },
+      { "pair": "WAVAX/USDC", "chain": "avalanche", "score": 68 }
+    ]
+  },
+
+  "chain_priority": {
+    "description": "Scan order by chain - can be adjusted",
+    "order": [
+      { "chain": "ethereum", "weight": 1.0 },
+      { "chain": "arbitrum", "weight": 0.8 },
+      { "chain": "optimism", "weight": 0.7 },
+      { "chain": "polygon", "weight": 0.6 },
+      { "chain": "bsc", "weight": 0.5 },
+      { "chain": "avalanche", "weight": 0.4 }
+    ]
+  },
+
+  "dex_priority": {
+    "description": "DEX preference order",
+    "order": [
+      "uniswap-v3",
+      "curve",
+      "sushiswap",
+      "pancakeswap-v3",
+      "quickswap",
+      "traderjoe",
+      "velodrome",
+      "camelot"
+    ]
+  },
+
+  "risk_parameters": {
+    "max_position_size_usd": 100000,
+    "max_slippage_bps": 100,
+    "min_profit_threshold_usd": 25,
+    "max_gas_price_gwei": 50,
+    "circuit_breaker": {
+      "enabled": true,
+      "consecutive_failures": 5,
+      "cooldown_ms": 60000
+    }
+  },
+
+  "monitoring": {
+    "log_level": "info",
+    "metrics_interval_ms": 30000,
+    "alert_on": [
+      "success_rate_below_50",
+      "profit_below_threshold_10_trades",
+      "circuit_breaker_triggered"
+    ]
+  },
+
+  "api_config": {
+    "rate_limits": {
+      "dexscreener": 300,
+      "birdeye": 60,
+      "coingecko": 30,
+      "thegraph": 100
+    },
+    "timeouts_ms": {
+      "http": 5000,
+      "websocket": 10000
+    },
+    "retries": {
+      "max_attempts": 3,
+      "backoff_ms": 1000
+    }
+  }
+}

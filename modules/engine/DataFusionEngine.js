@@ -3,6 +3,25 @@
  * Aggregates real-time data from Tier 1 (Nodes) and Tier 2 (DEX Aggregators).
  */
 
+// Structured logging setup - override console methods for structured logging
+let observability;
+try {
+    observability = require('./services/ObservabilityService');
+} catch (e) {
+    observability = null;
+}
+
+if (observability) {
+    const logger = {
+        info: (msg) => observability.info(msg),
+        warn: (msg) => observability.logger.warn(msg),
+        error: (msg, err) => observability.error(msg, err instanceof Error ? err : new Error(msg))
+    };
+    console.log = (...args) => logger.info(args.join(' '));
+    console.warn = (...args) => logger.warn(args.join(' '));
+    console.error = (...args) => logger.error(args.join(' '));
+}
+
 const EventEmitter = require('events');
 const WebSocket = require('ws');
 const ReconnectingWebSocket = require('reconnecting-websocket');

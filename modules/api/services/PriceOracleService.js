@@ -94,11 +94,17 @@ class PriceOracleService {
             include_sparkline: false
         };
         
+        // PRODUCTION: Use correct CoinGecko API header
+        // For free API: no key needed
+        // For pro API: use 'x-cg-demo-api-key' header (not params)
+        const config = {};
         if (this.config.coingecko.apiKey) {
-            params.x_cg_demo_api_key = this.config.coingecko.apiKey;
+            config.headers = {
+                'x-cg-demo-api-key': this.config.coingecko.apiKey
+            };
         }
         
-        const response = await axios.get(url, { params });
+        const response = await axios.get(url, { params, ...config });
         
         if (!response.data || !response.data[tokenId]) {
             throw new Error(`No price data for ${tokenId}`);
@@ -158,11 +164,15 @@ class PriceOracleService {
                 include_24hr_change: true
             };
             
+            // PRODUCTION: Use correct CoinGecko API header
+            const config = {};
             if (this.config.coingecko.apiKey) {
-                params.x_cg_demo_api_key = this.config.coingecko.apiKey;
+                config.headers = {
+                    'x-cg-demo-api-key': this.config.coingecko.apiKey
+                };
             }
             
-            const response = await axios.get(url, { params });
+            const response = await axios.get(url, { params, ...config });
             
             const prices = {};
             for (const [id, data] of Object.entries(response.data)) {

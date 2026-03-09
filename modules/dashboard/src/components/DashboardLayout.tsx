@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useDashboardStore, useAuthStore } from '@/stores';
+import { useDashboardStore, useAuthStore, useSystemStore } from '@/stores';
 import {
   LayoutDashboard,
   HeartPulse,
@@ -21,11 +21,14 @@ import {
   Cpu,
   Shield,
   Banknote,
+  ScrollText,
 } from 'lucide-react';
 import VolatilityGauge from './VolatilityGauge';
 import LiquidityMonitor from './LiquidityMonitor';
 import WhaleFeed from './WhaleFeed';
-import BribeMonitor from './BribeMonitor';
+import TradeFeed from './TradeFeed';
+import ConnectionStatus from './ConnectionStatus';
+import Tooltip from './Tooltip';
 
 // Header Component
 function Header() {
@@ -33,15 +36,62 @@ function Header() {
   const { user, logout } = useAuthStore();
   const { stats, refreshInterval, setRefreshInterval, fetchStats, fetchDeployments, wallets, fetchWalletBalances, engineStatus } = useDashboardStore();
   const [currency, setCurrency] = useState<'ETH' | 'USD'>('ETH');
+  const [ethPrice, setEthPrice] = useState<number>(2500); // Default fallback price
   const [localRefreshInterval, setLocalRefreshInterval] = useState('5s');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch real-time ETH price from multiple reliable sources
+  const fetchEthPrice = useCallback(async () => {
+    try {
+      // Try CoinGecko API (free, reliable)
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ethereum?.usd) {
+          setEthPrice(data.ethereum.usd);
+          return;
+        }
+      }
+      
+      // Fallback: Try Binance API
+      const binanceResponse = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT');
+      if (binanceResponse.ok) {
+        const binanceData = await binanceResponse.json();
+        if (binanceData.price) {
+          setEthPrice(parseFloat(binanceData.price));
+          return;
+        }
+      }
+      
+      // Fallback: Try CoinCap API
+      const coinCapResponse = await fetch('https://api.coincap.io/v2/assets/ethereum');
+      if (coinCapResponse.ok) {
+        const coinCapData = await coinCapResponse.json();
+        if (coinCapData.data?.priceUsd) {
+          setEthPrice(parseFloat(coinCapData.data.priceUsd));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch ETH price:', error);
+      // Keep the default price on error
+    }
+  }, []);
+
+  // Auto-refresh ETH price every 30 seconds
+  useEffect(() => {
+    fetchEthPrice();
+    const priceInterval = setInterval(fetchEthPrice, 30000);
+    return () => clearInterval(priceInterval);
+  }, [fetchEthPrice]);
 
   // Calculate total wallet balance from all wallets
   const totalWalletBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
   const displayBalance = currency === 'ETH' 
     ? `${totalWalletBalance.toFixed(4)} ETH` 
-    : `${(totalWalletBalance * 2500).toFixed(2)}`; // Simplified ETH price
+    : `${(totalWalletBalance * ethPrice).toFixed(2)} USD`;
 
   // Convert refresh interval string to milliseconds
   const parseInterval = (val: string): number => {
@@ -59,11 +109,14 @@ function Header() {
   useEffect(() => {
     if (refreshInterval <= 0) return;
     
-    const interval = setInterval(async () => {
+    const fetchData = async () => {
       setIsRefreshing(true);
       await Promise.all([fetchStats(), fetchDeployments(), fetchWalletBalances()]);
       setIsRefreshing(false);
-    }, refreshInterval);
+    };
+
+    fetchData(); // Initial fetch
+    const interval = setInterval(fetchData, refreshInterval);
     
     return () => clearInterval(interval);
   }, [refreshInterval, fetchStats, fetchDeployments, fetchWalletBalances]);
@@ -122,15 +175,17 @@ function Header() {
             <div className="absolute top-full mt-1 right-0 bg-slate-800 border border-slate-600 rounded-lg shadow-lg overflow-hidden z-50">
               <button
                 onClick={() => { setCurrency('ETH'); setIsDropdownOpen(false); }}
-                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700"
+                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center justify-between"
               >
-                ETH
+                <span>ETH</span>
+                <span className="text-xs text-slate-400">${ethPrice.toLocaleString()}</span>
               </button>
               <button
                 onClick={() => { setCurrency('USD'); setIsDropdownOpen(false); }}
-                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700"
+                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center justify-between"
               >
-                USD
+                <span>USD</span>
+                <span className="text-xs text-slate-400">1 ETH = ${ethPrice.toLocaleString()}</span>
               </button>
             </div>
           )}
@@ -159,19 +214,57 @@ function Header() {
           <RefreshCw className="w-4 h-4" />
         </button>
 
-        {/* Engine Status - from store */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${engineStatus.isRunning ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-sm text-green-400">{engineStatus.isRunning ? engineStatus.mode.toUpperCase() : 'STOPPED'}</span>
+        {/* Connection Status */}
+        <ConnectionStatus />
+
+        {/* Engine Status - Redesigned */}
+        <div className="flex items-center gap-3 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+              Engine
+            </span>
+            <span className={`text-sm font-bold leading-tight ${engineStatus.isRunning ? 'text-green-400' : 'text-red-400'}`}>
+              {engineStatus.isRunning ? engineStatus.mode.toUpperCase() : 'STOPPED'}
+            </span>
+          </div>
+          <div className={`p-1.5 rounded-md ${engineStatus.isRunning ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+            <Activity className={`w-5 h-5 ${engineStatus.isRunning ? 'text-green-400 animate-pulse' : 'text-red-400'}`} />
+          </div>
         </div>
 
-        {/* Wallet Balance - from store wallets */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg">
-          <Wallet className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm text-white font-medium">
-            Wallet Balance: {wallets.length > 0 ? `${totalWalletBalance.toFixed(3)} ETH` : 'No wallet'}
-          </span>
-        </div>
+        {/* Wallet Balance - Redesigned */}
+        <Tooltip
+          content={
+            <div className="space-y-2">
+              <div className="font-bold text-slate-200 border-b border-slate-700 pb-1 mb-1">Connected Wallets</div>
+              {wallets.length > 0 ? (
+                wallets.map((w, i) => (
+                  <div key={i} className="flex justify-between gap-4 text-xs">
+                    <span className="font-mono text-slate-400">{w.address.slice(0, 6)}...{w.address.slice(-4)}</span>
+                    <span className="text-white">{(w.balance || 0).toFixed(4)} ETH</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-slate-500 italic text-xs">No wallets connected</div>
+              )}
+            </div>
+          }
+          position="bottom"
+        >
+          <div className="flex items-center gap-3 px-3 py-1 bg-slate-800 rounded-lg border border-slate-700 cursor-help">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                {wallets.length} {wallets.length === 1 ? 'Wallet' : 'Wallets'}
+              </span>
+              <span className="text-sm font-bold text-white leading-tight">
+                {wallets.length > 0 ? displayBalance : '0.00'}
+              </span>
+            </div>
+            <div className="p-1.5 bg-yellow-500/10 rounded-md">
+              <Wallet className="w-5 h-5 text-yellow-400" />
+            </div>
+          </div>
+        </Tooltip>
 
         {/* Uptime */}
         <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -181,7 +274,7 @@ function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-3 pl-3 border-l border-slate-700">
-          <span className="text-sm text-slate-300">{user?.email || 'admin@alphapro.io'}</span>
+<span className="text-sm text-slate-300">{user?.email || 'iamtemam@gmail.com'}</span>
           <button
             onClick={handleLogout}
             className="p-2 text-slate-400 hover:text-red-400 transition-colors"
@@ -204,8 +297,9 @@ function Sidebar() {
     { to: '/home', icon: LayoutDashboard, label: 'Home', badge: null },
     { to: '/rankings', icon: Target, label: 'Rankings', badge: null },
     { to: '/strategies', icon: Cpu, label: 'Strategies', badge: null },
-    { to: '/bribes', icon: Banknote, label: 'Bribe Monitor', badge: null },
     { to: '/ai-optimizer', icon: Bot, label: 'AI Optimizer', badge: null },
+    { to: '/blockchain-stream', icon: Activity, label: 'Blockchain Stream', badge: null },
+    { to: '/logs', icon: ScrollText, label: 'Logs', badge: null },
     { to: '/wallets', icon: Wallet, label: 'Wallets', badge: null },
     { to: '/security', icon: Shield, label: 'Security', badge: null },
     { to: '/health', icon: HeartPulse, label: 'Health', badge: null },
@@ -284,9 +378,6 @@ function Sidebar() {
 
           {/* Whale Feed Widget */}
           <div className="px-2 pb-4"><WhaleFeed /></div>
-
-          {/* Bribe Monitor Widget */}
-          <div className="px-2 pb-4"><BribeMonitor /></div>
         </>
       )}
     </aside>
@@ -295,9 +386,16 @@ function Sidebar() {
 
 // Main Layout
 export default function DashboardLayout() {
+  const { connect } = useSystemStore();
+
+  useEffect(() => {
+    connect();
+  }, [connect]);
+
   return (
     <div className="h-screen bg-slate-950 flex flex-col">
       <Header />
+      <TradeFeed />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-auto p-6">

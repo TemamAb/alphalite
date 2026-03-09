@@ -32,7 +32,8 @@ class LiquidityAggregator {
 
         const sources = this.providers.map(p => ({
             ...p,
-            available: p.maxCapacity * (0.8 + Math.random() * 0.2) * liquidityCrunch
+            // Apply volatility-based liquidity adjustment (real market condition)
+            available: p.maxCapacity * liquidityCrunch
         }));
 
         const total = sources.reduce((sum, s) => sum + s.available, 0);

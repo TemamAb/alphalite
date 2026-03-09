@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaPro Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #020617;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-200">
+    <!-- Header -->
+    <header class="h-16 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 shrink-0">
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center">
+                <i data-lucide="zap" class="w-5 h-5 text-white"></i>
+            </div>
+            <h1 class="text-xl font-bold text-white">
+                AlphaPro <span class="text-sm font-normal text-slate-400">v3.0.0-ENT</span>
+            </h1>
+        </div>
+
+        <!-- Center - Search Bar -->
+        <div class="flex-1 max-w-xl mx-8">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input
+                    type="text"
+                    placeholder="Search deployments, wallets, transactions... (Ctrl+K)"
+                    class="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-12 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                >
+                <kbd class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 bg-slate-700 px-1.5 py-0.5 rounded">
+                    ⌘K
+                </kbd>
+            </div>
+        </div>
+
+        <!-- Right Section -->
+        <div class="flex items-center gap-4">
+            <!-- Currency Toggle -->
+            <div class="relative">
+                <button class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg text-sm text-white hover:bg-slate-700 transition-colors" onclick="toggleDropdown()">
+                    <span id="currencyLabel">ETH</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div id="currencyDropdown" class="hidden absolute top-full mt-1 right-0 bg-slate-800 border border-slate-600 rounded-lg shadow-lg overflow-hidden z-50">
+                    <button onclick="setCurrency('ETH')" class="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700">ETH</button>
+                    <button onclick="setCurrency('USD')" class="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700">USD</button>
+                </div>
+            </div>
+
+            <!-- Refresh Interval -->
+            <select class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none">
+                <option value="1s">1s</option>
+                <option value="5s" selected>5s</option>
+                <option value="10s">10s</option>
+                <option value="15s">15s</option>
+                <option value="30s">30s</option>
+            </select>
+
+            <!-- Manual Refresh Button -->
+            <button class="p-2 text-slate-400 hover:text-white transition-colors" title="Refresh now">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Engine Status -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-sm text-green-400">LIVE</span>
+            </div>
+
+            <!-- Wallet Balance -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg">
+                <i data-lucide="wallet" class="w-4 h-4 text-cyan-400"></i>
+                <span class="text-sm text-white font-medium">Wallet Balance: 12.543 ETH</span>
+            </div>
+
+            <!-- Uptime -->
+            <div class="flex items-center gap-2 text-sm text-slate-400">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                <span>99.9%</span>
+            </div>
+
+            <!-- User Menu -->
+            <div class="flex items-center gap-3 pl-3 border-l border-slate-700">
+                <span class="text-sm text-slate-300">admin@alphapro.io</span>
+                <button class="p-2 text-slate-400 hover:text-red-400 transition-colors" title="Logout">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="bg-slate-900 border-r border-slate-700 flex flex-col w-64 shrink-0">
+            <!-- Navigation -->
+            <nav class="flex-1 px-2 py-4 overflow-y-auto scrollbar-thin">
+                <div class="space-y-1">
+                    <a href="#home" onclick="showPage('home')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-500" data-page="home">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span class="flex-1">Home</span>
+                    </a>
+                    <a href="#brain" onclick="showPage('brain')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" data-page="brain">
+                        <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+                        <span class="flex-1">Alpha Brain</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30">AI</span>
+                    </a>
+                    <a href="#strategies" onclick="showPage('strategies')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" data-page="strategies">
+                        <i data-lucide="cpu" class="w-5 h-5"></i>
+                        <span class="flex-1">Strategies</span>
+                    </a>
+                    <a href="#security" onclick="showPage('security')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" data-page="security">
+                        <i data-lucide="shield" class="w-5 h-5"></i>
+                        <span class="flex-1">Security</span>
+                    </a>
+                    <a href="#health" onclick="showPage('health')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" data-page="health">
+                        <i data-lucide="heart-pulse" class="w-5 h-5"></i>
+                        <span class="flex-1">Health</span>
+                    </a>
+                    <a href="#settings" onclick="showPage('settings')" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" data-page="settings">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                        <span class="flex-1">Settings</span>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- System Status -->
+            <div class="p-4 border-t border-slate-700">
+                <div class="text-xs text-slate-500 mb-2">SYSTEM STATUS</div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">API Instances</span>
+                        <span class="text-green-400">3/3</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Avg Latency</span>
+                        <span class="text-white">42ms</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Requests/min</span>
+                        <span class="text-white">1,234</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto p-6 scrollbar-thin" id="mainContent">
+            <!-- HOME PAGE -->
+            <div id="page-home" class="page-content space-y-4">
+                <!-- Header -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 font-mono">HOME</h2>
+                        <p class="text-xs text-slate-500 font-mono">Dashboard Overview</p>
+                    </div>
+                    <button class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 text-slate-300 text-xs font-mono rounded hover:bg-slate-700">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        REFRESH
+                    </button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="dollar-sign" class="w-4 h-4 text-emerald-400"></i>
+                            <div class="text-xs text-slate-400">TODAY PROFIT</div>
+                        </div>
+                        <div id="kpi-profit" class="text-2xl font-bold text-emerald-400">--</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="clock" class="w-4 h-4 text-cyan-400"></i>
+                            <div class="text-xs text-slate-400">AVG LATENCY</div>
+                        </div>
+                        <div id="kpi-latency" class="text-2xl font-bold text-cyan-400">--</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="zap" class="w-4 h-4 text-purple-400"></i>
+                            <div class="text-xs text-slate-400">BRIBES TODAY</div>
+                        </div>
+                        <div id="kpi-bribes" class="text-2xl font-bold text-purple-400">--</div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="wallet" class="w-4 h-4 text-green-400"></i>
+                            <div class="text-xs text-slate-400">ENGINE</div>
+                        </div>
+                        <div id="kpi-engine" class="text-2xl font-bold text-green-400">--</div>
+                    </div>
+                </div>
+
+                <!-- Engine Status -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">ENGINE STATUS</h3>
+                    </div>
+                    <div class="p-3">
+                        <table class="w-full text-xs font-mono">
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 w-1/3">MODE</td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-0.5 rounded bg-green-900/50 text-green-400">LIVE</span>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400">STATUS</td>
+                                    <td class="py-2 text-slate-200">RUNNING</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-400">TOTAL PROFIT</td>
+                                    <td class="py-2 text-green-400">$125,450.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Profit Metrics -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">PROFIT METRICS</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/30">
+                                    <th class="text-left py-2 px-3 font-medium">DAY</th>
+                                    <th class="text-right py-2 px-3 font-medium">PROFIT/TRADE</th>
+                                    <th class="text-right py-2 px-3 font-medium">TRADES/HR</th>
+                                    <th class="text-right py-2 px-3 font-medium">PROFIT/HR</th>
+                                    <th class="text-right py-2 px-3 font-medium">TODAY PROFIT</th>
+                                    <th class="text-right py-2 px-3 font-medium">CAPITAL VELOCITY</th>
+                                    <th class="text-right py-2 px-3 font-medium">GAS FEES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 px-3 text-slate-200">Today</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$45.25</td>
+                                    <td class="py-2 px-3 text-right text-slate-200">12.5</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$565.00</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$4,250.50</td>
+                                    <td class="py-2 px-3 text-right text-cyan-400">12.5x</td>
+                                    <td class="py-2 px-3 text-right text-red-400">$125.00</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 px-3 text-slate-200">Yesterday</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$38.50</td>
+                                    <td class="py-2 px-3 text-right text-slate-200">10.2</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$392.00</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$3,850.00</td>
+                                    <td class="py-2 px-3 text-right text-cyan-400">10.8x</td>
+                                    <td class="py-2 px-3 text-right text-red-400">$110.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-3 text-slate-200">2 days ago</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$42.00</td>
+                                    <td class="py-2 px-3 text-right text-slate-200">11.0</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$462.00</td>
+                                    <td class="py-2 px-3 text-right text-emerald-400">$4,200.00</td>
+                                    <td class="py-2 px-3 text-right text-cyan-400">11.2x</td>
+                                    <td class="py-2 px-3 text-right text-red-400">$118.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MEV & Trading -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">MEV & TRADING</h3>
+                    </div>
+                    <div class="p-3">
+                        <table class="w-full text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/30">
+                                    <th class="text-left py-2 font-medium">STRATEGY</th>
+                                    <th class="text-right py-2 font-medium">TODAY</th>
+                                    <th class="text-right py-2 font-medium">COUNT</th>
+                                    <th class="text-right py-2 font-medium">STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-purple-400">MEV PROTECTION</td>
+                                    <td class="py-2 text-right text-slate-200">$2,450</td>
+                                    <td class="py-2 text-right text-slate-400">42</td>
+                                    <td class="py-2 text-right"><span class="text-green-400">PROTECTED</span></td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-red-400">FRONTRUN PROTECTION</td>
+                                    <td class="py-2 text-right text-slate-200">$1,820</td>
+                                    <td class="py-2 text-right text-slate-400">28</td>
+                                    <td class="py-2 text-right"><span class="text-green-400">PROTECTED</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-cyan-400">STEALTH MODE</td>
+                                    <td class="py-2 text-right text-slate-200">$450 saved</td>
+                                    <td class="py-2 text-right text-slate-400">156</td>
+                                    <td class="py-2 text-right"><span class="text-green-400">ENABLED</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BRAIN PAGE (NEW) -->
+            <div id="page-brain" class="page-content hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 font-mono">ALPHA BRAIN</h2>
+                        <p class="text-xs text-slate-500 font-mono">AI Persona Management & Thought Stream</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-2 w-2 rounded-full bg-purple-500 animate-pulse"></span>
+                        <span class="text-xs text-purple-400 font-mono">NEURAL NET ACTIVE</span>
+                    </div>
+                </div>
+
+                <!-- The Trinity Personas -->
+                <div class="grid grid-cols-3 gap-4">
+                    <!-- Strategist -->
+                    <div class="glass-panel rounded-xl p-4 border-t-2 border-t-purple-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="p-2 bg-purple-500/10 rounded-lg">
+                                    <i data-lucide="brain" class="w-5 h-5 text-purple-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white">STRATEGIST</div>
+                                    <div class="text-[10px] text-slate-400">Macro Optimization</div>
+                                </div>
+                            </div>
+                            <div class="text-xs font-mono text-purple-400">ACTIVE</div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Aggression</span>
+                                <span class="text-white">50%</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1 rounded-full">
+                                <div class="bg-purple-500 h-1 rounded-full" style="width: 50%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Risk Tolerance</span>
+                                <span class="text-white">50%</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1 rounded-full">
+                                <div class="bg-purple-500 h-1 rounded-full" style="width: 50%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sentinel -->
+                    <div class="glass-panel rounded-xl p-4 border-t-2 border-t-green-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="p-2 bg-green-500/10 rounded-lg">
+                                    <i data-lucide="shield-check" class="w-5 h-5 text-green-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white">SENTINEL</div>
+                                    <div class="text-[10px] text-slate-400">Risk & Security</div>
+                                </div>
+                            </div>
+                            <div class="text-xs font-mono text-green-400">MONITORING</div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Vigilance</span>
+                                <span class="text-white">98%</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1 rounded-full">
+                                <div class="bg-green-500 h-1 rounded-full" style="width: 98%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Audit Depth</span>
+                                <span class="text-white">High</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sniper -->
+                    <div class="glass-panel rounded-xl p-4 border-t-2 border-t-red-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="p-2 bg-red-500/10 rounded-lg">
+                                    <i data-lucide="crosshair" class="w-5 h-5 text-red-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white">SNIPER</div>
+                                    <div class="text-[10px] text-slate-400">Execution & Gas</div>
+                                </div>
+                            </div>
+                            <div class="text-xs font-mono text-red-400">READY</div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Speed</span>
+                                <span class="text-white">12ms</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1 rounded-full">
+                                <div class="bg-red-500 h-1 rounded-full" style="width: 95%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-400">Gas Priority</span>
+                                <span class="text-white">Aggressive</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thought Stream -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden flex-1 flex flex-col h-[400px]">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30 flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">LIVE THOUGHT STREAM</h3>
+                        <span class="text-[10px] text-slate-500">Updated 1s ago</span>
+                    </div>
+                    <div class="p-4 overflow-y-auto space-y-3 font-mono text-xs flex-1">
+                        <div class="flex gap-3">
+                            <span class="text-slate-500">[10:42:05]</span>
+                            <span class="text-purple-400 font-bold">STRATEGIST:</span>
+                            <span class="text-slate-300">Detected regime shift in Arbitrum volatility. Recommending strategy switch to "Cross-Rollup Bridge".</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="text-slate-500">[10:42:06]</span>
+                            <span class="text-green-400 font-bold">SENTINEL:</span>
+                            <span class="text-slate-300">Scanning contract 0x7a...2b for reentrancy vectors. Scan complete: SAFE.</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="text-slate-500">[10:42:08]</span>
+                            <span class="text-red-400 font-bold">SNIPER:</span>
+                            <span class="text-slate-300">Mempool opportunity identified. Hash: 0x89...12. Profit: 0.45 ETH. Executing via Flashbots.</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="text-slate-500">[10:42:09]</span>
+                            <span class="text-yellow-400 font-bold">OPTIMIZER:</span>
+                            <span class="text-slate-300">Evolution generation 452 complete. Fitness score improved by 0.02%.</span>
+                        </div>
+                    </div>
+                    <div class="p-3 border-t border-slate-700 bg-slate-900/50">
+                        <div class="flex gap-2">
+                            <input type="text" placeholder="Ask Alpha Brain a question..." class="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500">
+                            <button class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold">CONSULT</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STRATEGIES PAGE -->
+            <div id="page-strategies" class="page-content hidden space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 font-mono">STRATEGIES</h2>
+                        <p class="text-xs text-slate-500 font-mono">Profit breakdown analysis</p>
+                    </div>
+                </div>
+
+                <!-- View Mode Tabs -->
+                <div class="flex gap-1 flex-wrap">
+                    <button class="px-3 py-1.5 text-xs font-mono rounded bg-cyan-900/50 text-cyan-400 border border-cyan-700">STRATEGIES</button>
+                    <button class="px-3 py-1.5 text-xs font-mono rounded bg-slate-800/50 text-slate-400 border border-slate-700 hover:bg-slate-700">CHAINS</button>
+                    <button class="px-3 py-1.5 text-xs font-mono rounded bg-slate-800/50 text-slate-400 border border-slate-700 hover:bg-slate-700">DEXES</button>
+                    <button class="px-3 py-1.5 text-xs font-mono rounded bg-slate-800/50 text-slate-400 border border-slate-700 hover:bg-slate-700">PAIRS</button>
+                </div>
+
+                <!-- Total Summary -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">TOTAL SUMMARY</h3>
+                    </div>
+                    <div class="p-3">
+                        <table class="w-full text-xs font-mono">
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 w-1/3">TOTAL PROFIT</td>
+                                    <td class="py-2 text-green-400 text-lg">$9,681.75</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400">ACTIVE STRATEGIES</td>
+                                    <td class="py-2 text-slate-200">5</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-400">TOP PERFORMER</td>
+                                    <td class="py-2 text-cyan-400">Leviathan Aggregation</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Strategies Table -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">STRATEGIES BREAKDOWN</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/30">
+                                    <th class="text-left py-2 px-3 font-medium">NAME</th>
+                                    <th class="text-right py-2 px-3 font-medium">PROFIT</th>
+                                    <th class="text-right py-2 px-3 font-medium">TRADES</th>
+                                    <th class="text-right py-2 px-3 font-medium">WIN RATE</th>
+                                    <th class="text-right py-2 px-3 font-medium">% SHARE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-700/30 hover:bg-slate-800/30">
+                                    <td class="py-2 px-3 text-slate-200">Leviathan Aggregation</td>
+                                    <td class="py-2 px-3 text-right text-green-400">$4,250.50</td>
+                                    <td class="py-2 px-3 text-right text-slate-400">145</td>
+                                    <td class="py-2 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">72.5%</span></td>
+                                    <td class="py-2 px-3 text-right text-slate-500">43.9%</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30 hover:bg-slate-800/30">
+                                    <td class="py-2 px-3 text-slate-200">Cross-Rollup Bridge</td>
+                                    <td class="py-2 px-3 text-right text-green-400">$2,180.25</td>
+                                    <td class="py-2 px-3 text-right text-slate-400">89</td>
+                                    <td class="py-2 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-yellow-900/30 text-yellow-400">65.2%</span></td>
+                                    <td class="py-2 px-3 text-right text-slate-500">22.5%</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30 hover:bg-slate-800/30">
+                                    <td class="py-2 px-3 text-slate-200">NFT Floor Arbitrage</td>
+                                    <td class="py-2 px-3 text-right text-green-400">$1,520.75</td>
+                                    <td class="py-2 px-3 text-right text-slate-400">67</td>
+                                    <td class="py-2 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-yellow-900/30 text-yellow-400">58.9%</span></td>
+                                    <td class="py-2 px-3 text-right text-slate-500">15.7%</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30 hover:bg-slate-800/30">
+                                    <td class="py-2 px-3 text-slate-200">Sandwich Attack</td>
+                                    <td class="py-2 px-3 text-right text-green-400">$980.00</td>
+                                    <td class="py-2 px-3 text-right text-slate-400">42</td>
+                                    <td class="py-2 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-yellow-900/30 text-yellow-400">61.4%</span></td>
+                                    <td class="py-2 px-3 text-right text-slate-500">10.1%</td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/30">
+                                    <td class="py-2 px-3 text-slate-200">Flash Loan</td>
+                                    <td class="py-2 px-3 text-right text-green-400">$750.25</td>
+                                    <td class="py-2 px-3 text-right text-slate-400">23</td>
+                                    <td class="py-2 px-3 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">82.6%</span></td>
+                                    <td class="py-2 px-3 text-right text-slate-500">7.8%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECURITY PAGE -->
+            <div id="page-security" class="page-content hidden space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 font-mono">SECURITY</h2>
+                        <p class="text-xs text-slate-500 font-mono">Protection & Stealth Metrics</p>
+                    </div>
+                </div>
+
+                <!-- Overall Security Score -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">OVERALL SECURITY SCORE</h3>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-full bg-green-900/50 border-2 border-green-500 flex items-center justify-center">
+                                    <i data-lucide="shield" class="w-6 h-6 text-green-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-green-400 font-mono">97.8%</div>
+                                    <div class="text-xs text-slate-500">Security Rating</div>
+                                </div>
+                            </div>
+                            <div class="px-3 py-1 rounded-full text-xs font-mono bg-green-900/30 text-green-400">
+                                PROTECTED
+                            </div>
+                        </div>
+                        <table class="w-full text-xs font-mono">
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400">MEV PROTECTION</td>
+                                    <td class="py-2 text-right text-green-400">98.5%</td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400">FRONTRUN PROTECTION</td>
+                                    <td class="py-2 text-right text-green-400">97.0%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-400">STEALTH SCORE</td>
+                                    <td class="py-2 text-right text-green-400">96.5%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MEV Protection -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">MEV PROTECTION</h3>
+                    </div>
+                    <div class="p-3">
+                        <table class="w-full text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/30">
+                                    <th class="text-left py-2 font-medium">PROTECTION METRIC</th>
+                                    <th class="text-right py-2 font-medium">VALUE</th>
+                                    <th class="text-right py-2 font-medium">STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="radar" class="w-3 h-3 text-purple-400"></i>
+                                        MEV Shield Active
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">98.5%</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">PROTECTED</span></td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="radar" class="w-3 h-3 text-purple-400"></i>
+                                        Sandwich Attacks Blocked
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">156</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">PROTECTED</span></td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="radar" class="w-3 h-3 text-purple-400"></i>
+                                        Arbitrage Front-Run Prevented
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">42</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">PROTECTED</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="radar" class="w-3 h-3 text-purple-400"></i>
+                                        Gas Price Manipulation Detected
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">0</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">PROTECTED</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Stealth Mode -->
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">STEALTH MODE</h3>
+                    </div>
+                    <div class="p-3">
+                        <table class="w-full text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-700/30">
+                                    <th class="text-left py-2 font-medium">STEALTH METRIC</th>
+                                    <th class="text-right py-2 font-medium">VALUE</th>
+                                    <th class="text-right py-2 font-medium">STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="eye-off" class="w-3 h-3 text-cyan-400"></i>
+                                        Stealth Address Rotation
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">12</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">STEALTH</span></td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="eye-off" class="w-3 h-3 text-cyan-400"></i>
+                                        Transaction Timing Randomization
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">85%</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">STEALTH</span></td>
+                                </tr>
+                                <tr class="border-b border-slate-700/30">
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="eye-off" class="w-3 h-3 text-cyan-400"></i>
+                                        Address Similarity Score
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">0.12%</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">STEALTH</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-400 flex items-center gap-2">
+                                        <i data-lucide="eye-off" class="w-3 h-3 text-cyan-400"></i>
+                                        Detection Avoidance
+                                    </td>
+                                    <td class="py-2 text-right text-slate-200">96.5%</td>
+                                    <td class="py-2 text-right"><span class="px-1.5 py-0.5 rounded text-xs bg-green-900/30 text-green-400">STEALTH</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEALTH PAGE -->
+            <div id="page-health" class="page-content hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">System Health</h2>
+                        <p class="text-slate-400">Monitor component health and performance</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="heart-pulse" class="w-5 h-5 text-green-400 animate-pulse"></i>
+                        <span class="text-lg font-semibold text-green-400">HEALTHY</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i data-lucide="cpu" class="w-5 h-5 text-cyan-400"></i>
+                            <span class="text-slate-400">CPU Usage</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">45%</div>
+                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-cyan-500 rounded-full transition-all" style="width: 45%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i data-lucide="memory-stick" class="w-5 h-5 text-purple-400"></i>
+                            <span class="text-slate-400">Memory</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">62%</div>
+                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-purple-500 rounded-full transition-all" style="width: 62%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i data-lucide="hard-drive" class="w-5 h-5 text-orange-400"></i>
+                            <span class="text-slate-400">Disk</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">34%</div>
+                        <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-orange-500 rounded-full transition-all" style="width: 34%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i data-lucide="network" class="w-5 h-5 text-green-400"></i>
+                            <span class="text-slate-400">Network I/O</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">125 MB/s</div>
+                        <div class="text-sm text-slate-400">↑ 80 / ↓ 45</div>
+                    </div>
+                </div>
+
+                <!-- Component Status -->
+                <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                    <h3 class="text-lg font-semibold text-white mb-4">Component Status</h3>
+                    <table class="w-full text-xs font-mono">
+                        <thead>
+                            <tr class="text-slate-500 border-b border-slate-700/30">
+                                <th class="text-left py-2 font-medium">COMPONENT</th>
+                                <th class="text-center py-2 font-medium">STATUS</th>
+                                <th class="text-right py-2 font-medium">LATENCY</th>
+                                <th class="text-right py-2 font-medium">ERROR RATE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-slate-700/30">
+                                <td class="py-2 text-slate-200">API Gateway</td>
+                                <td class="py-2 text-center"><span class="px-2 py-1 rounded-full bg-green-900/30 text-green-400 text-xs font-medium">HEALTHY</span></td>
+                                <td class="py-2 text-right text-slate-300">42ms</td>
+                                <td class="py-2 text-right text-green-400">0.01%</td>
+                            </tr>
+                            <tr class="border-b border-slate-700/30">
+                                <td class="py-2 text-slate-200">Brain Service</td>
+                                <td class="py-2 text-center"><span class="px-2 py-1 rounded-full bg-green-900/30 text-green-400 text-xs font-medium">HEALTHY</span></td>
+                                <td class="py-2 text-right text-slate-300">125ms</td>
+                                <td class="py-2 text-right text-green-400">0.02%</td>
+                            </tr>
+                            <tr class="border-b border-slate-700/30">
+                                <td class="py-2 text-slate-200">Database</td>
+                                <td class="py-2 text-center"><span class="px-2 py-1 rounded-full bg-green-900/30 text-green-400 text-xs font-medium">HEALTHY</span></td>
+                                <td class="py-2 text-right text-slate-300">8ms</td>
+                                <td class="py-2 text-right text-green-400">0.00%</td>
+                            </tr>
+                            <tr class="border-b border-slate-700/30">
+                                <td class="py-2 text-slate-200">Redis Cache</td>
+                                <td class="py-2 text-center"><span class="px-2 py-1 rounded-full bg-green-900/30 text-green-400 text-xs font-medium">HEALTHY</span></td>
+                                <td class="py-2 text-right text-slate-300">2ms</td>
+                                <td class="py-2 text-right text-green-400">0.00%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-200">Blockchain RPC</td>
+                                <td class="py-2 text-center"><span class="px-2 py-1 rounded-full bg-yellow-900/30 text-yellow-400 text-xs font-medium">DEGRADED</span></td>
+                                <td class="py-2 text-right text-slate-300">850ms</td>
+                                <td class="py-2 text-right text-yellow-400">1.25%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SETTINGS PAGE -->
+            <div id="page-settings" class="page-content hidden space-y-3">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-100 font-mono">SETTINGS</h2>
+                    <p class="text-xs text-slate-500 font-mono">Configure dashboard preferences</p>
+                </div>
+
+                <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/30">
+                        <h3 class="text-sm font-bold text-slate-300 font-mono">PREFERENCES</h3>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm text-white">Auto-refresh data</div>
+                                <div class="text-xs text-slate-400">Automatically refresh dashboard data</div>
+                            </div>
+                            <div class="relative">
+                                <input type="checkbox" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 cursor-pointer"></div>
+                                <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm text-white">Sound notifications</div>
+                                <div class="text-xs text-slate-400">Play sound on critical alerts</div>
+                            </div>
+                            <div class="relative">
+                                <input type="checkbox" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 cursor-pointer"></div>
+                                <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm text-white">Dark mode</div>
+                                <div class="text-xs text-slate-400">Use dark theme (currently active)</div>
+                            </div>
+                            <div class="relative">
+                                <input type="checkbox" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-cyan-500 cursor-pointer"></div>
+                                <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Currency dropdown toggle
+        let dropdownOpen = false;
+        function toggleDropdown() {
+            dropdownOpen = !dropdownOpen;
+            document.getElementById('currencyDropdown').classList.toggle('hidden', !dropdownOpen);
+        }
+
+        function setCurrency(val) {
+            document.getElementById('currencyLabel').textContent = val;
+            toggleDropdown();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.relative')) {
+                dropdownOpen = false;
+                document.getElementById('currencyDropdown').classList.add('hidden');
+            }
+        });
+
+        // Page navigation
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            
+            // Show selected page
+            document.getElementById('page-' + pageName).classList.remove('hidden');
+            
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(nav => {
+                nav.classList.remove('bg-cyan-500/10', 'text-cyan-400', 'border-l-2', 'border-cyan-500');
+                nav.classList.add('text-slate-400');
+                if (nav.dataset.page === pageName) {
+                    nav.classList.add('bg-cyan-500/10', 'text-cyan-400', 'border-l-2', 'border-cyan-500');
+                    nav.classList.remove('text-slate-400');
+                }
+            });
+            
+            // Reinitialize icons
+            lucide.createIcons();
+        }
+
+        // --- REAL-TIME DATA SIMULATION ---
+        
+        // Function to update dashboard with new data
+        function updateDashboard(data) {
+            // Update KPIs
+            if(document.getElementById('kpi-profit')) 
+                document.getElementById('kpi-profit').textContent = data.profit;
+            if(document.getElementById('kpi-latency')) 
+                document.getElementById('kpi-latency').textContent = data.latency;
+            if(document.getElementById('kpi-bribes')) 
+                document.getElementById('kpi-bribes').textContent = data.bribes;
+            if(document.getElementById('kpi-engine')) 
+                document.getElementById('kpi-engine').textContent = data.engineStatus;
+
+            // Update Wallet Balance in Header
+            const walletEl = document.querySelector('.fa-wallet')?.nextElementSibling || document.querySelector('span.text-white.font-medium');
+            if(walletEl && walletEl.textContent.includes('Wallet Balance')) {
+                walletEl.textContent = `Wallet Balance: ${data.walletBalance}`;
+            }
+        }
+
+        // Simulate fetching data from API
+        async function fetchDashboardData() {
+            // In a real app, this would be: const res = await fetch('/api/stats');
+            // For now, we simulate dynamic changes
+            
+            const now = new Date();
+            const randomProfit = (4250 + Math.random() * 50).toFixed(2);
+            const randomLatency = (40 + Math.floor(Math.random() * 5)) + 'ms';
+            
+            const mockData = {
+                profit: `$${randomProfit}`,
+                latency: randomLatency,
+                bribes: '2.45 ETH',
+                engineStatus: 'RUNNING',
+                walletBalance: '12.543 ETH'
+            };
+
+            updateDashboard(mockData);
+            
+            // Add a random log to Alpha Brain if on that page
+            if(!document.getElementById('page-brain').classList.contains('hidden')) {
+                // Logic to append log would go here
+            }
+        }
+
+        // Start polling loop
+        setInterval(fetchDashboardData, 2000); // Update every 2 seconds
+        
+        // Initial load
+        fetchDashboardData();
+
+    </script>
+</body>
+</html>

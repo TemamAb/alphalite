@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alphapro_engine
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://user:password@db:5432/alphapro
+      - REDIS_URL=redis://redis:6379
+      - BRAIN_API_URL=http://brain:5000
+    env_file:
+      - .env # For secrets like PRIVATE_KEY, etc.
+    networks:
+      - alphapro-net
+
+  brain:
+    build:
+      context: ./modules/brain
+      dockerfile: Dockerfile
+    container_name: alphapro_brain
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    networks:
+      - alphapro-net
+
+  db:
+    image: postgres:14-alpine
+    container_name: alphapro_db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=alphapro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - alphapro-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro_redis
+    networks:
+      - alphapro-net
+
+volumes:
+  postgres_data:
+
+networks:
+  alphapro-net:
+    driver: bridge

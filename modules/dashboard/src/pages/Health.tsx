@@ -26,35 +26,7 @@ export default function Health() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
 
-  // Day-based health metrics data
-  const formatDayRow = (dayIndex: number, totalDays: number = 7): string => {
-    if (dayIndex === 0) return 'Today';
-    const dayNumber = totalDays - dayIndex;
-    return `Day ${dayNumber}`;
-  };
-
-  const generateDayBasedHealthData = (totalDays: number = 7) => {
-    const data = [];
-    for (let i = 0; i < totalDays; i++) {
-      const baseCpu = 40 + i * 2;
-      const baseMem = 55 + i * 3;
-      const baseDisk = 30 + i * 2;
-      const baseUptime = 99.5 + Math.random() * 0.5;
-      data.push({
-        day: formatDayRow(i, totalDays),
-        dayIndex: i,
-        cpu: Math.floor(baseCpu + Math.random() * 5),
-        memory: Math.floor(baseMem + Math.random() * 5),
-        disk: Math.floor(baseDisk + Math.random() * 3),
-        uptime: Number(baseUptime.toFixed(2)),
-        latency: Math.floor(35 + Math.random() * 15),
-        errors: Math.floor(Math.random() * 5),
-      });
-    }
-    return data;
-  };
-
-  const [dayBasedHealthData] = useState(generateDayBasedHealthData(7));
+  const [dayBasedHealthData] = useState([]);
 
   // Column definitions for day-based health table
   const healthDayColumns = [

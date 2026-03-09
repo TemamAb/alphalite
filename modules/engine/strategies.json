@@ -94,5 +94,29 @@
     "profitMultiplier": 1.25,
     "risk": "LOW",
     "description": "Profiting from index fund rebalancing events"
+  },
+  {
+    "name": "Oracle Manipulation",
+    "profitMultiplier": 2.6,
+    "risk": "HIGH",
+    "description": "Exploiting stale or manipulated oracle price feeds"
+  },
+  {
+    "name": "Uniswap V3 Tick Strategy",
+    "profitMultiplier": 1.55,
+    "risk": "MEDIUM",
+    "description": "Concentrated liquidity optimization on Uniswap V3"
+  },
+  {
+    "name": "Curve StableSwap",
+    "profitMultiplier": 1.2,
+    "risk": "LOW",
+    "description": "Stablecoin arbitrage on Curve Finance pools"
+  },
+  {
+    "name": "NFT Floor Arbitrage",
+    "profitMultiplier": 2.1,
+    "risk": "MEDIUM",
+    "description": "Profiting from NFT floor price differences across marketplaces"
   }
 ]

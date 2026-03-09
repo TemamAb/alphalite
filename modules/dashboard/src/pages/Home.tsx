@@ -13,14 +13,6 @@ import {
   Clock,
   Wallet,
 } from 'lucide-react';
-import {
-  generateProfitDataByDay,
-  generateLatencyDataByDay,
-  generateBribeDataByDay,
-  formatCurrency,
-  formatMs,
-  formatEth,
-} from '@/utils/dateUtils';
 
 interface HomeStats {
   profitPerTrade: number;
@@ -33,19 +25,23 @@ interface HomeStats {
   winRate: number;
 }
 
+const formatCurrency = (v: number) => `$${v.toFixed(2)}`;
+const formatMs = (v: number) => `${v.toFixed(0)}ms`;
+const formatEth = (v: number) => `${v.toFixed(4)} ETH`;
+
 // Column definitions for Profit Metrics table
 const profitColumns = [
-  { key: 'profitPerTrade', label: 'PROFIT/TRADE', format: (v: number) => formatCurrency(v) },
+  { key: 'profitPerTrade', label: 'PROFIT/TRADE', tooltip: 'Average profit per executed trade.\nAI Optimizer targets >$40/trade via strategy rotation.', format: (v: number) => formatCurrency(v) },
   { key: 'tradesPerHour', label: 'TRADES/HR', format: (v: number) => v.toFixed(1) },
   { key: 'profitPerHour', label: 'PROFIT/HR', format: (v: number) => formatCurrency(v) },
   { key: 'todayProfit', label: 'TODAY PROFIT', format: (v: number) => formatCurrency(v) },
-  { key: 'capitalVelocity', label: 'CAPITAL VELOCITY', format: (v: number) => `${v}x` },
-  { key: 'gasFees', label: 'GAS FEES', format: (v: number) => formatCurrency(v) },
+  { key: 'capitalVelocity', label: 'CAPITAL VELOCITY', tooltip: 'Daily capital turnover rate.\nAI maximizes this by reinvesting profits every 30s.', format: (v: number) => `${v}x` },
+  { key: 'gasFees', label: 'GAS FEES', tooltip: 'Total gas spent.\nSniper Persona optimizes gas priority to minimize waste.', format: (v: number) => formatCurrency(v) },
 ];
 
 // Column definitions for Capital Velocity table
 const capitalVelocityColumns = [
-  { key: 'velocity', label: 'VELOCITY', format: (v: number) => `${v.toFixed(2)}x` },
+  { key: 'velocity', label: 'VELOCITY', tooltip: 'Capital turnover multiplier.\nAI targets >10x daily velocity.', format: (v: number) => `${v.toFixed(2)}x` },
   { key: 'turnover', label: 'TURNOVER', format: (v: number) => formatCurrency(v) },
   { key: 'efficiency', label: 'EFFICIENCY', format: (v: number) => `${v.toFixed(1)}%` },
   { key: 'rotation', label: 'ROTATION', format: (v: number) => v.toFixed(1) },
@@ -53,18 +49,18 @@ const capitalVelocityColumns = [
 
 // Column definitions for Latency Metrics table
 const latencyColumns = [
-  { key: 'cacheLookup', label: 'CACHE', format: (v: number) => formatMs(v) },
-  { key: 'apiHotPath', label: 'API', format: (v: number) => formatMs(v) },
-  { key: 'blockDetection', label: 'BLOCK', format: (v: number) => formatMs(v) },
-  { key: 'executionPath', label: 'EXEC', format: (v: number) => formatMs(v) },
+  { key: 'cacheLookup', label: 'CACHE', tooltip: 'Internal data retrieval time.', format: (v: number) => formatMs(v) },
+  { key: 'apiHotPath', label: 'API', tooltip: 'API response latency.', format: (v: number) => formatMs(v) },
+  { key: 'blockDetection', label: 'BLOCK', tooltip: 'Time to detect new blocks.\nSniper Persona optimizes RPC connections.', format: (v: number) => formatMs(v) },
+  { key: 'executionPath', label: 'EXEC', tooltip: 'Transaction preparation time.\nAI optimizes payload generation.', format: (v: number) => formatMs(v) },
   { key: 'externalFetch', label: 'EXTERNAL', format: (v: number) => formatMs(v) },
 ];
 
 // Column definitions for Bribe Metrics table
 const bribeColumns = [
-  { key: 'bribeAmount', label: 'BRIBE', format: (v: number) => formatEth(v) },
-  { key: 'successRate', label: 'SUCCESS %', format: (v: number) => `${v.toFixed(1)}%` },
-  { key: 'roi', label: 'ROI %', format: (v: number) => `${v.toFixed(1)}%` },
+  { key: 'bribeAmount', label: 'BRIBE', tooltip: 'Miner bribe amount.\nAI calculates optimal bribe to ensure inclusion.', format: (v: number) => formatEth(v) },
+  { key: 'successRate', label: 'SUCCESS %', tooltip: 'Block inclusion rate.\nAI targets >95% success via dynamic bidding.', format: (v: number) => `${v.toFixed(1)}%` },
+  { key: 'roi', label: 'ROI %', tooltip: 'Return on Investment for bribes.\nAI ensures bribes never exceed 90% of profit.', format: (v: number) => `${v.toFixed(1)}%` },
   { key: 'totalPaid', label: 'TOTAL PAID', format: (v: number) => formatEth(v) },
 ];
 
@@ -82,20 +78,12 @@ export default function Home() {
   });
 
   // Historical data for DataTable
-  const [profitData] = useState(generateProfitDataByDay(7));
-  const [latencyData] = useState(generateLatencyDataByDay(7));
-  const [bribeData] = useState(generateBribeDataByDay(7));
+  const [profitData] = useState([]);
+  const [latencyData] = useState([]);
+  const [bribeData] = useState([]);
   
   // Capital Velocity data
-  const [capitalVelocityData] = useState([
-    { day: 'Today', velocity: 12.5, turnover: 125000, efficiency: 85.2, rotation: 3.2 },
-    { day: 'Yesterday', velocity: 10.8, turnover: 108000, efficiency: 82.5, rotation: 2.9 },
-    { day: '2 days ago', velocity: 11.2, turnover: 112000, efficiency: 84.0, rotation: 3.0 },
-    { day: '3 days ago', velocity: 9.5, turnover: 95000, efficiency: 78.3, rotation: 2.5 },
-    { day: '4 days ago', velocity: 13.2, turnover: 132000, efficiency: 88.1, rotation: 3.5 },
-    { day: '5 days ago', velocity: 10.1, turnover: 101000, efficiency: 80.2, rotation: 2.7 },
-    { day: '6 days ago', velocity: 11.8, turnover: 118000, efficiency: 85.5, rotation: 3.1 },
-  ]);
+  const [capitalVelocityData] = useState([]);
 
   useEffect(() => {
     fetchStats();

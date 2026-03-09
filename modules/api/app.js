@@ -10,33 +10,91 @@ const server = http.createServer(app);
 // The HTTP server is passed to the WebSocket server to allow it to handle upgrade requests.
 const wss = new WebSocketServer({ server });
 
-wss.on('connection', (ws) => {
-  console.log('[WSS] Client connected');
-  ws.on('close', () => console.log('[WSS] Client disconnected'));
-  ws.on('error', console.error);
-
-  // Example: Send periodic health data
-  const interval = setInterval(() => {
-    // This is where you would broadcast real data from your system modules
-    ws.send(JSON.stringify({ type: 'health', payload: { overall: 'healthy', components: [], lastUpdate: new Date().toISOString() } }));
-  }, 5000);
-
-  ws.on('close', () => clearInterval(interval));
-});
-
 // --- Middleware ---
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// --- Security Middleware ---
+// Import authentication and rate limiting
+const { authMiddleware, optionalAuth } = require('./middleware/authMiddleware');
+const { apiLimiter, authLimiter, tradingLimiter } = require('./middleware/rateLimiter');
+const { csrfValidator, csrfTokenGenerator } = require('./middleware/csrfProtection');
+const realTimeMetrics = require('../engine/services/RealTimeMetricsService');
+const observabilityService = require('../engine/services/ObservabilityService');
+const backupScheduler = require('./services/BackupScheduler');
+
+// --- CSRF Token Endpoint ---
+// Public endpoint to get CSRF token
+app.get('/api/csrf-token', csrfTokenGenerator);
+
+// --- Public Health Check (No Auth Required) ---
+// Keep health endpoint public for load balancers/monitoring
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// --- Prometheus Metrics Endpoint (No Auth Required) ---
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', observabilityService.register.contentType);
+        res.end(await observabilityService.getMetrics());
+    } catch (ex) {
+        res.status(500).end(ex);
+    }
+});
 
 // --- API Routes ---
 // Import API routes
 const tradingRoutes = require('./routes/tradingRoutes');
+const authRoutes = require('./routes/authRoutes');
 
-// Mount API routes with /api prefix
-app.use('/api', tradingRoutes);
+// --- Authentication Routes (NO AUTH REQUIRED - must be before authMiddleware) ---
+// Rate limited to prevent brute force
+app.use('/api/auth', authLimiter, authRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// --- Protected Trading Routes ---
+// All trading routes protected by:
+// - apiLimiter: 100 req/15min general limit
+// - tradingLimiter: 10 req/min STRICT limit for trading
+// - authMiddleware: JWT authentication required
+// - csrfValidator: Validates X-CSRF-Token header/cookie
+app.use('/api', apiLimiter, tradingLimiter, authMiddleware, csrfValidator, tradingRoutes);
+
+// --- Start Real-Time Metrics Service ---
+realTimeMetrics.start(wss);
+
+// --- Start Backup Scheduler ---
+if (process.env.NODE_ENV === 'production') {
+    backupScheduler.start();
+}
+
+// --- WebSocket Server with Authentication ---
+// Authenticate WebSocket connections
+wss.on('connection', (ws, req) => {
+  // Check for token in query string
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  if (!token) {
+    ws.close(4001, 'Authentication required');
+    return;
+  }
+  
+  // Verify token
+  try {
+    const jwt = require('jsonwebtoken');
+    const { getSecret } = require('./middleware/authMiddleware');
+    const decoded = jwt.verify(token, getSecret());
+    ws.user = decoded;
+    console.log(`[WSS] Authenticated client: ${decoded.email}`);
+  } catch (err) {
+    ws.close(4001, 'Invalid token');
+    return;
+  }
+  
+  console.log('[WSS] Client connected');
+  ws.on('close', () => console.log('[WSS] Client disconnected'));
+  ws.on('error', console.error);
 });
 
 // --- Production Static File Serving ---
@@ -56,7 +114,12 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-});
+// Only start server if run directly (allows testing via supertest)
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  });
+}
+
+module.exports = { app, server };

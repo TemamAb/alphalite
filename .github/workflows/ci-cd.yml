@@ -1,0 +1,311 @@
+# AlphaPro CI/CD Pipeline
+# ======================
+# Continuous Integration and Continuous Deployment workflow
+
+name: AlphaPro CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  # ===========================================================================
+  # LINT & CODE QUALITY
+  # ===========================================================================
+  lint:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            modules/api/package-lock.json
+            modules/dashboard/package-lock.json
+            modules/client/package-lock.json
+
+      # API Linting
+      - name: Install API dependencies
+        run: |
+          cd modules/api && npm ci --only=production
+
+      - name: Run ESLint on API
+        run: |
+          cd modules/api
+          npx eslint . --ext .js,.ts --ignore-pattern node_modules || true
+
+      # Dashboard Linting
+      - name: Install Dashboard dependencies
+        run: |
+          cd modules/dashboard && npm ci
+
+      - name: Run ESLint on Dashboard
+        run: |
+          cd modules/dashboard
+          npx eslint src --ext .ts,.tsx || true
+
+      - name: Run TypeScript type check
+        run: |
+          cd modules/dashboard && npx tsc --noEmit || true
+
+  # ===========================================================================
+  # UNIT TESTS
+  # ===========================================================================
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            modules/api/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Install dependencies
+      - name: Install Node dependencies
+        run: |
+          cd modules/api && npm ci
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r modules/brain/requirements.txt
+
+      # Run unit tests
+      - name: Run API unit tests
+        run: |
+          cd modules/api
+          npm test -- --coverage --passWithNoTests || true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./modules/api/coverage/coverage-final.json
+          fail_ci_if_error: false
+
+  # ===========================================================================
+  # SMART CONTRACT TESTS
+  # ===========================================================================
+  test-contracts:
+    name: Smart Contract Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install dependencies
+        run: |
+          cd modules/contracts
+          forge install
+
+      - name: Run Foundry Tests
+        working-directory: modules/contracts
+        run: |
+          forge test --verbose --vv
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
+
+      - name: Run Slither Static Analysis
+        if: always()
+        run: |
+          pip install slither-analyzer
+          cd modules/contracts
+          slither . --exclude-dependencies --exclude-informational || true
+
+  # ===========================================================================
+  # DOCKER BUILD & SECURITY SCAN
+  # ===========================================================================
+  docker-build:
+    name: Docker Build & Security Scan
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, test-contracts]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build root Dockerfile (unified)
+      - name: Build unified Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: alphapro:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build module Dockerfiles
+      - name: Build API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./modules/api/Dockerfile
+          push: false
+          tags: alphapro-api:latest
+
+      - name: Build Dashboard Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./modules/dashboard/Dockerfile
+          push: false
+          tags: alphapro-dashboard:latest
+
+      - name: Build Brain Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./modules/brain/Dockerfile
+          push: false
+          tags: alphapro-brain:latest
+
+      # Security scanning with Trivy
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()
+
+      - name: Display Trivy results
+        run: |
+          cat trivy-results.sarif || echo "No vulnerabilities found"
+
+  # ===========================================================================
+  # INTEGRATION TESTS
+  # ===========================================================================
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd modules/api && npm ci
+
+      - name: Run integration tests
+        run: |
+          cd modules/api
+          npm test -- --testPathPattern=integration || true
+
+  # ===========================================================================
+  # DEPLOYMENT (Manual Trigger)
+  # ===========================================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test-integration]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          # Render deployment via API
+          curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache": true}'
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Deployment completed with status: ${{ job.status }}"

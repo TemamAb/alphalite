@@ -29,7 +29,7 @@ class AlertingService {
                 port: process.env.SMTP_PORT || 587,
                 user: process.env.SMTP_USER,
                 password: process.env.SMTP_PASSWORD,
-                from: process.env.SMTP_FROM || 'alerts@alphapro.io',
+from: process.env.SMTP_FROM || 'iamtemam@gmail.com',
                 to: process.env.ALERT_EMAIL_TO
             }
         };

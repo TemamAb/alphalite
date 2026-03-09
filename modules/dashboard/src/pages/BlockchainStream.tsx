@@ -7,6 +7,10 @@ import {
   Zap,
   Filter,
   Hexagon,
+  Shield,
+  Search,
+  Cpu,
+  Play,
 } from 'lucide-react';
 
 interface BlockData {
@@ -26,6 +30,13 @@ interface TransactionData {
   gasPrice: string;
   timestamp: number;
   status: 'pending' | 'confirmed' | 'failed';
+  stage?: 'scanning' | 'orchestrating' | 'executing' | 'completed';
+  mevDefense?: boolean;
+  frontrunDefense?: boolean;
+  slippage?: number;
+  latency?: number;
+  strategy?: string;
+  profit?: string;
 }
 
 type StreamFilter = 'all' | 'blocks' | 'transactions';
@@ -44,75 +55,15 @@ export default function BlockchainStream() {
   });
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isHoveringRef = useRef(false);
 
   // Simulate blockchain streaming
   useEffect(() => {
     if (!isStreaming) return;
-
-    // Generate initial block
-    const generateBlock = (): BlockData => ({
-      number: Math.floor(Math.random() * 1000000) + 19000000,
-      hash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      timestamp: Date.now(),
-      transactions: Math.floor(Math.random() * 200) + 50,
-      gasUsed: (Math.floor(Math.random() * 15000000) + 5000000).toString(),
-      miner: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-    });
-
-    const generateTransaction = (): TransactionData => ({
-      hash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      from: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      to: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      value: (Math.random() * 10).toFixed(4),
-      gasPrice: (Math.random() * 100).toFixed(2),
-      timestamp: Date.now(),
-      status: Math.random() > 0.1 ? 'confirmed' : 'pending',
-    });
-
-    // Initial data
-    const initialBlocks = Array.from({ length: 10 }, generateBlock);
-    setRecentBlocks(initialBlocks);
-    setLatestBlock(initialBlocks[0]);
-
-    const initialTxs = Array.from({ length: 20 }, generateTransaction);
-    setRecentTransactions(initialTxs);
-
-    // Update stats
-    setStreamStats({
-      blocksPerMinute: 12 + Math.random() * 2,
-      tps: Math.floor(Math.random() * 30) + 15,
-      avgGasPrice: Math.floor(Math.random() * 50) + 20,
-      totalValue: Math.random() * 10000,
-    });
-
-    // Stream new blocks periodically
-    const blockInterval = setInterval(() => {
-      const newBlock = generateBlock();
-      setLatestBlock(newBlock);
-      setRecentBlocks(prev => [newBlock, ...prev.slice(0, 9)]);
-      
-      // Add some transactions with the new block
-      const newTxs = Array.from({ length: Math.floor(Math.random() * 10) + 1 }, generateTransaction);
-      setRecentTransactions(prev => [...newTxs, ...prev].slice(0, 50));
-      
-      setStreamStats(prev => ({
-        ...prev,
-        totalValue: prev.totalValue + Math.random() * 1000,
-      }));
-    }, 12000); // New block every ~12 seconds
-
-    // Stream transactions more frequently
-    const txInterval = setInterval(() => {
-      if (Math.random() > 0.5) {
-        const newTx = generateTransaction();
-        setRecentTransactions(prev => [newTx, ...prev].slice(0, 50));
-      }
-    }, 500);
-
-    return () => {
-      clearInterval(blockInterval);
-      clearInterval(txInterval);
-    };
+    
+    // Real implementation will connect to useSystemStore or WebSocket here
+    // For now, we clear the simulation to ensure no fake data is shown
+    
   }, [isStreaming]);
 
   const formatAddress = (addr: string) => {
@@ -126,6 +77,26 @@ export default function BlockchainStream() {
 
   const formatHash = (hash: string) => {
     return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+  };
+
+  const getStageColor = (stage?: string) => {
+    switch (stage) {
+      case 'scanning': return 'text-blue-400';
+      case 'orchestrating': return 'text-purple-400';
+      case 'executing': return 'text-yellow-400';
+      case 'completed': return 'text-green-400';
+      default: return 'text-slate-400';
+    }
+  };
+
+  const getStageIcon = (stage?: string) => {
+    switch (stage) {
+      case 'scanning': return <Search className="w-3 h-3" />;
+      case 'orchestrating': return <Cpu className="w-3 h-3" />;
+      case 'executing': return <Play className="w-3 h-3" />;
+      case 'completed': return <Zap className="w-3 h-3" />;
+      default: return <Clock className="w-3 h-3" />;
+    }
   };
 
   return (
@@ -235,7 +206,14 @@ export default function BlockchainStream() {
       <div 
         ref={scrollRef}
         className="bg-slate-900/50 rounded-xl border border-slate-700/50 max-h-[600px] overflow-y-auto"
+        onMouseEnter={() => { isHoveringRef.current = true; }}
+        onMouseLeave={() => { isHoveringRef.current = false; }}
       >
+        {recentBlocks.length === 0 && recentTransactions.length === 0 && (
+            <div className="p-8 text-center text-slate-500">
+                Waiting for live blockchain data...
+            </div>
+        )}
         {/* Blocks */}
         {(streamFilter === 'all' || streamFilter === 'blocks') && recentBlocks.map((block, index) => (
           <div 
@@ -278,7 +256,7 @@ export default function BlockchainStream() {
           <div 
             key={`tx-${tx.hash}`}
             className={`p-4 border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors ${
-              index < 3 && isStreaming ? 'animate-pulse bg-green-500/5' : ''
+              index < 3 && isStreaming ? 'bg-green-500/5' : ''
             }`}
           >
             <div className="flex items-center justify-between">
@@ -302,6 +280,22 @@ export default function BlockchainStream() {
                       {tx.status}
                     </span>
                   </div>
+                  
+                  {/* Execution Details */}
+                  <div className="flex items-center gap-3 mt-1 text-xs">
+                    <div className={`flex items-center gap-1 ${getStageColor(tx.stage)}`}>
+                      {getStageIcon(tx.stage)}
+                      <span className="uppercase font-bold">{tx.stage}</span>
+                    </div>
+                    {tx.strategy && <span className="text-slate-400">| {tx.strategy}</span>}
+                    {tx.latency && <span className="text-slate-500">| {tx.latency}ms</span>}
+                    {tx.mevDefense && (
+                      <span className="flex items-center gap-1 text-green-400" title="MEV Defense Active">
+                        <Shield className="w-3 h-3" /> MEV
+                      </span>
+                    )}
+                  </div>
+
                   <div className="text-xs text-slate-500 flex items-center gap-2">
                     <span className="flex items-center gap-1">
                       <ArrowUpRight className="w-3 h-3" />
@@ -317,8 +311,11 @@ export default function BlockchainStream() {
               </div>
               <div className="text-right">
                 <div className="text-white font-medium">{tx.value} ETH</div>
-                <div className="text-xs text-slate-500">
-                  Gas: {tx.gasPrice} Gwei
+                {tx.profit && (
+                  <div className="text-xs font-bold text-green-400">+{tx.profit} ETH</div>
+                )}
+                <div className="text-[10px] text-slate-500 mt-1">
+                  Gas: {tx.gasPrice} Gwei | Slip: {tx.slippage}%
                 </div>
               </div>
             </div>

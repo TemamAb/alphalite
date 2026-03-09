@@ -1,342 +1,817 @@
-// tradingRoutes.js - API routes for trading operations
-// PRODUCTION: Now includes real trading history storage
-
 const express = require('express');
 const router = express.Router();
+const { ethers } = require('ethers');
+const aiAutoOptimizer = require('../../engine/services/AIAutoOptimizer');
+const aiServiceFactory = require('../../engine/services/AIServiceFactory');
+const fileSystemService = require('../../engine/services/FileSystemService');
+const { validateRequest, optimizerConfigSchema, copilotActionSchema } = require('../utils/validation');
+const brainConnector = require('../../engine/services/BrainConnector');
+const competitorAnalysis = require('../../engine/services/CompetitorAnalysisService');
+const executionOrchestrator = require('../../engine/services/ExecutionOrchestrator');
+const tradeAuditService = require('../services/TradeAuditService');
+const profitEngine = require('../../engine/EnterpriseProfitEngine');
+const walletPersistenceService = require('../services/WalletPersistenceService');
+const deploymentPersistenceService = require('../services/DeploymentPersistenceService');
+const { start } = require('repl');
 
-// Import Ranking Engine for low-latency cache access
-const rankingEngine = require('../../engine/services/RankingEngine');
+// ... existing routes ...
 
-// Import TradeExecutor for production execution
-const TradeExecutor = require('../../engine/services/TradeExecutor');
+/**
+ * @route POST /api/ai/optimizer/trigger
+ * @desc Manually trigger an AI optimization cycle
+ * @access Private
+ */
+router.post('/ai/optimizer/trigger', async (req, res) => {
+    try {
+        console.log('[API] Manual AI optimization triggered by user');
+        
+        // Trigger the optimization process
+        // Note: This is an async process but we might not wait for full completion 
+        // if it takes too long, or we can await it if it's fast enough.
+        // For now, we'll trigger it and return success immediately.
+        aiAutoOptimizer.triggerOptimization();
 
-// Initialize TradeExecutor
-let tradeExecutor;
-try {
-    tradeExecutor = new TradeExecutor();
-} catch (e) {
-    console.warn('[TRADING] TradeExecutor init failed:', e.message);
-}
+        res.json({ 
+            success: true, 
+            message: 'AI optimization cycle triggered successfully.' 
+        });
+    } catch (error) {
+        console.error('[API] Failed to trigger optimization:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to trigger optimization cycle.' 
+        });
+    }
+});
 
-// In-memory trade storage (with optional database persistence)
-const tradeHistory = new Map();
-const tradeOrder = [];
-let tradeIdCounter = 1;
+/**
+ * @route POST /api/ai/optimizer/config
+ * @desc Update AI optimizer configuration
+ * @access Private
+ */
+router.post('/ai/optimizer/config', validateRequest(optimizerConfigSchema), (req, res) => {
+    try {
+        const { mutationRate, optimizationInterval } = req.body;
+        aiAutoOptimizer.updateConfig({ mutationRate, optimizationInterval });
+        res.json({ success: true, message: 'AI configuration updated' });
+    } catch (error) {
+        console.error('[API] Failed to update AI config:', error);
+        res.status(500).json({ error: 'Failed to update configuration' });
+    }
+});
 
-// Position tracking
-const positions = new Map(); // token -> position data
+/**
+ * @route GET /api/ai/optimizer
+ * @desc Get current AI optimizer state
+ * @access Private
+ */
+router.get('/ai/optimizer', (req, res) => {
+    try {
+        const state = aiAutoOptimizer.getState();
+        res.json(state);
+    } catch (error) {
+        console.error('[API] Failed to fetch AI state:', error);
+        res.status(500).json({ error: 'Failed to fetch AI state' });
+    }
+});
 
-// Route to execute a trade - PRODUCTION IMPLEMENTED
+/**
+ * @route GET /api/copilot
+ * @desc Get AI Copilot response
+ * @access Private
+ */
+router.get('/copilot', async (req, res) => {
+    try {
+        const { question, persona, provider } = req.query;
+        
+        if (!question) {
+            return res.status(400).json({ error: 'Question is required' });
+        }
+
+        // Initialize factory with environment variables if not already done
+        // Ideally this should be done once at startup, but for safety we check here
+        if (!aiServiceFactory.config.openaiApiKey && !aiServiceFactory.config.geminiApiKey) {
+            aiServiceFactory.initialize({
+                openaiApiKey: process.env.OPENAI_API_KEY,
+                geminiApiKey: process.env.GEMINI_API_KEY
+            });
+        }
+
+        const aiService = aiServiceFactory.getService(provider || 'openai');
+        
+        const systemPrompt = `You are Alpha Copilot, an advanced AI trading assistant. 
+        Current Persona: ${persona ? persona.toUpperCase() : 'AUTO'}.
+        Provide concise, actionable insights for high-frequency trading.
+        
+        AUTHORITY GRANTED: You have the authority to create, edit, read, and delete files, as well as update the system.
+        To perform an action, output a JSON block at the end of your response in this format:
+        
+        \`\`\`json
+        {
+          "action": "create" | "update" | "delete" | "read" | "system_update" | "restore",
+          "filePath": "path/to/file.js",
+          "content": "file content here"
+        }
+        \`\`\`
+        `;
+
+        const answer = await aiService.generateResponse(question, { systemPrompt });
+
+        // Parse AI response for action blocks
+        let suggestedAction = null;
+        const jsonMatch = answer.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+            try {
+                suggestedAction = JSON.parse(jsonMatch[1]);
+            } catch (e) {
+                console.error('[API] Failed to parse AI action JSON', e);
+            }
+        }
+
+        // Integrate with real engine stats
+        const engineStatus = profitEngine.getStatus();
+        const engineStats = engineStatus.stats || { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
+        const winRate = engineStats.totalTrades > 0 ? (engineStats.successfulTrades / engineStats.totalTrades * 100).toFixed(1) : '0.0';
+
+        const liveMetrics = {
+            mode: engineStatus.mode || 'STOPPED',
+            totalTrades: engineStats.totalTrades,
+            totalProfit: engineStats.totalProfit.toFixed(4),
+            winRate: winRate,
+            // Confidence score can be linked to AI optimizer fitness or remain a placeholder
+            confidenceScore: (aiAutoOptimizer.getState().bestFitness * 10).toFixed(1) || '75.0'
+        };
+
+        res.json({ answer, metrics: liveMetrics, suggestedAction });
+    } catch (error) {
+        console.error('[API] Copilot error:', error);
+        res.status(500).json({ error: 'Failed to generate AI response' });
+    }
+});
+
+/**
+ * @route POST /api/copilot/action
+ * @desc Execute a file system or system action approved by user
+ * @access Private
+ */
+router.post('/copilot/action', validateRequest(copilotActionSchema), async (req, res) => {
+    try {
+        const { action, filePath, content } = req.body;
+        const result = await fileSystemService.executeAction(action, { filePath, content });
+        res.json(result);
+    } catch (error) {
+        console.error('[API] Action execution error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * @route GET /api/config/wallet
+ * @desc Get configured wallet from environment (Render or .env)
+ * @access Private
+ */
+router.get('/config/wallet', (req, res) => {
+    try {
+        const address = process.env.WALLET_ADDRESS;
+        const privateKey = process.env.PRIVATE_KEY;
+        
+        if (!address) {
+            return res.json({ found: false });
+        }
+
+        const isRender = process.env.RENDER || process.env.RENDER_SERVICE_ID;
+        const source = isRender ? 'Render Environment' : '.env File';
+
+        res.json({
+            found: true,
+            address,
+            // privateKey has been removed from this response for security reasons.
+            source
+        });
+    } catch (error) {
+        console.error('[API] Config wallet error:', error);
+        res.status(500).json({ error: 'Failed to fetch wallet config' });
+    }
+});
+
+/**
+ * @route GET /api/brain/theoretical-max
+ * @desc Get theoretical maximum metrics from Python Oracle
+ * @access Private
+ */
+router.get('/brain/theoretical-max', async (req, res) => {
+    try {
+        const data = await brainConnector.getTheoreticalMaximum();
+        res.json(data || {});
+    } catch (error) {
+        console.error('[API] Failed to fetch theoretical max:', error);
+        res.status(500).json({ error: 'Failed to fetch theoretical max' });
+    }
+});
+
+/**
+ * @route GET /api/competitors/activity
+ * @desc Get real-time activity of tracked MEV bots
+ * @access Private
+ */
+router.get('/competitors/activity', async (req, res) => {
+    try {
+        const data = await competitorAnalysis.getCompetitorActivity();
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Failed to fetch competitor activity:', error);
+        res.status(500).json({ error: 'Failed to fetch competitor activity' });
+    }
+});
+
+/**
+ * @route GET /api/engine/status
+ * @desc Get current engine status
+ * @access Private
+ */
+router.get('/engine/status', (req, res) => {
+    // IA-8 FIX: Query the REAL engine and orchestrator for their status
+    try {
+        const engineStatus = profitEngine.getStatus();
+        const orchestratorStatus = executionOrchestrator.getStatus();
+        
+        res.json({
+            isRunning: orchestratorStatus.isRunning,
+            mode: engineStatus.mode,
+            ...engineStatus.stats,
+            ...orchestratorStatus
+        });
+    } catch (error) {
+        console.error('[API] Failed to get real engine status:', error);
+        res.status(500).json({ error: 'Failed to retrieve engine status' });
+    }
+});
+
+/**
+ * @route POST /api/engine/state
+ * @desc Start or stop the engine
+ * @access Private
+ * @param {object} req.body - { action: 'start' | 'stop', mode?: 'LIVE' | 'PAPER' }
+ */
+router.post('/engine/state', async (req, res) => {
+    // IA-8 FIX: Control the REAL engine and orchestrator
+    try {
+        const { action, mode } = req.body;
+        
+        if (action === 'start') {
+            // Validate mode
+            if (mode && (mode !== 'LIVE' && mode !== 'PAPER')) {
+                return res.status(400).json({ error: 'Invalid mode. Use LIVE or PAPER' });
+            }
+            
+            if (mode) {
+                profitEngine.setMode(mode);
+            }
+            await profitEngine.start();
+            executionOrchestrator.start();
+            
+            console.log(`[API] Engine start command issued. Mode: ${profitEngine.getMode()}`);
+            
+            res.json({ success: true, message: `Engine started in ${profitEngine.getMode()} mode.` });
+
+        } else if (action === 'stop') {
+            executionOrchestrator.stop();
+            // Note: profitEngine doesn't have a stop, it's event-driven. Stopping the orchestrator is sufficient.
+            
+            console.log('[API] Engine stop command issued.');
+            
+            res.json({ success: true, message: 'Engine stopped.' });
+
+        } else {
+            res.status(400).json({ error: 'Invalid action. Use "start" or "stop".' });
+        }
+    } catch (error) {
+        console.error('[API] Failed to update engine state:', error);
+        res.status(500).json({ error: 'Failed to update engine state' });
+    }
+});
+
+/**
+ * @route GET /api/engine/strategies
+ * @desc Get active strategies
+ * @access Private
+ */
+router.get('/engine/strategies', (req, res) => {
+    try {
+        // IA-8 FIX: Get strategies from the REAL engine
+        res.json(profitEngine.getStatus().strategies || []);
+    } catch (error) {
+        console.error('[API] Failed to get strategies:', error);
+        res.status(500).json({ error: 'Failed to get strategies' });
+    }
+});
+
+/**
+ * @route POST /api/engine/strategies
+ * @desc Add a strategy
+ * @access Private
+ */
+router.post('/engine/strategies', (req, res) => {
+    try {
+        // IA-8 FIX: Reload strategies in the REAL engine
+        profitEngine.reloadStrategies();
+        res.json(profitEngine.getStatus().strategies);
+    } catch (error) {
+        console.error('[API] Failed to add strategy:', error);
+        res.status(500).json({ error: 'Failed to add strategy' });
+    }
+});
+
+/**
+ * @route DELETE /api/engine/strategies/:name
+ * @desc Remove a strategy
+ * @access Private
+ */
+router.delete('/engine/strategies/:name', (req, res) => {
+    try {
+        // This is a complex operation. For now, we'll just note it's not supported via this mock-like interface.
+        res.status(501).json({ error: 'Dynamic strategy removal is not implemented. Please edit strategies.json and reload.' });
+    } catch (error) {
+        console.error('[API] Failed to remove strategy:', error);
+        res.status(500).json({ error: 'Failed to remove strategy' });
+    }
+});
+
+/**
+ * @route GET /api/engine/profit
+ * @desc Get profit history
+ * @access Private
+ */
+router.get('/engine/profit', async (req, res) => {
+    try {
+        const { days = 7 } = req.query;
+        
+        // Fetch recent trades from the audit service
+        const history = await tradeAuditService.getTradeHistory({ limit: 1000 });
+
+        const profitByDay = {};
+        const now = new Date();
+        const cutoffDate = new Date(now);
+        cutoffDate.setDate(now.getDate() - parseInt(days));
+
+        if (history.data) {
+            history.data.forEach(trade => {
+                const tradeDate = new Date(trade.timestamp);
+                if (tradeDate >= cutoffDate) {
+                    const dateStr = tradeDate.toISOString().split('T')[0];
+                    if (!profitByDay[dateStr]) {
+                        profitByDay[dateStr] = { profit: 0, loss: 0 };
+                    }
+                    if (trade.status === 'success' && trade.profit > 0) {
+                        profitByDay[dateStr].profit += parseFloat(trade.profit);
+                    } else if (trade.status === 'failed' || (trade.profit && trade.profit <= 0)) {
+                        // Represent loss as a positive number for the chart
+                        profitByDay[dateStr].loss += Math.abs(parseFloat(trade.profit || 0));
+                    }
+                }
+            });
+        }
+
+        // Format data for charting, ensuring all days in the range are present
+        const profitData = [];
+        for (let i = parseInt(days) - 1; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            profitData.push({
+                date: dateStr,
+                profit: profitByDay[dateStr]?.profit || 0,
+                loss: profitByDay[dateStr]?.loss || 0
+            });
+        }
+
+        res.json(profitData);
+    } catch (error) {
+        console.error('[API] Failed to get profit history:', error);
+        res.status(500).json({ error: 'Failed to get profit history' });
+    }
+});
+
+// --- Stats & Deployments ---
+// =======================================================================================
+/**
+ * @route GET /api/stats
+ * @desc Get trading statistics
+ * @access Private
+ */
+router.get('/stats', async (req, res) => {
+    try {
+        // Integrate with real engine stats
+        const engineStatus = profitEngine.getStatus();
+        const engineStats = engineStatus.stats || { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
+        
+        res.json({
+            totalRequests: 0, // This should come from a proper metrics collector
+            successfulTrades: engineStats.successfulTrades,
+            failedTrades: engineStats.totalTrades - engineStats.successfulTrades,
+            totalProfit: engineStats.totalProfit,
+            gasSpent: 0, // This should be aggregated from the trade audit history
+            lastUpdate: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('[API] Failed to get stats:', error);
+        res.status(500).json({ error: 'Failed to get stats' });
+    }
+});
+
+/**
+ * @route GET /api/deployments
+ * @desc Get all deployments
+ * @access Private
+ */
+router.get('/deployments', (req, res) => {
+    try {
+        deploymentPersistenceService.getAll()
+            .then(deployments => res.json(deployments))
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to get deployments:', error);
+        res.status(500).json({ error: 'Failed to get deployments' });
+    }
+});
+
+/**
+ * @route POST /api/deployments
+ * @desc Create a new deployment
+ * @access Private
+ */
+router.post('/deployments', (req, res) => {
+    try {
+        const { name, type, config } = req.body;
+        const newDeployment = {
+            id: `deploy_${Date.now()}`,
+            name,
+            type,
+            config,
+            status: 'stopped',
+            createdAt: new Date().toISOString()
+        };
+        deploymentPersistenceService.create(newDeployment)
+            .then(created => res.status(201).json(created))
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to create deployment:', error);
+        res.status(500).json({ error: 'Failed to create deployment' });
+    }
+});
+
+/**
+ * @route GET /api/deployments/:id
+ * @desc Get deployment by ID
+ * @access Private
+ */
+router.get('/deployments/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        deploymentPersistenceService.getById(id)
+            .then(deployment => {
+                if (!deployment) return res.status(404).json({ error: 'Deployment not found' });
+                res.json(deployment);
+            })
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to get deployment:', error);
+        res.status(500).json({ error: 'Failed to get deployment' });
+    }
+});
+
+/**
+ * @route POST /api/deployments/:id/restart
+ * @desc Restart deployment
+ * @access Private
+ */
+router.post('/deployments/:id/restart', (req, res) => {
+    try {
+        const { id } = req.params;
+        deploymentPersistenceService.update(id, { 
+            status: 'running', 
+            lastRestart: new Date().toISOString() 
+        })
+        .then(updated => {
+            if (!updated) return res.status(404).json({ error: 'Deployment not found' });
+            res.json(updated);
+        })
+        .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to restart deployment:', error);
+        res.status(500).json({ error: 'Failed to restart deployment' });
+    }
+});
+
+/**
+ * @route POST /api/deployments/:id/stop
+ * @desc Stop deployment
+ * @access Private
+ */
+router.post('/deployments/:id/stop', (req, res) => {
+    try {
+        const { id } = req.params;
+        deploymentPersistenceService.update(id, { status: 'stopped' })
+            .then(updated => {
+                if (!updated) return res.status(404).json({ error: 'Deployment not found' });
+                res.json(updated);
+            })
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to stop deployment:', error);
+        res.status(500).json({ error: 'Failed to stop deployment' });
+    }
+});
+
+/**
+ * @route GET /api/deployments/stats
+ * @desc Get deployment statistics
+ * @access Private
+ */
+router.get('/deployments/stats', (req, res) => {
+    try {
+        deploymentPersistenceService.getAll()
+            .then(deployments => {
+                res.json({
+                    total: deployments.length,
+                    running: deployments.filter(d => d.status === 'running').length,
+                    stopped: deployments.filter(d => d.status === 'stopped').length,
+                    failed: deployments.filter(d => d.status === 'failed').length
+                });
+            })
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to get deployment stats:', error);
+        res.status(500).json({ error: 'Failed to get deployment stats' });
+    }
+});
+
+/**
+ * @route GET /api/deployments/health
+ * @desc Get deployment health
+ * @access Private
+ */
+router.get('/deployments/health', (req, res) => {
+    try {
+        deploymentPersistenceService.getAll()
+            .then(deployments => {
+                res.json({
+                    status: 'healthy',
+                    uptime: process.uptime(),
+                    timestamp: new Date().toISOString(),
+                    deployments: {
+                        total: deployments.length,
+                        healthy: deployments.filter(d => d.status === 'running').length
+                    }
+                });
+            })
+            .catch(err => { throw err; });
+    } catch (error) {
+        console.error('[API] Failed to get health:', error);
+        res.status(500).json({ error: 'Failed to get health' });
+    }
+});
+
+// --- Wallet Management ---
+// IA-9 FIX: The volatile in-memory wallet store has been removed.
+// All wallet operations are now handled by the persistent WalletPersistenceService.
+
+/**
+ * @route GET /api/wallets
+ * @desc Get all wallets
+ * @access Private
+ */
+router.get('/wallets', (req, res) => {
+    try {
+        const wallets = walletPersistenceService.getAllWallets();
+        res.json(wallets);
+    } catch (error) {
+        console.error('[API] Failed to get wallets:', error);
+        res.status(500).json({ error: 'Failed to get wallets' });
+    }
+});
+
+/**
+ * @route POST /api/wallets
+ * @desc Add a new wallet
+ * @access Private
+ */
+router.post('/wallets', (req, res) => {
+    // This endpoint is deprecated in favor of /wallets/add which includes the key
+    try {
+        const { address, privateKey, name, chain } = req.body;
+        const newWallet = walletPersistenceService.saveWallet(address, privateKey, chain);
+        res.status(201).json(newWallet);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add wallet' });
+    }
+});
+
+/**
+ * @route POST /api/wallets/add
+ * @desc Add wallet with private key
+ * @access Private
+ */
+router.post('/wallets/add', (req, res) => {
+    try {
+        const { address, privateKey, name, chain } = req.body; // Name is not persisted yet
+        const wallet = walletPersistenceService.saveWallet(address, privateKey, chain);
+        res.status(201).json(wallet);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add wallet' });
+    }
+});
+
+/**
+ * @route DELETE /api/wallets/:id
+ * @desc Remove wallet
+ * @access Private
+ */
+router.delete('/wallets/:address', (req, res) => {
+    try {
+        const { address } = req.params;
+        walletPersistenceService.deleteWallet(address);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[API] Failed to remove wallet:', error);
+        res.status(500).json({ error: 'Failed to remove wallet' });
+    }
+});
+
+/**
+ * @route GET /api/wallets/:address/balance
+ * @desc Get wallet balance
+ * @access Private
+ */
+router.get('/wallets/:address/balance', (req, res) => {
+    try {
+        const { address } = req.params; 
+        const wallet = walletPersistenceService.getWallet(address);
+        if (!wallet) {
+            return res.status(404).json({ error: 'Wallet not found' });
+        }
+        res.json({
+            balance: wallet.balance,
+            lastUpdate: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('[API] Failed to get balance:', error);
+        res.status(500).json({ error: 'Failed to get balance' });
+    }
+});
+
+/**
+ * @route GET /api/wallets/validate
+ * @desc Validate wallet address
+ * @access Private
+ */
+router.get('/wallets/validate', (req, res) => {
+    try {
+        const { address } = req.query;
+        // Basic Ethereum address validation
+        const isValid = /^0x[a-fA-F0-9]{40}$/.test(address);
+        res.json({
+            valid: isValid,
+            chain: isValid ? 'ethereum' : null
+        });
+    } catch (error) {
+        console.error('[API] Failed to validate wallet:', error);
+        res.status(500).json({ error: 'Failed to validate wallet' });
+    }
+});
+
+/**
+ * @route POST /api/wallets/verify-key
+ * @desc Verify private key and get address
+ * @access Private
+ */
+router.post('/wallets/verify-key', (req, res) => {
+    try {
+        const { privateKey } = req.body;
+        
+        if (!privateKey) {
+            return res.status(400).json({ error: 'Invalid private key' });
+        }
+
+        // Real cryptographic derivation
+        // This validates the key format and derives the actual address
+        const wallet = new ethers.Wallet(privateKey);
+        
+        res.json({ address: wallet.address });
+    } catch (error) {
+        console.error('[API] Failed to verify key:', error);
+        res.status(500).json({ error: 'Failed to verify key' });
+    }
+});
+
+/**
+ * @route POST /api/wallets/import
+ * @desc Bulk import wallets
+ * @access Private
+ */
+router.post('/wallets/import', (req, res) => {
+    try {
+        // This is a bulk operation, better handled by a dedicated service method
+        res.status(501).json({ error: 'Bulk import not implemented. Please add wallets individually.' });
+    } catch (error) {
+        console.error('[API] Failed to import wallets:', error);
+        res.status(500).json({ error: 'Failed to import wallets' });
+    }
+});
+
+// --- History ---
+
+/**
+ * @route POST /api/executeTrade
+ * @desc Execute a manual trade
+ * @access Private
+ */
 router.post('/executeTrade', async (req, res) => {
     try {
-        const { tokenIn, tokenOut, amountIn, minAmountOut, path, chain, dex } = req.body;
-        
-        // Validate required fields
-        if (!tokenIn || !amountIn) {
-            return res.status(400).json({ error: 'Missing required fields: tokenIn, amountIn' });
+        const { tokenIn, tokenOut, amountIn, dex, chain } = req.body;
+
+        // Input Validation
+        if (!tokenIn || !tokenIn.startsWith('0x') || tokenIn.length !== 42) {
+            return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid tokenIn address' });
+        }
+        if (tokenOut && (!tokenOut.startsWith('0x') || tokenOut.length !== 42)) {
+             return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid tokenOut address' });
+        }
+        if (!amountIn || amountIn <= 0) {
+            return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Amount must be positive' });
         }
         
-        // Validate trading mode
-        const tradingMode = process.env.TRADING_MODE || 'LIVE';
-        if (tradingMode !== 'LIVE') {
-            return res.status(403).json({ error: 'Trading is only allowed in LIVE mode' });
+        const validDexes = ['uniswap_v3', 'sushiswap', 'curve', 'balancer', 'pancakeswap', 'quickswap'];
+        if (dex && !validDexes.includes(dex) && dex !== 'auto') {
+            return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid DEX selected' });
         }
-        
-        // Check if executor is properly configured
-        if (!tradeExecutor || !tradeExecutor.signingWallet) {
-            return res.status(503).json({ 
-                error: 'Trading executor not configured. Please configure PRIVATE_KEY and PIMLICO_API_KEY',
-                code: 'EXECUTOR_NOT_CONFIGURED'
-            });
-        }
-        
-        // Build opportunity object from request
+
+        // Construct opportunity for the engine
         const opportunity = {
-            tokenIn,
-            tokenOut,
-            amountIn: parseFloat(amountIn),
-            minAmountOut: parseFloat(minAmountOut) || 0,
-            path: path || [],
-            chainId: chain || 1,
-            dex: dex || 'uniswap',
-            pair: `${tokenIn}-${tokenOut}`,
-            strategy: { name: 'Direct Trade' },
-            profit: 0
+            txHash: `manual_${Date.now()}`,
+            pair: `${tokenIn}-${tokenOut || '??'}`,
+            strategy: { name: 'Manual Trade', risk: 'Manual' },
+            profit: 0,
+            timestamp: Date.now(),
+            chainId: chain || 'ethereum',
+            dex: dex || 'uniswap_v3',
+            manualParams: { tokenIn, tokenOut, amountIn },
+            isManual: true
         };
-        
-        console.log(`[TRADE] Executing trade: ${tokenIn} -> ${tokenOut}, Amount: ${amountIn}`);
-        
-        // Execute the trade using TradeExecutor
-        const result = await tradeExecutor.execute(opportunity, parseFloat(amountIn));
-        
-        // Record trade in history
-        const tradeId = tradeIdCounter++;
-        const tradeRecord = {
-            id: tradeId,
-            tokenIn,
-            tokenOut,
-            amountIn: parseFloat(amountIn),
-            minAmountOut: parseFloat(minAmountOut) || 0,
-            chain: chain || 'ethereum',
-            dex: dex || 'uniswap',
-            status: result.success ? 'success' : 'failed',
-            hash: result.hash || null,
-            gasUsed: result.gasUsed || 0,
-            netProfit: result.success ? (opportunity.profit || 0) : 0,
-            timestamp: new Date().toISOString(),
-            error: result.reason || null
-        };
-        
-        tradeHistory.set(tradeId, tradeRecord);
-        tradeOrder.push(tradeId);
-        
-        // Update positions
-        if (!positions.has(tokenIn)) {
-            positions.set(tokenIn, { totalVolume: 0, tradeCount: 0, totalProfit: 0 });
-        }
-        const pos = positions.get(tokenIn);
-        pos.totalVolume += parseFloat(amountIn);
-        pos.tradeCount++;
-        if (result.success) pos.totalProfit += (opportunity.profit || 0);
-        
-        res.json({
-            success: result.success,
-            tradeId,
-            hash: result.hash,
-            message: result.success ? 'Trade executed successfully' : 'Trade failed',
-            details: result
+
+        // Queue execution via Orchestrator
+        executionOrchestrator.queueOpportunity(opportunity);
+
+        res.json({ 
+            success: true, 
+            message: 'Trade execution queued', 
+            tradeId: opportunity.txHash 
         });
 
     } catch (error) {
-        console.error("[TRADE] Error executing trade:", error);
-        res.status(500).json({ error: error.message });
+        console.error('[API] Trade execution error:', error);
+        res.status(500).json({ error: 'Failed to execute trade' });
     }
 });
 
-// Route to get trading history - NOW RETURNS REAL DATA
+/**
+ * @route GET /api/history
+ * @desc Get trading history
+ * @access Private
+ */
 router.get('/history', async (req, res) => {
     try {
-        const { limit = 50, offset = 0, chain, status } = req.query;
-        
-        let filteredTrades = [...tradeOrder].reverse(); // Most recent first
-        
-        // Apply filters
-        if (chain) {
-            filteredTrades = filteredTrades.filter(id => {
-                const trade = tradeHistory.get(id);
-                return trade && trade.chain === chain;
-            });
-        }
-        
-        if (status) {
-            filteredTrades = filteredTrades.filter(id => {
-                const trade = tradeHistory.get(id);
-                return trade && trade.status === status;
-            });
-        }
-        
-        const paginatedIds = filteredTrades.slice(offset, offset + parseInt(limit));
-        const trades = paginatedIds.map(id => tradeHistory.get(id)).filter(Boolean);
-        
-        // Calculate summary statistics
-        const totalProfit = trades.reduce((sum, t) => sum + (t.netProfit || 0), 0);
-        const totalVolume = trades.reduce((sum, t) => sum + t.amountIn, 0);
-        const successfulTrades = trades.filter(t => t.status === 'success').length;
-        
-        const history = {
-            trades,
-            total: filteredTrades.length,
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            summary: {
-                totalProfit,
-                totalVolume,
-                successfulTrades,
-                failedTrades: trades.length - successfulTrades,
-                avgProfitPerTrade: trades.length > 0 ? totalProfit / trades.length : 0
-            }
-        };
-        
+        const { page, limit, strategy, status } = req.query;
+        const history = await tradeAuditService.getTradeHistory({
+            page: page ? parseInt(page) : 1,
+            limit: limit ? parseInt(limit) : 50,
+            strategy,
+            status
+        });
         res.json(history);
     } catch (error) {
-        console.error("[TRADE] Error fetching trading history:", error);
-        res.status(500).json({ error: error.message });
+        console.error('[API] Failed to get history:', error);
+        res.status(500).json({ error: 'Failed to get history' });
     }
 });
 
-// Route to get open positions - NOW RETURNS REAL DATA
-router.get('/positions', async (req, res) => {
+// --- Copilot Settings ---
+
+/**
+ * @route POST /api/copilot/settings
+ * @desc Update copilot settings
+ * @access Private
+ */
+router.post('/copilot/settings', (req, res) => {
     try {
-        const openPositions = [];
-        let totalValue = 0;
-        
-        positions.forEach((position, token) => {
-            openPositions.push({
-                token,
-                totalVolume: position.totalVolume,
-                tradeCount: position.tradeCount,
-                totalProfit: position.totalProfit,
-                avgProfitPerTrade: position.tradeCount > 0 ? position.totalProfit / position.tradeCount : 0
-            });
-            totalValue += position.totalVolume;
-        });
-        
-        // Sort by total volume descending
-        openPositions.sort((a, b) => b.totalVolume - a.totalVolume);
-        
-        res.json({
-            openPositions,
-            totalValue,
-            totalPositions: openPositions.length
-        });
+        const settings = req.body;
+        // In production, save to database
+        console.log('[API] Copilot settings updated:', settings);
+        res.json({ success: true, settings });
     } catch (error) {
-        console.error("[TRADE] Error fetching positions:", error);
-        res.status(500).json({ error: error.message });
+        console.error('[API] Failed to update copilot settings:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
     }
-});
-
-// Route to cancel a trade
-router.post('/cancelTrade', async (req, res) => {
-    try {
-        const { tradeId } = req.body;
-        
-        if (!tradeId) {
-            return res.status(400).json({ error: 'tradeId required' });
-        }
-        
-        const trade = tradeHistory.get(parseInt(tradeId));
-        
-        if (!trade) {
-            return res.status(404).json({ error: 'Trade not found' });
-        }
-        
-        if (trade.status !== 'pending') {
-            return res.status(400).json({ error: 'Can only cancel pending trades' });
-        }
-        
-        // Update trade status
-        trade.status = 'cancelled';
-        tradeHistory.set(parseInt(tradeId), trade);
-        
-        res.json({
-            success: true,
-            tradeId,
-            message: 'Trade cancelled successfully'
-        });
-    } catch (error) {
-        console.error("[TRADE] Error cancelling trade:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Route to get market data - NOW INTEGRATED WITH REAL APIS
-router.get('/market/:pair', async (req, res) => {
-    try {
-        const { pair } = req.params;
-        const [tokenIn, tokenOut] = pair.split('-');
-        
-        // In production, fetch real data from:
-        // - DexScreener API for DEX prices
-        // - CoinGecko for token prices
-        // - On-chain data for liquidity
-        
-        let marketData = null;
-
-        // STRATEGY 3: Optimistic Caching (Sub-millisecond response)
-        // Check in-memory engine cache first before hitting external API
-        // This reduces latency from ~500ms (HTTP) to <1ms (RAM)
-        try {
-            // Try to find the pair in the ranking engine's hot cache
-            // We need to map the symbol pair (ETH-USDC) to an address if possible
-            // For now, we iterate the top pairs to find a match (O(N) but N is small)
-            const topPairs = rankingEngine.getTopPairs(1000);
-            const cachedPair = topPairs.find(p => {
-                // This is a heuristic match, in production use precise address mapping
-                return p.pairAddress && p.chainId; 
-            });
-
-            if (cachedPair) {
-                // If found in cache and fresh (< 2 seconds), return immediately
-                if (Date.now() - cachedPair.lastUpdate < 2000) {
-                    // Construct response from cache...
-                    // (Simplified for this context, normally we'd return the cached object)
-                }
-            }
-        } catch (e) { /* Ignore cache miss */ }
-        
-        // Try to fetch real data
-        try {
-            const https = require('https');
-            
-            // DexScreener API call
-            const baseUrl = process.env.DEXSCREENER_API_URL || 'https://api.dexscreener.com/latest/dex';
-            const dexUrl = `${baseUrl}/pairs/${tokenIn}/${tokenOut}`;
-            
-            // Execute real-time fetch
-            await new Promise((resolve, reject) => {
-                https.get(dexUrl, (resp) => {
-                    let data = '';
-                    resp.on('data', (chunk) => { data += chunk; });
-                    resp.on('end', () => {
-                        try {
-                            const json = JSON.parse(data);
-                            if (json.pairs && json.pairs.length > 0) {
-                                const pairData = json.pairs[0];
-                                marketData = {
-                                    pair,
-                                    tokenIn,
-                                    tokenOut,
-                                    price: parseFloat(pairData.priceNative),
-                                    priceInUSD: parseFloat(pairData.priceUsd),
-                                    volume24h: parseFloat(pairData.volume.h24),
-                                    liquidity: parseFloat(pairData.liquidity.usd),
-                                    change24h: parseFloat(pairData.priceChange.h24),
-                                    dex: pairData.dexId,
-                                    chain: pairData.chainId,
-                                    pairAddress: pairData.pairAddress,
-                                    timestamp: new Date().toISOString(),
-                                    sources: ['dexscreener'],
-                                    lastUpdate: Date.now()
-                                };
-                                resolve();
-                            } else {
-                                // No data found, resolve with null to trigger 503
-                                resolve(); 
-                            }
-                        } catch (e) { reject(e); }
-                    });
-                }).on('error', (err) => { reject(err); });
-            });
-
-            if (!marketData) throw new Error("No market data found for pair");
-            
-        } catch (e) {
-            return res.status(503).json({ error: 'Could not fetch real-time data', details: e.message });
-        }
-        
-        res.json(marketData);
-    } catch (error) {
-        console.error("[TRADE] Error fetching market data:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Export for external access to trade data
-router.get('/stats', (req, res) => {
-    const allTrades = [...tradeOrder].map(id => tradeHistory.get(id)).filter(Boolean);
-    
-    const stats = {
-        totalTrades: allTrades.length,
-        successfulTrades: allTrades.filter(t => t.status === 'success').length,
-        failedTrades: allTrades.filter(t => t.status === 'failed').length,
-        totalVolume: allTrades.reduce((sum, t) => sum + t.amountIn, 0),
-        totalProfit: allTrades.reduce((sum, t) => sum + (t.netProfit || 0), 0),
-        totalGasFees: allTrades.reduce((sum, t) => sum + (t.gasFee || 0), 0),
-        chains: [...new Set(allTrades.map(t => t.chain))],
-        dexes: [...new Set(allTrades.map(t => t.dex))]
-    };
-    
-    res.json(stats);
 });
 
 module.exports = router;

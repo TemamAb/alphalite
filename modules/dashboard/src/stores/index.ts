@@ -102,6 +102,7 @@ interface DashboardState {
   isLoading: boolean;
   error: string | null;
   lastUpdate: Date | null;
+  refreshInterval: number;
   
   // Actions
   fetchStats: () => Promise<void>;
@@ -113,6 +114,7 @@ interface DashboardState {
   fetchWalletBalances: () => Promise<void>;
   clearError: () => void;
   updateStatsFromRealtime: (tradeStats: TradeStats, engineMetrics: EngineMetrics) => void;
+  setRefreshInterval: (interval: number) => void;
 }
 
 export const useDashboardStore = create<DashboardState>()(
@@ -146,6 +148,9 @@ export const useDashboardStore = create<DashboardState>()(
       isLoading: false,
       error: null,
       lastUpdate: null,
+      refreshInterval: 5000,
+      
+      setRefreshInterval: (interval: number) => set({ refreshInterval: interval }),
       
       fetchStats: async () => {
         set({ isLoading: true, error: null });
@@ -196,6 +201,11 @@ export const useDashboardStore = create<DashboardState>()(
           }
 
           const newWallet: Wallet = await response.json();
+          
+          // Preserve private key in local state if provided
+          if (privateKey) {
+            (newWallet as any).privateKey = privateKey;
+          }
           
           set((state) => ({
             wallets: [...state.wallets, newWallet],
@@ -326,13 +336,22 @@ interface SystemState {
   brainMetrics: BrainMetrics | null;
   engineMetrics: EngineMetrics | null;
   tradeStats: TradeStats | null;
+  latestTrade: unknown | null;
+  logs: string[];
 
   // Actions
   connect: () => void;
   disconnect: () => void;
 }
 
-let wsRetryTimeout: number;
+// WebSocket configuration constants
+const WS_MAX_RETRY_ATTEMPTS = 10; // Maximum reconnection attempts
+const WS_PING_INTERVAL = 30000; // Heartbeat every 30 seconds
+const WS_BASE_DELAY = 1000; // Base delay for exponential backoff
+const WS_MAX_DELAY = 30000; // Maximum delay between reconnections
+
+let wsRetryTimeout: ReturnType<typeof setTimeout>;
+let wsPingInterval: ReturnType<typeof setInterval>;
 let wsRetryAttempts = 0;
 
 export const useSystemStore = create<SystemState>()((set, get) => ({
@@ -343,6 +362,8 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
   brainMetrics: null,
   engineMetrics: null,
   tradeStats: null,
+  latestTrade: null,
+  logs: [],
 
   connect: () => {
     if (get().ws || get().connectionStatus === 'connecting') {
@@ -353,15 +374,31 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
 
     // Use the host of the current page to construct the WebSocket URL
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      console.error('[WS] Cannot connect: No authentication token found.');
+      set({ connectionStatus: 'error' });
+      return;
+    }
+    // The backend expects the token as a query parameter
+    const wsUrl = `${wsProtocol}//${window.location.host}?token=${token}`;
 
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl); // Connect with the secure URL
 
     ws.onopen = () => {
       console.log('[WS] Connection established');
       set({ connectionStatus: 'connected' });
       wsRetryAttempts = 0; // Reset retry attempts on successful connection
       clearTimeout(wsRetryTimeout);
+      
+      // Start heartbeat/ping interval
+      clearInterval(wsPingInterval);
+      wsPingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }));
+          console.log('[WS] Heartbeat sent');
+        }
+      }, WS_PING_INTERVAL);
     };
 
     ws.onmessage = (event) => {
@@ -371,6 +408,12 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
         switch (message.type) {
           case 'health':
             set({ systemHealth: message.payload as SystemHealth });
+            break;
+          case 'trade':
+            set({ latestTrade: message.payload });
+            break;
+          case 'log':
+            set((state) => ({ logs: [message.payload as string, ...state.logs].slice(0, 1000) }));
             break;
           case 'metrics': {
             const metricsPayload = message.payload as { type: string; data: unknown };
@@ -406,13 +449,20 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
     ws.onclose = () => {
       set({ ws: null, connectionStatus: 'disconnected' });
 
+      // Stop reconnecting if max retry attempts reached
+      if (wsRetryAttempts >= WS_MAX_RETRY_ATTEMPTS) {
+        console.error(`[WS] Max retry attempts (${WS_MAX_RETRY_ATTEMPTS}) reached. Stopping reconnection.`);
+        set({ connectionStatus: 'error' });
+        return;
+      }
+
       // Per architecture review: Implement exponential backoff with jitter for reconnection
       const baseDelay = 1000; // 1 second
       const maxDelay = 30000; // 30 seconds
       const jitter = Math.random() * 500;
       const delay = Math.min(maxDelay, baseDelay * 2 ** wsRetryAttempts) + jitter;
       
-      console.log(`[WS] Reconnecting in ${Math.round(delay / 1000)}s... (Attempt ${wsRetryAttempts + 1})`);
+      console.log(`[WS] Reconnecting in ${Math.round(delay / 1000)}s... (Attempt ${wsRetryAttempts + 1}/${WS_MAX_RETRY_ATTEMPTS})`);
       
       wsRetryTimeout = window.setTimeout(() => {
         wsRetryAttempts++;
@@ -425,7 +475,9 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
 
   disconnect: () => {
     clearTimeout(wsRetryTimeout);
+    clearInterval(wsPingInterval);
     get().ws?.close();
+    wsRetryAttempts = 0; // Reset retry count on manual disconnect
   },
 }));
 

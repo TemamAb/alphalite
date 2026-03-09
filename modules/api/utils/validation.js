@@ -1,131 +1,158 @@
-// validation.js - Input validation utilities
+// validation.js - Request validation schemas using Zod
+// AlphaPro API - Input validation middleware
 
-const Joi = require('joi');
+const { z } = require('zod');
 
-// Validate Ethereum address
-const ethAddressSchema = Joi.string().pattern(/^0x[a-fA-F0-9]{40}$/);
+// ==================== Common Schemas ====================
 
-// Validate private key (should start with 0x and be 64 hex chars)
-const privateKeySchema = Joi.string().pattern(/^0x[a-fA-F0-9]{64}$/);
+// Ethereum address schema
+const ethAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address');
 
-// Validate email
-const emailSchema = Joi.string().email();
+// Positive number schema
+const positiveNumber = z.number().positive();
 
-// Validate trade request
-const tradeRequestSchema = Joi.object({
-    pair: Joi.string().required().pattern(/^[A-Z]+\/[A-Z]+$/),
-    side: Joi.string().valid('BUY', 'SELL').required(),
-    amount: Joi.number().positive().required(),
-    price: Joi.number().positive().optional(),
-    type: Joi.string().valid('MARKET', 'LIMIT').default('MARKET'),
+// Optional positive number
+const optionalPositiveNumber = z.number().positive().optional();
+
+// ==================== Trade Execution Schema ====================
+
+const executeTradeSchema = z.object({
+    // Input token (required)
+    tokenIn: ethAddressSchema,
+    
+    // Output token (required)
+    tokenOut: ethAddressSchema,
+    
+    // Amount in wei (required, positive)
+    amountIn: positiveNumber,
+    
+    // Minimum profit in wei (optional)
+    minProfit: optionalPositiveNumber,
+    
+    // Swap path (optional, array of addresses)
+    path: z.array(ethAddressSchema).optional(),
+    
+    // Deadline timestamp (optional)
+    deadline: z.number().int().positive().optional(),
+    
+    // Gas price limit in wei (optional)
+    gasPriceLimit: optionalPositiveNumber,
 });
 
-// Validate wallet import
-const walletImportSchema = Joi.object({
-    address: ethAddressSchema.required(),
-    name: Joi.string().min(1).max(50).optional(),
-    chain: Joi.string().valid('ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'base', 'avalanche').default('ethereum'),
-    privateKey: privateKeySchema.optional(),
+// ==================== Wallet Schema ====================
+
+const createWalletSchema = z.object({
+    name: z.string().min(1).max(100),
+    network: z.enum(['mainnet', 'goerli', 'sepolia', 'arbitrum', 'optimism']),
 });
 
-// Validate wallet address only (no private key)
-const walletAddressSchema = Joi.object({
-    address: ethAddressSchema.required(),
+// ==================== Strategy Toggle Schema ====================
+
+const toggleStrategySchema = z.object({
+    enabled: z.boolean(),
 });
 
-// Validate wallet configuration
-const walletConfigSchema = Joi.object({
-    walletAddress: ethAddressSchema.required(),
-    privateKey: privateKeySchema.required(),
+// ==================== Pagination Schema ====================
+
+const paginationSchema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0),
 });
 
-// Validate withdraw request
-const withdrawSchema = Joi.object({
-    mode: Joi.string().valid('PAPER', 'LIVE').required(),
-    amount: Joi.number().positive().max(1000000).required(),
+// ==================== AI & Copilot Schemas ====================
+
+const optimizerConfigSchema = z.object({
+    mutationRate: z.number().min(0.01).max(1.0).optional(),
+    optimizationInterval: z.number().int().min(1000).optional(),
 });
 
-// Validate login request
-const loginSchema = Joi.object({
-    email: emailSchema.required(),
-    password: Joi.string().min(8).required(),
+const copilotActionSchema = z.object({
+    action: z.enum(['create', 'update', 'delete', 'read', 'system_update', 'restore']),
+    filePath: z.string().optional(), // FileSystemService handles path traversal checks
+    content: z.string().optional(),
 });
 
-// Validate engine mode
-const engineModeSchema = Joi.object({
-    action: Joi.string().valid('start', 'pause', 'resume').required(),
-    mode: Joi.string().valid('PAPER', 'LIVE').required(),
-});
 
-// Validate trading settings
-const tradingSettingsSchema = Joi.object({
-    reinvestmentRate: Joi.number().min(0).max(100).optional(),
-    capitalVelocity: Joi.number().min(1).max(500).optional(),
-});
+// ==================== Validation Middleware ====================
 
-// Validate engine config
-const engineConfigSchema = Joi.object({
-    mode: Joi.string().valid('paper', 'live', 'backtest').default('paper'),
-    maxPositionSize: Joi.number().positive().default(1),
-    stopLoss: Joi.number().min(0).max(100).default(5),
-    takeProfit: Joi.number().min(0).max(100).default(10),
-    allowedSlippage: Joi.number().min(0).max(100).default(0.5),
-});
-
+/**
+ * Validate request against a Zod schema
+ * @param {z.ZodSchema} schema - Zod schema to validate against
+ * @returns {Function} Express middleware
+ */
 const validateRequest = (schema) => {
     return (req, res, next) => {
-        const { error, value } = schema.validate(req.body, {
-            abortEarly: false,
-            stripUnknown: true
-        });
-
-        if (error) {
-            const details = error.details.map(d => d.message).join(', ');
-            return res.status(400).json({ 
-                error: `Validation error: ${details}`,
-                code: 'VALIDATION_ERROR'
+        try {
+            // Validate request body
+            const validated = schema.parse(req.body);
+            
+            // Replace body with validated data (sanitized)
+            req.body = validated;
+            
+            next();
+        } catch (error) {
+            if (error.name === 'ZodError') {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: error.errors.map(e => ({
+                        field: e.path.join('.'),
+                        message: e.message
+                    }))
+                });
+            }
+            
+            return res.status(500).json({
+                error: 'Validation error',
+                message: 'Unknown validation error'
             });
         }
-
-        req.validatedBody = value;
-        next();
     };
 };
 
-// Query validation
+/**
+ * Validate query parameters against a Zod schema
+ * @param {z.ZodSchema} schema - Zod schema to validate against
+ * @returns {Function} Express middleware
+ */
 const validateQuery = (schema) => {
     return (req, res, next) => {
-        const { error, value } = schema.validate(req.query, {
-            abortEarly: false,
-            stripUnknown: true
-        });
-
-        if (error) {
-            const details = error.details.map(d => d.message).join(', ');
-            return res.status(400).json({ 
-                error: `Validation error: ${details}`,
-                code: 'VALIDATION_ERROR'
-            });
+        try {
+            const validated = schema.parse(req.query);
+            req.query = validated;
+            next();
+        } catch (error) {
+            if (error.name === 'ZodError') {
+                return res.status(400).json({
+                    error: 'Invalid query parameters',
+                    details: error.errors.map(e => ({
+                        field: e.path.join('.'),
+                        message: e.message
+                    }))
+                });
+            }
+            next(error);
         }
-
-        req.validatedQuery = value;
-        next();
     };
 };
 
+// ==================== Export ====================
+
 module.exports = {
+    // Schemas
     ethAddressSchema,
-    privateKeySchema,
-    emailSchema,
-    tradeRequestSchema,
-    walletImportSchema,
-    walletAddressSchema,
-    walletConfigSchema,
-    withdrawSchema,
-    loginSchema,
-    engineModeSchema,
-    tradingSettingsSchema,
-    engineConfigSchema,
+    executeTradeSchema,
+    createWalletSchema,
+    toggleStrategySchema,
+    paginationSchema,
+    optimizerConfigSchema,
+    copilotActionSchema,
+    
+    // Middleware
     validateRequest,
-    validateQuery
+    validateQuery,
+    
+    // Zod for direct use
+    z
 };
+</parameter>
+</create_file>

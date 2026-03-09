@@ -1,6 +1,5 @@
-// prisma/schema.prisma - AlphaPro Database Schema
-// Run `npx prisma generate` after modifying
-// Run `npx prisma db push` to apply changes
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -11,115 +10,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =====================================================
-// USER AUTHENTICATION
-// =====================================================
-
-model User {
-  id              String   @id @default(uuid())
-  email           String   @unique
-  passwordHash   String
-  role            String   @default("user") // admin, operator, user, viewer
-  mfaEnabled      Boolean  @default(false)
-  mfaSecret       String?  // Encrypted MFA secret
-  backupCodes     String[] // Encrypted backup codes
-  isActive        Boolean  @default(true)
-  lastLoginAt    DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  sessions        UserSession[]
-  auditLogs       AuditLog[]
-  
-  @@index([email])
-}
-
-model UserSession {
-  id              String   @id @default(uuid())
-  userId          String
-  token           String   @unique
-  ipAddress       String?
-  userAgent       String?
-  expiresAt       DateTime
-  createdAt       DateTime @default(now())
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-// =====================================================
-// TRADING RECORDS
-// =====================================================
+// =============================================================================
+// TRADE AUDIT MODEL
+// =============================================================================
 
 model Trade {
-  id              String   @id @default(uuid())
-  walletAddress   String
-  chain           String
-  dex             String
-  tokenIn         String
-  tokenOut        String
-  amountIn        Float
-  amountOut       Float
+  id              String    @id @default(cuid())
+  transactionHash String    @unique
+  blockNumber     Int?
+  timestamp       DateTime
+  executorAddress String?
   profit          Float?
-  gasUsed         Float?
-  status          String   @default("PENDING") // PENDING, EXECUTED, FAILED
-  executedAt      DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  gasUsed         BigInt?
+  gasPrice        BigInt?
+  status          String // "success" or "failed"
+  errorMessage    String?
+  strategy        String?
+  chain           String?
+  pair            String?
 
-  @@index([walletAddress])
-  @@index([chain])
-  @@index([executedAt])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Wallet {
-  id              String   @id @default(uuid())
-  address         String   @unique
-  privateKeyEncrypted String?
-  chain           String
-  balance         Float    @default(0)
-  totalProfit     Float    @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
+// =============================================================================
+// USER MODEL (for authentication)
+// =============================================================================
 
-model Strategy {
-  id              String   @id @default(uuid())
-  name            String   @unique
-  description     String?
-  minProfitThreshold Float
-  maxSlippage     Float
-  chains          String[] // Array of chain names
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model AuditLog {
-  id              String   @id @default(uuid())
-  action          String
-  entityType      String
-  entityId        String?
-  details         Json?
-  userEmail       String?
-  ipAddress       String?
-  createdAt       DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([action])
-}
-
-model Metric {
-  id              String   @id @default(uuid())
-  name            String
-  value           Float
-  labels          Json?
-  recordedAt      DateTime @default(now())
-
-  @@index([name])
-  @@index([recordedAt])
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      String   @default("user") // e.g., "user", "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

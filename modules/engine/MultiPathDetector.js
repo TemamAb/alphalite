@@ -33,15 +33,15 @@ class MultiPathDetector extends EventEmitter {
             {
                 id: 'alchemy',
                 name: 'Alchemy (Dedicated)',
-                rpc: process.env.ETH_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
-                ws: process.env.ETH_WS_URL || 'wss://eth-mainnet.g.alchemy.com/v2/mK2nj6ZSi1mZ2THJMUHcF',
+                rpc: process.env.ETH_RPC_URL, // Enforce environment variable usage
+                ws: process.env.ETH_WS_URL,
                 priority: 1
             },
             {
                 id: 'infura',
                 name: 'Infura (Tier 1)',
-                rpc: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY || 'mK2nj6ZSi1mZ2THJMUHcF'}`,
-                ws: `wss://mainnet.infura.io/ws/v3/${process.env.INFURA_API_KEY || 'mK2nj6ZSi1mZ2THJMUHcF'}`,
+                rpc: process.env.INFURA_API_KEY ? `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}` : null,
+                ws: process.env.INFURA_API_KEY ? `wss://mainnet.infura.io/ws/v3/${process.env.INFURA_API_KEY}` : null,
                 priority: 1
             },
             {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface TooltipProps {
-  content: string;
+  content: React.ReactNode;
   children: React.ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
@@ -25,7 +25,11 @@ export default function Tooltip({ content, children, position = 'top' }: Tooltip
       {children}
       {isVisible && (
         <div className={`absolute z-50 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg shadow-xl ${positionClasses[position]} min-w-[200px] max-w-[300px]`}>
-          <p className="text-xs text-slate-300 font-mono leading-relaxed">{content}</p>
+          {typeof content === 'string' ? (
+            <p className="text-xs text-slate-300 font-mono leading-relaxed">{content}</p>
+          ) : (
+            content
+          )}
           <div className="absolute w-2 h-2 bg-slate-900 border-r border-b border-slate-600 transform rotate-45 -translate-x-1/2 -translate-y-1/2 left-1/2 -bottom-1" />
         </div>
       )}

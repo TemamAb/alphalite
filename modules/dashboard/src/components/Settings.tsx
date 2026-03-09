@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, Shield, Crosshair, Zap, Layout, Code, Fish, AlertTriangle } from 'lucide-react';
+import { Brain, Shield, Crosshair, Zap, Layout, Code, Fish, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useDashboardStore } from '@/stores';
 
 interface TradingSettings {
     reinvestmentRate: number;
@@ -41,6 +42,7 @@ const Settings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const { fetchWalletBalances } = useDashboardStore();
 
     // Use environment variable or default to localhost
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -151,6 +153,16 @@ const Settings: React.FC = () => {
         }
     };
 
+    const handleRefreshBalance = async () => {
+        try {
+            await fetchWalletBalances();
+            setMessage({ type: 'success', text: 'Wallet balances refreshed.' });
+            setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Failed to refresh balances.' });
+        }
+    };
+
     const renderPersonaCard = (
         key: keyof PersonasSettings, 
         title: string, 
@@ -228,6 +240,14 @@ const Settings: React.FC = () => {
         <div className="p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white flex items-center">
                 <span className="mr-2">⚙️</span> Trading Configuration
+                <button 
+                    onClick={handleRefreshBalance}
+                    className="ml-auto flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-400 bg-slate-700/50 hover:bg-slate-700 hover:text-white rounded-lg transition-colors"
+                    title="Refresh Wallet Balances"
+                >
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="hidden sm:inline">Refresh Balance</span>
+                </button>
             </h2>
             
             {/* Profit Reinvestment Slider */}

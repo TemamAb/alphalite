@@ -13,6 +13,25 @@
  * - Circuit breakers
  */
 
+// Structured logging setup - override console methods for structured logging
+let observability;
+try {
+    observability = require('./services/ObservabilityService');
+} catch (e) {
+    observability = null;
+}
+
+if (observability) {
+    const logger = {
+        info: (msg) => observability.info(msg),
+        warn: (msg) => observability.logger.warn(msg),
+        error: (msg, err) => observability.error(msg, err instanceof Error ? err : new Error(msg))
+    };
+    console.log = (...args) => logger.info(args.join(' '));
+    console.warn = (...args) => logger.warn(args.join(' '));
+    console.error = (...args) => logger.error(args.join(' '));
+}
+
 const { ethers } = require('ethers');
 const axios = require('axios');
 const EventEmitter = require('events');
@@ -72,7 +91,7 @@ class MEVEngineer extends EventEmitter {
     _initializeRPCEndpoints(rpcConfig) {
         const endpoints = {
             ethereum: [
-                rpcConfig.ethereum || process.env.ETH_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+                rpcConfig.ethereum || process.env.ETH_RPC_URL || null,
                 'https://1rpc.io/eth',
                 'https://rpc.ankr.com/eth',
                 'https://eth.llamarpc.com'

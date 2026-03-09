@@ -1,9 +1,12 @@
+version: '3.8'
+
 services:
   # 1. AI Optimization Engine (Python)
   brain:
     build:
-      context: ../brain
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: modules/brain/Dockerfile
+    container_name: alphapro_brain
     ports:
       - "5001:5000"
     environment:
@@ -12,12 +15,19 @@ services:
     networks:
       - alphapro-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # 2. API Gateway & Frontend (Node.js)
   api:
     build:
-      context: ../api
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: modules/api/Dockerfile
+    container_name: alphapro_api
     ports:
       - "3001:3000"
     env_file:
@@ -28,7 +38,8 @@ services:
       - TRADING_MODE=LIVE
       - BRAIN_URL=http://brain:5000
     depends_on:
-      - brain
+      brain:
+        condition: service_healthy
     networks:
       - alphapro-net
     restart: unless-stopped
@@ -38,6 +49,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # 3. Dashboard (React + Nginx)
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: modules/dashboard/Dockerfile
+    container_name: alphapro_dashboard
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - alphapro-net
+    restart: unless-stopped
 
 networks:
   alphapro-net:

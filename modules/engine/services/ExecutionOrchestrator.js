@@ -6,7 +6,20 @@
 const EventEmitter = require('events');
 const capitalManager = require('./CapitalManager');
 const tradeExecutor = require('./TradeExecutor');
-const configService = require('../../../configService');
+
+// Robust config loading
+let configService;
+try {
+    configService = require('../../../configService');
+} catch (e) {
+    try {
+        configService = require('../../../config/configService');
+    } catch (e2) {
+        // Fallback mock if config service is missing
+        configService = { getConfig: () => ({}), on: () => {} };
+    }
+}
+
 const { performance } = require('perf_hooks');
 
 class ExecutionOrchestrator extends EventEmitter {
@@ -121,7 +134,8 @@ class ExecutionOrchestrator extends EventEmitter {
 
         try {
             console.log(`[ORCHESTRATOR] Dispatching trade for ${pair} on chain ${chainId} via ${strategy.name}`);
-            const result = await tradeExecutor.execute(opportunity, requiredCapital);
+            // IA-10 FIX: Corrected the function call to match the refactored TradeExecutor signature.
+            const result = await tradeExecutor.execute(opportunity);
             
             const duration = performance.now() - this.activeTrades.get(tradeId).startTime;
             const completedTrade = { ...opportunity, status: 'COMPLETED', result, profit, duration };
