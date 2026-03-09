@@ -18,7 +18,7 @@ git commit -m "Fix TypeScript build for Render deployment"
 git branch -M master
 
 # Add remote (if not already added)
-git remote add origin https://github.com/TemamAb/alphalie.git 2>/dev/null || true
+git remote add origin https://github.com/TemamAb/alphalite.git 2>/dev/null || true
 
 # Push to master
 git push -u origin master
