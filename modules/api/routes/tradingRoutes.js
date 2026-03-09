@@ -3,9 +3,9 @@ const router = express.Router();
 const { ethers } = require('ethers');
 const tradeAuditService = require('../services/TradeAuditService');
 const walletPersistenceService = require('../services/WalletPersistenceService');
-const deploymentPersistenceService = require('../services/DeploymentPersistenceService');
+let deploymentPersistenceService = null;
 
-// --- Engine service imports with graceful degradation ---
+try { deploymentPersistenceService = require('../services/DeploymentPersistenceService'); } catch (e) { console.warn('[TRADING] DeploymentPersistenceService not available'); }
 let aiAutoOptimizer = null;
 let aiServiceFactory = null;
 let fileSystemService = null;
