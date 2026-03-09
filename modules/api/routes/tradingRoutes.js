@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { ethers } = require('ethers');
-const { validateRequest, optimizerConfigSchema, copilotActionSchema } = require('../utils/validation');
 const tradeAuditService = require('../services/TradeAuditService');
 const walletPersistenceService = require('../services/WalletPersistenceService');
 const deploymentPersistenceService = require('../services/DeploymentPersistenceService');
@@ -65,7 +64,7 @@ router.post('/ai/optimizer/trigger', async (req, res) => {
  * @desc Update AI optimizer configuration
  * @access Private
  */
-router.post('/ai/optimizer/config', validateRequest(optimizerConfigSchema), (req, res) => {
+router.post('/ai/optimizer/config', (req, res) => {
     try {
         if (!aiAutoOptimizer || !aiAutoOptimizer.updateConfig) {
             return res.status(503).json({ 
@@ -186,7 +185,7 @@ router.get('/copilot', async (req, res) => {
  * @desc Execute a file system or system action approved by user
  * @access Private
  */
-router.post('/copilot/action', validateRequest(copilotActionSchema), async (req, res) => {
+router.post('/copilot/action', async (req, res) => {
     try {
         if (!fileSystemService || !fileSystemService.executeAction) {
             return res.status(503).json({ 
