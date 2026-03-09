@@ -10,6 +10,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
     plan: starter
+    branch: master
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
@@ -24,6 +25,7 @@ services:
     dockerfilePath: Dockerfile
     rootDir: .
     plan: standard
+    branch: master
     envVars:
       # ============================================
       # 🔴 CRITICAL: Set these in Render Secrets!
@@ -127,6 +129,7 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     plan: starter
+    branch: master
     envVars:
       - key: VITE_API_URL
         value: https://alphapro-api.onrender.com
