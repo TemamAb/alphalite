@@ -63,7 +63,7 @@ RUN mkdir -p /usr/src/app/tmp && chmod 777 /usr/src/app/tmp
 EXPOSE 3000
 
 # Define the command to start the application.
-CMD [ "node", "modules/api/app.js" ]
+CMD [ "node", "app.js" ]
 
 # =============================================================================
 # SECURITY NOTES:
