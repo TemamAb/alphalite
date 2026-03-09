@@ -39,7 +39,13 @@ COPY modules/ ./modules/
 COPY config/ ./config/
 
 # Copy app.js from correct location (modules/api/app.js)
-COPY modules/api/app.js ./
+# Also copy middleware, routes, services, utils for relative imports
+COPY modules/api/app.js ./app.js
+COPY modules/api/middleware/ ./middleware/
+COPY modules/api/routes/ ./routes/
+COPY modules/api/services/ ./services/
+COPY modules/api/utils/ ./utils/
+COPY modules/api/prisma/ ./prisma/
 
 # Copy the built dashboard from the builder stage into the API's expected client directory.
 COPY --from=dashboard-builder /dashboard/dist ./client/dist
