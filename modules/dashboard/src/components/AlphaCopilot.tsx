@@ -78,6 +78,7 @@ const AlphaCopilot: React.FC = () => {
     // Initial analysis on load
     useEffect(() => {
         askCopilot("status");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSubmit = (e: React.FormEvent) => {

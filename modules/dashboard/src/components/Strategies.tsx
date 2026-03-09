@@ -3,12 +3,14 @@ import { useAuthStore, useSystemStore } from '@/stores'; // Changed to reactive 
 import { Cpu, Banknote, CheckCircle, TrendingUp, Wand2, Calendar, Layers, Link as LinkIcon, GitBranch, GitCommit, X, Bot } from 'lucide-react';
 import DataTable from './DataTable'; // Import the reusable DataTable
 import StrategyDetails from './StrategyDetails'; // Import the new details component
+import type { AIGenome, AIState, AggregatedStats, ViewMode } from '@/types';
 
 // Interface for Daily Strategy Performance
 interface DailyStats {
     day: string; // "Today", "Day X"
     date: number; // Timestamp for sorting
     strategyCount: number;
+    strategyBreakdown: { name: string; percent: number }[];
     dexesCount: number;
     chainsCount: number;
     concurrency: number;
@@ -32,7 +34,13 @@ interface DailyStats {
 
 const StrategiesPage: React.FC = () => {
     const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
-    const [tradesByDay, setTradesByDay] = useState<Record<string, any[]>>({});
+    const [tradesByDayState, setTradesByDayState] = useState<Record<string, any[]>>({});
+    const [rawTrades, setRawTrades] = useState<any[]>([]);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+    const [viewMode, setViewMode] = useState<string>('daily');
+    const [aggregatedData, setAggregatedData] = useState<AggregatedStats[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<{ name: string; trades: any[] } | null>(null);
     const [aiGenome, setAiGenome] = useState<AIGenome | null>(null);
     const [aiState, setAiState] = useState<AIState | null>(null);
     const [selectedRow, setSelectedRow] = useState<DailyStats | null>(null);
@@ -335,7 +343,7 @@ const StrategiesPage: React.FC = () => {
             <div className="flex flex-col gap-1">
                 {v.slice(0, 2).map((s, i) => (
                     <div key={i} className="flex justify-between text-[10px] w-32">
-                se="tex <span className="text-cyan-400 font-mono">{s.percent.toFixed(0)}%</span>
+                <span className="text-cyan-400 font-mono">{s.percent.toFixed(0)}%</span>
                     </div>
                 ))}
                 {v.length > 2 && <span className="text-[9px] text-slate-500">+{v.length - 2} more</span>}
@@ -388,12 +396,14 @@ const StrategiesPage: React.FC = () => {
     return (
         <div className="p-4 sm:p-6 space-y-8">
             <div className="flex justify-between items-center">
+                <div>
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
                         <Cpu className="w-8 h-8 text-cyan-400" />
                         Strategy Performance
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">Daily breakdown of arbitrage strategies and execution metrics.</p>
                 </div>
+            </div>
 
                 {/* Date Range Picker */}
                 <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg border border-slate-700">

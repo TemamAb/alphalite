@@ -169,3 +169,28 @@ export interface WebSocketMessage {
   type: 'health' | 'metrics' | 'deployment' | 'alert' | 'trade' | 'log';
   payload: unknown;
 }
+
+// AI Types for Strategies Page
+export interface AIGenome {
+  pair: Record<string, number>;
+  strategy: Record<string, number>;
+  chain: Record<string, number>;
+  dex: Record<string, number>;
+}
+
+export interface AIState {
+  generation: number;
+  history: Array<{ fitness: number }>;
+  currentWeights: AIGenome;
+}
+
+export interface AggregatedStats {
+  name: string;
+  profit: number;
+  trades: number;
+  winRate: number;
+  profitShare: number;
+  gasProfitRatio: number;
+}
+
+export type ViewMode = 'daily' | 'strategies' | 'chains' | 'dexes' | 'pairs';

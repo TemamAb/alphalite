@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores';
+import { useAuthStore } from '@/stores';
 import CollapsiblePanel from './CollapsiblePanel';
 import Tooltip from './Tooltip'; // Assuming Tooltip component exists
 import { Info, Wand2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -62,7 +63,7 @@ const AIOptimizer: React.FC = () => {
     const [theoreticalMax, setTheoreticalMax] = useState<TheoreticalMax | null>(null);
     const [historyPage, setHistoryPage] = useState(1);
     const [historyPageSize, setHistoryPageSize] = useState(5);
-    const { token } = useAuthStore.getState();
+    const { token } = useAuthStore();
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 

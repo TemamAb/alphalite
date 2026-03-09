@@ -18,16 +18,24 @@ model Trade {
   id              String    @id @default(cuid())
   transactionHash String    @unique
   blockNumber     Int?
-  timestamp       DateTime
+  timestamp       DateTime  @default(now())
   executorAddress String?
   profit          Float?
   gasUsed         BigInt?
   gasPrice        BigInt?
-  status          String // "success" or "failed"
+  status          String    // "success" or "failed"
   errorMessage    String?
   strategy        String?
   chain           String?
   pair            String?
+  
+  // Additional fields
+  walletAddress   String?
+  dex             String?
+  tokenIn         String?
+  tokenOut        String?
+  amountIn        Float?
+  amountOut       Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -38,11 +46,103 @@ model Trade {
 // =============================================================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  role      String   @default("user") // e.g., "user", "admin"
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String   @map("password")
+  role         String   @default("user") // e.g., "user", "admin", "trader"
+  
+  // MFA fields
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?
+  
+  // Session management
+  sessions     UserSession[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// =============================================================================
+// USER SESSION MODEL
+// =============================================================================
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  
+  createdAt DateTime @default(now())
+}
+
+// =============================================================================
+// WALLET MODEL
+// =============================================================================
+
+model Wallet {
+  id                    String   @id @default(cuid())
+  address               String   @unique
+  privateKeyEncrypted   String?
+  chain                 String   @default("ethereum")
+  balance               Float    @default(0)
+  totalProfit           Float    @default(0)
+  isActive              Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =============================================================================
+// STRATEGY MODEL
+// =============================================================================
+
+model Strategy {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  config      Json?
+  isActive    Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =============================================================================
+// AUDIT LOG MODEL
+// =============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String?
+  entityId    String?
+  details     Json?
+  userEmail   String?
+  ipAddress   String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// METRIC MODEL
+// =============================================================================
+
+model Metric {
+  id        String   @id @default(cuid())
+  name      String
+  value     Float
+  labels    Json?
+  recordedAt DateTime @default(now())
+  
+  @@index([name, recordedAt])
 }

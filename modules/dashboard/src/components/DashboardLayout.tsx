@@ -141,7 +141,7 @@ function Header() {
           <Zap className="w-5 h-5 text-white" />
         </div>
         <h1 className="text-xl font-bold text-white">
-          AlphaPro <span className="text-sm font-normal text-slate-400">v1.0.0-RC1</span>
+          AlphaPro <span className="text-sm font-normal text-slate-400">{import.meta.env.VITE_APP_VERSION || 'v1.0.0'}</span>
         </h1>
       </div>
 
@@ -274,7 +274,7 @@ function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-3 pl-3 border-l border-slate-700">
-<span className="text-sm text-slate-300">{user?.email || 'iamtemam@gmail.com'}</span>
+<span className="text-sm text-slate-300">{user?.email || 'Not logged in'}</span>
           <button
             onClick={handleLogout}
             className="p-2 text-slate-400 hover:text-red-400 transition-colors"
@@ -295,7 +295,6 @@ function Sidebar() {
 
   const navItems = [
     { to: '/home', icon: LayoutDashboard, label: 'Home', badge: null },
-    { to: '/rankings', icon: Target, label: 'Rankings', badge: null },
     { to: '/strategies', icon: Cpu, label: 'Strategies', badge: null },
     { to: '/ai-optimizer', icon: Bot, label: 'AI Optimizer', badge: null },
     { to: '/blockchain-stream', icon: Activity, label: 'Blockchain Stream', badge: null },

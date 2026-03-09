@@ -1,10 +1,14 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const { WebSocketServer } = require('ws');
 
 const app = express();
 const server = http.createServer(app);
+
+// --- Cookie Parser for CSRF ---
+app.use(cookieParser());
 
 // --- WebSocket Server Setup ---
 // The HTTP server is passed to the WebSocket server to allow it to handle upgrade requests.
@@ -19,9 +23,29 @@ app.use(express.urlencoded({ extended: true }));
 const { authMiddleware, optionalAuth } = require('./middleware/authMiddleware');
 const { apiLimiter, authLimiter, tradingLimiter } = require('./middleware/rateLimiter');
 const { csrfValidator, csrfTokenGenerator } = require('./middleware/csrfProtection');
-const realTimeMetrics = require('../engine/services/RealTimeMetricsService');
-const observabilityService = require('../engine/services/ObservabilityService');
-const backupScheduler = require('./services/BackupScheduler');
+
+// --- Initialize optional engine services (graceful degradation) ---
+let realTimeMetrics = null;
+let observabilityService = null;
+let backupScheduler = null;
+
+try {
+    realTimeMetrics = require('../engine/services/RealTimeMetricsService');
+} catch (e) {
+    console.warn('[APP] RealTimeMetricsService not available');
+}
+
+try {
+    observabilityService = require('../engine/services/ObservabilityService');
+} catch (e) {
+    console.warn('[APP] ObservabilityService not available');
+}
+
+try {
+    backupScheduler = require('./services/BackupScheduler');
+} catch (e) {
+    console.warn('[APP] BackupScheduler not available');
+}
 
 // --- CSRF Token Endpoint ---
 // Public endpoint to get CSRF token
@@ -36,6 +60,9 @@ app.get('/api/health', (req, res) => {
 // --- Prometheus Metrics Endpoint (No Auth Required) ---
 app.get('/metrics', async (req, res) => {
     try {
+        if (!observabilityService) {
+            return res.status(503).end('Observability service not available');
+        }
         res.set('Content-Type', observabilityService.register.contentType);
         res.end(await observabilityService.getMetrics());
     } catch (ex) {
@@ -61,10 +88,12 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api', apiLimiter, tradingLimiter, authMiddleware, csrfValidator, tradingRoutes);
 
 // --- Start Real-Time Metrics Service ---
-realTimeMetrics.start(wss);
+if (realTimeMetrics && realTimeMetrics.start) {
+    realTimeMetrics.start(wss);
+}
 
 // --- Start Backup Scheduler ---
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && backupScheduler && backupScheduler.start) {
     backupScheduler.start();
 }
 

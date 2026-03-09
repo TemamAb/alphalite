@@ -22,7 +22,9 @@ import random
 import math
 import json
 import logging
+import statistics
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from dataclasses import dataclass, asdict
 
 # Setup Logging
@@ -30,6 +32,9 @@ logging.basicConfig(level=logging.INFO, format='[ORACLE] %(message)s')
 logger = logging.getLogger("AlphaProOracle")
 
 app = Flask(__name__)
+
+# Enable CORS for cross-origin requests
+CORS(app)
 
 # Support PORT environment variable for multi-instance deployment
 BRAIN_PORT = int(os.environ.get('BRAIN_PORT', os.environ.get('PORT', 5000)))
@@ -42,7 +47,7 @@ class SystemConfig:
     max_loan_amount: int
     reinvestment_rate: float
     active_strategies: list
-    gas_优化_threshold: float  # Gas price threshold for trading
+    gas_threshold: float  # Gas price threshold for trading
     slippage_tolerance: float
 
 @dataclass
@@ -68,7 +73,7 @@ class TheOracle:
             max_loan_amount=10_000_000,
             reinvestment_rate=0.2,
             active_strategies=["LVR", "Triangular"],
-            gas_优化_threshold=30.0,
+            gas_threshold=30.0,
             slippage_tolerance=0.03
         )
         
@@ -94,7 +99,7 @@ class TheOracle:
         risk = params['risk_tolerance']
         loan_size = params['max_loan_amount']
         reinvest_rate = params['reinvestment_rate']
-        gas_threshold = params['gas_优化_threshold']
+        gas_threshold = params['gas_threshold']
         
         # Base profit potential (theoretical)
         profit_potential = (loan_size / 1_000_000) * 0.15 * (1 + risk)
@@ -124,7 +129,7 @@ class TheOracle:
             'risk_tolerance': self.current_config.risk_tolerance,
             'max_loan_amount': self.current_config.max_loan_amount,
             'reinvestment_rate': self.current_config.reinvestment_rate,
-            'gas_优化_threshold': self.current_config.gas_优化_threshold,
+            'gas_threshold': self.current_config.gas_threshold,
             'slippage_tolerance': self.current_config.slippage_tolerance
         }
         
@@ -194,7 +199,7 @@ class TheOracle:
         
         if random.random() < 0.2:
             delta = random.uniform(-5, 5) * scale
-            neighbor['gas_优化_threshold'] = max(5, min(100, params['gas_优化_threshold'] + delta))
+            neighbor['gas_threshold'] = max(5, min(100, params['gas_threshold'] + delta))
         
         if random.random() < 0.2:
             neighbor['max_loan_amount'] = int(params['max_loan_amount'] * (1 + random.uniform(-0.2, 0.2) * scale))
@@ -380,12 +385,12 @@ class TheOracle:
         # 5. Apply regime-specific adjustments
         if regime['regime'] == "HIGH_VOLATILITY":
             result.optimal_params['risk_tolerance'] *= 0.7
-            result.optimal_params['gas_优化_threshold'] *= 1.3
+            result.optimal_params['gas_threshold'] *= 1.3
         
         # 6. Update current config
         self.current_config.risk_tolerance = result.optimal_params['risk_tolerance']
         self.current_config.reinvestment_rate = result.optimal_params['reinvestment_rate']
-        self.current_config.gas_优化_threshold = result.optimal_params['gas_优化_threshold']
+        self.current_config.gas_threshold = result.optimal_params['gas_threshold']
         
         # Update tier based on capital velocity
         if result.theoretical_max_velocity > 500:

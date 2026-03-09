@@ -245,6 +245,7 @@ class DatabaseService {
         return await this.prisma.user.create({
             data: {
                 email: userData.email,
+                username: userData.username,
                 passwordHash: userData.passwordHash,
                 role: userData.role || 'user'
             }

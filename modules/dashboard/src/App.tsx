@@ -54,6 +54,9 @@ function App() {
             <Route path="ai-optimizer" element={<AIOptimizer />} />
             <Route path="health" element={<Health />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="logs" element={<Navigate to="/" replace />} />
+            <Route path="wallets" element={<Navigate to="/" replace />} />
+            <Route path="rankings" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

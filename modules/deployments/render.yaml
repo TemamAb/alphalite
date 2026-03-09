@@ -7,12 +7,16 @@ services:
   # The Brain (Python Sidecar) - AI Analysis
   - name: alphapro-brain
     runtime: python
-    buildCommand: pip install -r alphapro-brain/requirements.txt
-    startCommand: python alphapro-brain/app.py
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     plan: starter
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
 
   # The Core (Node API + React Frontend)
   - name: alphapro-api
@@ -116,3 +120,15 @@ services:
         value: https://api.dexscreener.com/latest/dex
       - key: BIRDEYE_API_URL
         value: https://public-api.birdeye.so
+
+  # Dashboard (React Frontend)
+  - name: alphapro-dashboard
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: starter
+    envVars:
+      - key: VITE_API_URL
+        value: https://alphapro-api.onrender.com
+      - key: VITE_WS_URL
+        value: wss://alphapro-api.onrender.com/ws

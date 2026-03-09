@@ -1,18 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const { ethers } = require('ethers');
-const aiAutoOptimizer = require('../../engine/services/AIAutoOptimizer');
-const aiServiceFactory = require('../../engine/services/AIServiceFactory');
-const fileSystemService = require('../../engine/services/FileSystemService');
 const { validateRequest, optimizerConfigSchema, copilotActionSchema } = require('../utils/validation');
-const brainConnector = require('../../engine/services/BrainConnector');
-const competitorAnalysis = require('../../engine/services/CompetitorAnalysisService');
-const executionOrchestrator = require('../../engine/services/ExecutionOrchestrator');
 const tradeAuditService = require('../services/TradeAuditService');
-const profitEngine = require('../../engine/EnterpriseProfitEngine');
 const walletPersistenceService = require('../services/WalletPersistenceService');
 const deploymentPersistenceService = require('../services/DeploymentPersistenceService');
-const { start } = require('repl');
+
+// --- Engine service imports with graceful degradation ---
+let aiAutoOptimizer = null;
+let aiServiceFactory = null;
+let fileSystemService = null;
+let brainConnector = null;
+let competitorAnalysis = null;
+let executionOrchestrator = null;
+let profitEngine = null;
+
+try { aiAutoOptimizer = require('../../engine/services/AIAutoOptimizer'); } catch (e) { console.warn('[TRADING] AIAutoOptimizer not available'); }
+try { aiServiceFactory = require('../../engine/services/AIServiceFactory'); } catch (e) { console.warn('[TRADING] AIServiceFactory not available'); }
+try { fileSystemService = require('../../engine/services/FileSystemService'); } catch (e) { console.warn('[TRADING] FileSystemService not available'); }
+try { brainConnector = require('../../engine/services/BrainConnector'); } catch (e) { console.warn('[TRADING] BrainConnector not available'); }
+try { competitorAnalysis = require('../../engine/services/CompetitorAnalysisService'); } catch (e) { console.warn('[TRADING] CompetitorAnalysisService not available'); }
+try { executionOrchestrator = require('../../engine/services/ExecutionOrchestrator'); } catch (e) { console.warn('[TRADING] ExecutionOrchestrator not available'); }
+try { profitEngine = require('../../engine/EnterpriseProfitEngine'); } catch (e) { console.warn('[TRADING] EnterpriseProfitEngine not available'); }
 
 // ... existing routes ...
 
@@ -24,6 +33,13 @@ const { start } = require('repl');
 router.post('/ai/optimizer/trigger', async (req, res) => {
     try {
         console.log('[API] Manual AI optimization triggered by user');
+        
+        if (!aiAutoOptimizer || !aiAutoOptimizer.triggerOptimization) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'AI optimizer service not available' 
+            });
+        }
         
         // Trigger the optimization process
         // Note: This is an async process but we might not wait for full completion 
@@ -51,6 +67,13 @@ router.post('/ai/optimizer/trigger', async (req, res) => {
  */
 router.post('/ai/optimizer/config', validateRequest(optimizerConfigSchema), (req, res) => {
     try {
+        if (!aiAutoOptimizer || !aiAutoOptimizer.updateConfig) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'AI optimizer service not available' 
+            });
+        }
+        
         const { mutationRate, optimizationInterval } = req.body;
         aiAutoOptimizer.updateConfig({ mutationRate, optimizationInterval });
         res.json({ success: true, message: 'AI configuration updated' });
@@ -67,6 +90,12 @@ router.post('/ai/optimizer/config', validateRequest(optimizerConfigSchema), (req
  */
 router.get('/ai/optimizer', (req, res) => {
     try {
+        if (!aiAutoOptimizer || !aiAutoOptimizer.getState) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'AI optimizer service not available' 
+            });
+        }
         const state = aiAutoOptimizer.getState();
         res.json(state);
     } catch (error) {
@@ -88,6 +117,14 @@ router.get('/copilot', async (req, res) => {
             return res.status(400).json({ error: 'Question is required' });
         }
 
+        // Check if AI service is available
+        if (!aiServiceFactory) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'AI service not available' 
+            });
+        }
+        
         // Initialize factory with environment variables if not already done
         // Ideally this should be done once at startup, but for safety we check here
         if (!aiServiceFactory.config.openaiApiKey && !aiServiceFactory.config.geminiApiKey) {
@@ -98,6 +135,13 @@ router.get('/copilot', async (req, res) => {
         }
 
         const aiService = aiServiceFactory.getService(provider || 'openai');
+        
+        if (!aiService) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'AI service not available for provider: ' + (provider || 'openai') 
+            });
+        }
         
         const systemPrompt = `You are Alpha Copilot, an advanced AI trading assistant. 
         Current Persona: ${persona ? persona.toUpperCase() : 'AUTO'}.
@@ -129,7 +173,7 @@ router.get('/copilot', async (req, res) => {
         }
 
         // Integrate with real engine stats
-        const engineStatus = profitEngine.getStatus();
+        const engineStatus = profitEngine ? profitEngine.getStatus() : { mode: 'STOPPED', stats: { totalTrades: 0, totalProfit: 0, successfulTrades: 0 } };
         const engineStats = engineStatus.stats || { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
         const winRate = engineStats.totalTrades > 0 ? (engineStats.successfulTrades / engineStats.totalTrades * 100).toFixed(1) : '0.0';
 
@@ -139,7 +183,7 @@ router.get('/copilot', async (req, res) => {
             totalProfit: engineStats.totalProfit.toFixed(4),
             winRate: winRate,
             // Confidence score can be linked to AI optimizer fitness or remain a placeholder
-            confidenceScore: (aiAutoOptimizer.getState().bestFitness * 10).toFixed(1) || '75.0'
+            confidenceScore: aiAutoOptimizer && aiAutoOptimizer.getState ? (aiAutoOptimizer.getState().bestFitness * 10).toFixed(1) : '75.0'
         };
 
         res.json({ answer, metrics: liveMetrics, suggestedAction });
@@ -156,6 +200,13 @@ router.get('/copilot', async (req, res) => {
  */
 router.post('/copilot/action', validateRequest(copilotActionSchema), async (req, res) => {
     try {
+        if (!fileSystemService || !fileSystemService.executeAction) {
+            return res.status(503).json({ 
+                success: false, 
+                error: 'File system service not available' 
+            });
+        }
+        
         const { action, filePath, content } = req.body;
         const result = await fileSystemService.executeAction(action, { filePath, content });
         res.json(result);
@@ -201,6 +252,11 @@ router.get('/config/wallet', (req, res) => {
  */
 router.get('/brain/theoretical-max', async (req, res) => {
     try {
+        if (!brainConnector || !brainConnector.getTheoreticalMaximum) {
+            return res.status(503).json({ 
+                error: 'Brain connector service not available' 
+            });
+        }
         const data = await brainConnector.getTheoreticalMaximum();
         res.json(data || {});
     } catch (error) {
@@ -216,6 +272,11 @@ router.get('/brain/theoretical-max', async (req, res) => {
  */
 router.get('/competitors/activity', async (req, res) => {
     try {
+        if (!competitorAnalysis || !competitorAnalysis.getCompetitorActivity) {
+            return res.status(503).json({ 
+                error: 'Competitor analysis service not available' 
+            });
+        }
         const data = await competitorAnalysis.getCompetitorActivity();
         res.json(data);
     } catch (error) {
@@ -232,6 +293,12 @@ router.get('/competitors/activity', async (req, res) => {
 router.get('/engine/status', (req, res) => {
     // IA-8 FIX: Query the REAL engine and orchestrator for their status
     try {
+        if (!profitEngine || !executionOrchestrator) {
+            return res.status(503).json({ 
+                error: 'Engine services not available' 
+            });
+        }
+        
         const engineStatus = profitEngine.getStatus();
         const orchestratorStatus = executionOrchestrator.getStatus();
         
@@ -256,6 +323,12 @@ router.get('/engine/status', (req, res) => {
 router.post('/engine/state', async (req, res) => {
     // IA-8 FIX: Control the REAL engine and orchestrator
     try {
+        if (!profitEngine || !executionOrchestrator) {
+            return res.status(503).json({ 
+                error: 'Engine services not available' 
+            });
+        }
+        
         const { action, mode } = req.body;
         
         if (action === 'start') {
@@ -298,6 +371,11 @@ router.post('/engine/state', async (req, res) => {
  */
 router.get('/engine/strategies', (req, res) => {
     try {
+        if (!profitEngine) {
+            return res.status(503).json({ 
+                error: 'Profit engine not available' 
+            });
+        }
         // IA-8 FIX: Get strategies from the REAL engine
         res.json(profitEngine.getStatus().strategies || []);
     } catch (error) {
@@ -313,6 +391,11 @@ router.get('/engine/strategies', (req, res) => {
  */
 router.post('/engine/strategies', (req, res) => {
     try {
+        if (!profitEngine) {
+            return res.status(503).json({ 
+                error: 'Profit engine not available' 
+            });
+        }
         // IA-8 FIX: Reload strategies in the REAL engine
         profitEngine.reloadStrategies();
         res.json(profitEngine.getStatus().strategies);
@@ -344,6 +427,12 @@ router.delete('/engine/strategies/:name', (req, res) => {
  */
 router.get('/engine/profit', async (req, res) => {
     try {
+        if (!tradeAuditService) {
+            return res.status(503).json({ 
+                error: 'Trade audit service not available' 
+            });
+        }
+        
         const { days = 7 } = req.query;
         
         // Fetch recent trades from the audit service
@@ -401,6 +490,12 @@ router.get('/engine/profit', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
     try {
+        if (!profitEngine) {
+            return res.status(503).json({ 
+                error: 'Profit engine not available' 
+            });
+        }
+        
         // Integrate with real engine stats
         const engineStatus = profitEngine.getStatus();
         const engineStats = engineStatus.stats || { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };

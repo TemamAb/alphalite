@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+const { getPrismaClient } = require('../utils/database');
 const winston = require('winston');
 
-// Initialize Prisma Client
-const prisma = new PrismaClient();
+// Initialize Prisma Client from singleton
+const prisma = getPrismaClient();
 
 // Configure structured logging for audit trail
 const logger = winston.createLogger({

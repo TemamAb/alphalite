@@ -31,7 +31,7 @@ services:
   # 3. API Instance 1 (Node.js) - Can scale to more
   api1:
     build:
-      context: .
+      context: ../api
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
@@ -55,7 +55,7 @@ services:
   # 4. API Instance 2 (Node.js) - For horizontal scaling
   api2:
     build:
-      context: .
+      context: ../api
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=production

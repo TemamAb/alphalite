@@ -7,7 +7,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
-const { getSecret } = require('../middleware/authMiddleware');
+const { getSecret, authMiddleware } = require('../middleware/authMiddleware');
 const databaseService = require('../services/DatabaseService');
 
 // IA-3 FIX: The volatile in-memory user store has been removed.
@@ -246,9 +246,10 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /api/auth/me - Get current user info
-router.get('/me', require('../middleware/authMiddleware').authMiddleware, async (req, res) => {
-    await databaseService.connect();
-    const user = await databaseService.getUserByEmail(req.user.email);
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        await databaseService.connect();
+        const user = await databaseService.getUserByEmail(req.user.email);
     
     if (!user) {
         return res.status(404).json({

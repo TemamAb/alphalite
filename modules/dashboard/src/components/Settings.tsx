@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, Shield, Crosshair, Zap, Layout, Code, Fish, AlertTriangle, RefreshCw } from 'lucide-react';
-import { useDashboardStore } from '@/stores';
+import { useDashboardStore, useAuthStore } from '@/stores';
 
 interface TradingSettings {
     reinvestmentRate: number;
@@ -43,6 +43,7 @@ const Settings: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const { fetchWalletBalances } = useDashboardStore();
+    const token = useAuthStore((state) => state.token);
 
     // Use environment variable or default to localhost
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -55,7 +56,6 @@ const Settings: React.FC = () => {
 
     const fetchSettings = async () => {
         try {
-            const token = localStorage.getItem('token');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             
             const response = await fetch(`${API_URL}/api/settings/trading`, {
@@ -78,7 +78,6 @@ const Settings: React.FC = () => {
 
     const fetchPersonaSettings = async () => {
         try {
-            const token = localStorage.getItem('token');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             
             const response = await fetch(`${API_URL}/api/settings/personas`, {
@@ -96,7 +95,6 @@ const Settings: React.FC = () => {
 
     const fetchFrontRunSettings = async () => {
         try {
-            const token = localStorage.getItem('token');
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             
             const response = await fetch(`${API_URL}/api/settings/frontrun`, {
@@ -116,7 +114,6 @@ const Settings: React.FC = () => {
         setSaving(true);
         setMessage({ type: '', text: '' });
         try {
-            const token = localStorage.getItem('token');
             const headers = {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})

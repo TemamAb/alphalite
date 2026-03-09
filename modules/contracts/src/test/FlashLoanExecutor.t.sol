@@ -26,7 +26,7 @@ contract FlashLoanExecutorTest is Test {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    address public constant DAI = 0x6B175474E89094C44Da98b954EesAdc43365D9d;
+    address public constant DAI = 0x6B175474E89094C44Da98b954EedeACb43365D9d;
     
     uint256 public constant INITIAL_BALANCE = 100 ether;
     
@@ -291,9 +291,9 @@ contract FlashLoanExecutorTest is Test {
 }
 
 /**
- * @dev Mock ERC20 token for testing
+ * @dev Mock ERC20 token for testing - implements minimal ERC20 for test purposes
  */
-contract MockERC20 is Test {
+contract MockERC20 {
     string public name;
     string public symbol;
     uint8 public decimals;
@@ -310,11 +310,11 @@ contract MockERC20 is Test {
         decimals = _decimals;
     }
     
-    function mint(address to, uint256 amount) public {
+    function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
     }
     
-    function transfer(address to, uint256 amount) public returns (bool) {
+    function transfer(address to, uint256 amount) external returns (bool) {
         require(balanceOf[msg.sender] >= amount, "Insufficient balance");
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
@@ -322,13 +322,13 @@ contract MockERC20 is Test {
         return true;
     }
     
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
     
-    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         require(balanceOf[from] >= amount, "Insufficient balance");
         require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
         balanceOf[from] -= amount;

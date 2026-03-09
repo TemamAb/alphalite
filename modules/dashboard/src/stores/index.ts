@@ -204,13 +204,18 @@ export const useDashboardStore = create<DashboardState>()(
           
           // Preserve private key in local state if provided
           if (privateKey) {
-            (newWallet as any).privateKey = privateKey;
+            // Create a new wallet object with the private key preserved
+            const walletWithKey: Wallet = { ...newWallet, privateKey };
+            set((state) => ({
+              wallets: [...state.wallets, walletWithKey],
+              isLoading: false,
+            }));
+          } else {
+            set((state) => ({
+              wallets: [...state.wallets, newWallet],
+              isLoading: false,
+            }));
           }
-          
-          set((state) => ({
-            wallets: [...state.wallets, newWallet],
-            isLoading: false,
-          }));
         } catch (error) {
           set({ error: 'Failed to add wallet', isLoading: false });
         }
@@ -434,7 +439,7 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
             break;
           }
           default:
-            console.warn(`[WS] Received unknown message type: ${(message as any).type}`);
+            console.warn(`[WS] Received unknown message type: ${message.type}`);
         }
       } catch (error) {
         console.error('[WS] Error parsing message:', error);
@@ -457,10 +462,8 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
       }
 
       // Per architecture review: Implement exponential backoff with jitter for reconnection
-      const baseDelay = 1000; // 1 second
-      const maxDelay = 30000; // 30 seconds
       const jitter = Math.random() * 500;
-      const delay = Math.min(maxDelay, baseDelay * 2 ** wsRetryAttempts) + jitter;
+      const delay = Math.min(WS_MAX_DELAY, WS_BASE_DELAY * 2 ** wsRetryAttempts) + jitter;
       
       console.log(`[WS] Reconnecting in ${Math.round(delay / 1000)}s... (Attempt ${wsRetryAttempts + 1}/${WS_MAX_RETRY_ATTEMPTS})`);
       

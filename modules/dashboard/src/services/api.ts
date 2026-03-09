@@ -1,4 +1,5 @@
 import type { Deployment, DeploymentStats, SystemHealth, ApiMetrics, Wallet, EngineStatus } from '@/types';
+import { useAuthStore } from '@/stores';
 
 const API_BASE_URL = ''; // Use relative URLs for nginx proxy or set VITE_API_URL
 
@@ -11,7 +12,8 @@ const RETRY_DELAY = 1000; // 1 second
 
 // Generic fetch wrapper with timeout and retry logic
 async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MAX_RETRIES): Promise<T> {
-  const token = localStorage.getItem('auth_token');
+  // Get token from zustand store for consistency
+  const token = useAuthStore.getState().token;
   
   // Create abort controller for timeout
   const controller = new AbortController();
@@ -240,7 +242,9 @@ export function createWebSocketConnection(
   onMessage: (data: unknown) => void,
   onError?: (error: Event) => void
 ): WebSocket {
-  const wsUrl = API_BASE_URL.replace('http', 'ws') + '/ws';
+  // Properly construct WebSocket URL based on current protocol
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
   const ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
