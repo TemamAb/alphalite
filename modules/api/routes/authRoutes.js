@@ -251,17 +251,24 @@ router.get('/me', authMiddleware, async (req, res) => {
         await databaseService.connect();
         const user = await databaseService.getUserByEmail(req.user.email);
     
-    if (!user) {
-        return res.status(404).json({
-            error: 'User not found',
-            code: 'USER_NOT_FOUND'
+        if (!user) {
+            return res.status(404).json({
+                error: 'User not found',
+                code: 'USER_NOT_FOUND'
+            });
+        }
+
+        const { passwordHash: _, ...userWithoutPassword } = user;
+        res.json({
+            user: userWithoutPassword
+        });
+    } catch (error) {
+        console.error('[AUTH] Error fetching user:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            code: 'INTERNAL_ERROR'
         });
     }
-
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    res.json({
-        user: userWithoutPassword
-    });
 });
 
 module.exports = router;
