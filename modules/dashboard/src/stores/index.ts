@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { deploymentApi, walletApi, metricsApi } from '../services/api';
 
 // ==================== Auth Store ====================
 interface AuthState {
@@ -98,33 +99,46 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   engineStatus: 'idle',
   
   fetchStats: async () => {
-    // Mock data - replace with actual API calls
-    set({
-      stats: {
-        totalPnl: 12500,
-        activeStrategies: 5,
-        dailyVolume: 250000,
-        winRate: 72,
-      },
-    });
+    try {
+      const data = await deploymentApi.getStats();
+      set({ 
+        stats: {
+          totalPnl: (data as any).totalPnl || (data as any).profit || 0,
+          activeStrategies: (data as any).activeStrategies || (data as any).strategies?.length || 0,
+          dailyVolume: (data as any).dailyVolume || (data as any).volume || 0,
+          winRate: (data as any).winRate || (data as any).win_rate || 0,
+        }
+      });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch stats:', error);
+    }
   },
   
   fetchDeployments: async () => {
-    // Mock data
-    set({
-      deployments: [
-        { id: '1', name: 'Mainnet Alpha', status: 'active', lastDeployed: new Date().toISOString() },
-      ],
-    });
+    try {
+      const data = await deploymentApi.getAll();
+      set({ deployments: (data as any).map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        status: d.status,
+        lastDeployed: d.lastDeployed || d.last_deployed || new Date().toISOString()
+      })) });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch deployments:', error);
+    }
   },
   
   fetchWalletBalances: async () => {
-    // Mock data
-    set({
-      wallets: [
-        { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f', balance: '2.5', chain: 'Ethereum' },
-      ],
-    });
+    try {
+      const wallets = await walletApi.getAll();
+      set({ wallets: (wallets as any).map((w: any) => ({
+        address: w.address,
+        balance: String(w.balance || w.balance_eth || '0'),
+        chain: w.chain || 'Ethereum'
+      })) });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch wallets:', error);
+    }
   },
   
   setRefreshInterval: (interval: number) => {
@@ -148,12 +162,17 @@ export const useSystemStore = create<SystemState>((set) => ({
   uptime: 0,
   
   fetchSystemMetrics: async () => {
-    // Mock data
-    set({
-      cpuUsage: 45,
-      memoryUsage: 62,
-      networkLatency: 25,
-      uptime: Date.now(),
-    });
+    try {
+      const data = await metricsApi.getSystemMetrics();
+      const d = data as any;
+      set({
+        cpuUsage: d.cpu?.usage || d.cpuUsage || 0,
+        memoryUsage: d.memory?.usage || d.memoryUsage || 0,
+        networkLatency: d.latency || d.networkLatency || 0,
+        uptime: d.uptime || Date.now(),
+      });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch system metrics:', error);
+    }
   },
 }));
