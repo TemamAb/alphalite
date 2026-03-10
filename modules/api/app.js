@@ -104,16 +104,16 @@ app.use('/api/auth', authLimiter, authRoutes);
 // - csrfValidator: Validates X-CSRF-Token header/cookie
 // Use toMiddleware helper to ensure each is an array of functions
 
-// AUTHENTICATION BYPASS: Inject admin user and skip checks for deployment
-const bypassAuth = (req, res, next) => {
-    req.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
-    next();
-};
+// PRODUCTION: Use real authentication middleware
+const { authMiddleware } = require('./middleware/authMiddleware');
+const { csrfValidator } = require('./middleware/csrfProtection');
 
+// Protected routes with real auth
 const protectedMiddleware = [
     ...toMiddleware(apiLimiter),
     ...toMiddleware(tradingLimiter),
-    bypassAuth, // Replaces authMiddleware and csrfValidator
+    authMiddleware,  // JWT authentication required
+    // csrfValidator, // Optional: Uncomment after testing
     tradingRoutes
 ];
 app.use('/api', ...protectedMiddleware);
@@ -129,11 +129,29 @@ if (process.env.NODE_ENV === 'production' && backupScheduler && backupScheduler.
 }
 
 // --- WebSocket Server with Authentication ---
-// Authenticate WebSocket connections
+// Authenticate WebSocket connections using JWT
+const { verifyToken } = require('./middleware/authMiddleware');
+
 wss.on('connection', (ws, req) => {
-  // AUTHENTICATION REMOVED: Allow all connections as admin
-  ws.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
-  console.log('[WSS] Client connected (Auth Disabled)');
+  // Extract token from query string
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  // Verify JWT token
+  if (!token) {
+    ws.close(4001, 'Authentication required');
+    return;
+  }
+  
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    ws.close(4003, 'Invalid token');
+    return;
+  }
+  
+  // Attach user to WebSocket connection
+  ws.user = decoded;
+  console.log(`[WSS] Client connected: ${decoded.email} (${decoded.role})`);
   
   ws.on('close', () => console.log('[WSS] Client disconnected'));
   ws.on('error', console.error);

@@ -9,6 +9,7 @@
  */
 
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
 class AlertingService {
     constructor() {
@@ -29,7 +30,7 @@ class AlertingService {
                 port: process.env.SMTP_PORT || 587,
                 user: process.env.SMTP_USER,
                 password: process.env.SMTP_PASSWORD,
-from: process.env.SMTP_FROM || 'iamtemam@gmail.com',
+                from: process.env.SMTP_FROM || 'iamtemam@gmail.com',
                 to: process.env.ALERT_EMAIL_TO
             }
         };
@@ -44,7 +45,7 @@ from: process.env.SMTP_FROM || 'iamtemam@gmail.com',
      */
     async sendAlert(alert) {
         const alertEntry = {
-            id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `alert_${Date.now()}_${uuidv4().substring(0, 8)}`,
             timestamp: new Date().toISOString(),
             ...alert
         };

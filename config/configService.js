@@ -90,7 +90,7 @@ class ConfigService extends EventEmitter {
             stopLossPercentage: getNumericValue('STOP_LOSS_PERCENTAGE', ['stop_loss_percentage'], 5),
 
             // Trading Mode
-            tradingMode: getConfigValue('TRADING_MODE', ['trading_mode'], 'LIVE'),
+            tradingMode: getConfigValue('TRADING_MODE', ['trading_mode'], 'PAPER'),
             withdrawalMode: getConfigValue('WITHDRAWAL_MODE', ['withdrawal_mode'], 'MANUAL'),
 
             // Data Sources
