@@ -496,7 +496,7 @@ class EnterpriseProfitEngine extends EventEmitter {
         if (chainId === 1 && this.rpcEndpoints['ethereum']) {
             return this.rpcEndpoints['ethereum'];
         }
-        
+
         console.error(`[ENGINE] ❌ CRITICAL: No RPC URL configured in environment variables for chainId ${chainId}. Transaction verification will fail.`);
         // Return null to ensure failure instead of using an insecure public node.
         return null;
@@ -504,7 +504,7 @@ class EnterpriseProfitEngine extends EventEmitter {
 
     subscribeToEvents() {
         console.log('[ENGINE] ✅ Subscribing to market data streams...');
-        
+
         // Hook up WhaleWatcher to the mempool stream
         this.dataFusionEngine.on('mempool:pendingTx', (event) => {
             this.handleMempoolEvent(event);
@@ -513,7 +513,7 @@ class EnterpriseProfitEngine extends EventEmitter {
 
         // Subscribe to REST API polling events
         this.dataFusionEngine.on('mempool:block', this.handleMempoolEvent.bind(this));
-        
+
         // Listen for whale events to trigger front-running
         whaleWatcher.on('whale:detected', this.handleWhaleEvent.bind(this));
 
@@ -539,7 +539,7 @@ class EnterpriseProfitEngine extends EventEmitter {
         // However, typically the engine should have its own config state updated via the configService.
         // For now, we will assume a default or fetch from a shared service if available.
         // Let's assume configService or a new method provides this.
-        
+
         // Mocking access to the dynamic config for this specific logic block as it wasn't explicitly passed
         // In a real refactor, frontRunConfig should be part of this.config
         const frontRunEnabled = true; // Default to true if not found, or fetch from config
@@ -586,28 +586,38 @@ class EnterpriseProfitEngine extends EventEmitter {
             if (bestOpp && bestOpp.score > 40) {
                 this.lastOpportunityTime = Date.now();
 
-                // REAL-TIME PROFIT CALCULATION (Remediation of IA-7)
+                // IA-7 FIX: REAL-TIME PROFIT CALCULATION WITH FEES & SLIPPAGE
                 const spreadBps = bestOpp.avgSpreadBps || 0;
                 // PRODUCTION FIX: Use configured capital or safe default, not hardcoded 2.5
-                const baseCapital = parseFloat(this.config.tradingCapital || process.env.TRADING_CAPITAL || 0.5); 
-                
+                const baseCapital = parseFloat(this.config.tradingCapital || process.env.TRADING_CAPITAL || 0.5);
+
                 // 1. Calculate Gross Profit based on real spread
                 const grossProfitEth = (spreadBps / 10000) * baseCapital;
 
-                // 2. Estimate Gas Costs via Oracle (Remediation of Finding 4)
+                // 2. Subtract Swap Fees & Slippage (Audit Requirement)
+                // Typically 0.3% fee per swap * 2 swaps = 60 bps. + 5 bps slippage buffer.
+                const dexSwapFeesBps = 65;
+                const netSpreadBps = spreadBps - dexSwapFeesBps;
+
+                // If the spread doesn't even cover the fees, it's a guaranteed loss
+                if (netSpreadBps <= 0) return;
+
+                const actualProfitEth = (netSpreadBps / 10000) * baseCapital;
+
+                // 3. Estimate Gas Costs via Oracle (Remediation of Finding 4)
                 let gasCostEth = '0.005'; // Safety fallback
                 try {
                     const gasPrice = await gasPriceOracle.getGasPrice(chain || 'ethereum');
                     // Avg flash loan gas usage ~400k-500k
-                    const estimatedGas = ethers.BigNumber.from(500000); 
+                    const estimatedGas = ethers.BigNumber.from(500000);
                     const costWei = gasPrice.mul(estimatedGas);
                     gasCostEth = ethers.utils.formatEther(costWei);
                 } catch (e) {
                     console.warn('[ENGINE] Gas estimation failed, using safety fallback:', e.message);
                 }
 
-                // 3. Calculate Net Profit
-                const netProfit = grossProfitEth - parseFloat(gasCostEth);
+                // 4. Calculate Net Profit (considering gas)
+                const netProfit = actualProfitEth - parseFloat(gasCostEth);
 
                 // Filter unprofitable trades (Production Gate)
                 if (netProfit <= 0) return;
@@ -658,10 +668,10 @@ class EnterpriseProfitEngine extends EventEmitter {
      */
     _generateStrategyPayload(strategy, context) {
         const { txHash, chain, pair, profit } = context;
-        
+
         // Normalize Chain ID
         const chainId = typeof chain === 'string' ? (CHAIN_IDS[chain.toLowerCase()] || 1) : chain;
-        
+
         // Use wallet address as default target when no flash loan executor is configured
         const ownerAddress = this.config.walletAddress || this.pimlicoConfig?.walletAddress || this.pimlicoConfig?.ownerAddress;
         let targetAddress = this.config.flashLoanExecutorAddress || ownerAddress;
@@ -671,7 +681,7 @@ class EnterpriseProfitEngine extends EventEmitter {
             console.warn(`[ENGINE] WARNING: flashLoanExecutorAddress or walletAddress not configured. Using placeholder for deployment readiness.`);
             targetAddress = '0x0000000000000000000000000000000000000000';
         }
-        
+
         // Get tokens for this chain
         const tokens = TOKEN_MAP[chainId] || TOKEN_MAP[1]; // Fallback to ETH Mainnet if unknown
 
@@ -699,7 +709,7 @@ class EnterpriseProfitEngine extends EventEmitter {
                 // Use the capital calculated in the opportunity, default to 10 if missing
                 const loanAmount = context.amount ? ethers.utils.parseEther(context.amount.toString()) : ethers.utils.parseEther('10');
                 const amounts = [loanAmount];
-                
+
                 payload.data = iface.encodeFunctionData("flashLoan", [
                     targetAddress,
                     [loanToken],

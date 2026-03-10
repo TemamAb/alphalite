@@ -5,9 +5,9 @@
  */
 class CapitalManager {
     constructor(totalCapital) {
-        this.totalCapital = totalCapital; // e.g., 500 (for $500M)
+        this.totalCapital = totalCapital; // e.g., 50 (ETH)
         this.allocatedCapital = 0;
-        console.log(`[CAPITAL] Manager initialized with $${this.totalCapital}M total velocity.`);
+        console.log(`[CAPITAL] Manager initialized with ${this.totalCapital} ETH total velocity.`);
     }
 
     get availableCapital() {
@@ -22,11 +22,11 @@ class CapitalManager {
      */
     requestCapital(amount, opportunity) {
         if (amount > this.availableCapital) {
-            console.warn(`[CAPITAL] DENIED: Request for $${amount}M exceeds available $${this.availableCapital}M. Opportunity: ${opportunity.pair}`);
+            console.warn(`[CAPITAL] DENIED: Request for ${amount} ETH exceeds available ${this.availableCapital} ETH. Opportunity: ${opportunity.pair}`);
             return false;
         }
         this.allocatedCapital += amount;
-        console.log(`[CAPITAL] GRANTED: $${amount}M for ${opportunity.pair}. Available: $${this.availableCapital}M`);
+        console.log(`[CAPITAL] GRANTED: ${amount} ETH for ${opportunity.pair}. Available: ${this.availableCapital} ETH`);
         return true;
     }
 
@@ -37,7 +37,7 @@ class CapitalManager {
     releaseCapital(amount) {
         this.allocatedCapital -= amount;
         if (this.allocatedCapital < 0) this.allocatedCapital = 0;
-        console.log(`[CAPITAL] RELEASED: $${amount}M. Available: $${this.availableCapital}M`);
+        console.log(`[CAPITAL] RELEASED: ${amount} ETH. Available: ${this.availableCapital} ETH`);
     }
 
     /**
@@ -45,7 +45,7 @@ class CapitalManager {
      * @param {number} newTotal - The new total capital limit.
      */
     setTotalCapital(newTotal) {
-        console.log(`[CAPITAL] Velocity updated from $${this.totalCapital}M to $${newTotal}M.`);
+        console.log(`[CAPITAL] Velocity updated from ${this.totalCapital} ETH to ${newTotal} ETH.`);
         this.totalCapital = newTotal;
     }
 
@@ -60,4 +60,4 @@ class CapitalManager {
 }
 
 // Singleton instance, initialized with a default. Will be updated by settings.
-module.exports = new CapitalManager(100); // Default $100M
+module.exports = new CapitalManager(50); // Default 50 ETH velocity limit

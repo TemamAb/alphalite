@@ -16,7 +16,7 @@ try {
         configService = require('../../../config/configService');
     } catch (e2) {
         // Fallback mock if config service is missing
-        configService = { getConfig: () => ({}), on: () => {} };
+        configService = { getConfig: () => ({}), on: () => { } };
     }
 }
 
@@ -119,8 +119,9 @@ class ExecutionOrchestrator extends EventEmitter {
      * @param {object} opportunity - The enriched opportunity object.
      */
     async executeTrade(opportunity) {
-        const { pair, strategy, profit, chainId } = opportunity;
-        const requiredCapital = 10; // Example capital, can be made dynamic
+        const { pair, strategy, profit, chainId, amount } = opportunity;
+        // AUDITOR FIX: Use dynamic capital from opportunity or config fallback
+        const requiredCapital = amount || parseFloat(this.config.tradingCapital || process.env.TRADING_CAPITAL || 0.5);
         const tradeId = `trade_${Date.now()}_${pair.slice(-6)}`;
 
         if (!capitalManager.requestCapital(requiredCapital, opportunity)) {
@@ -136,10 +137,10 @@ class ExecutionOrchestrator extends EventEmitter {
             console.log(`[ORCHESTRATOR] Dispatching trade for ${pair} on chain ${chainId} via ${strategy.name}`);
             // IA-10 FIX: Corrected the function call to match the refactored TradeExecutor signature.
             const result = await tradeExecutor.execute(opportunity);
-            
+
             const duration = performance.now() - this.activeTrades.get(tradeId).startTime;
             const completedTrade = { ...opportunity, status: 'COMPLETED', result, profit, duration };
-            
+
             this.activeTrades.set(tradeId, completedTrade);
             this.emit('tradeCompleted', completedTrade);
 
@@ -181,7 +182,7 @@ class ExecutionOrchestrator extends EventEmitter {
         }
         return metrics;
     }
-    
+
     getStatus() {
         return {
             isRunning: !!this.timer,

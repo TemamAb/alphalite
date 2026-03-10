@@ -38,7 +38,7 @@ try {
     try {
         configService = require('../../../configService');
     } catch (e2) {
-        configService = { getConfig: () => ({}), on: () => {} };
+        configService = { getConfig: () => ({}), on: () => { } };
     }
 }
 
@@ -64,10 +64,10 @@ const keepAliveAgent = new https.Agent({
 class RankingEngine extends EventEmitter {
     constructor() {
         super();
-        
+
         // Load config
         this.config = configService.getConfig();
-        
+
         // Initialize Data Sources from config or defaults
         this.dataSources = {
             coinGecko: this.config.coinGeckoUrl || process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3',
@@ -94,16 +94,16 @@ class RankingEngine extends EventEmitter {
         this.dexRankings = new Map();
         this.pairRankings = new Map();
         this.currentVolatilityIndex = 0; // 0-100 scale
-        
+
         // WebSocket for real-time block data
         this.ws = null;
         this.wsSubscriptionId = null;
-        
+
         // Historical performance data
         this.profitHistory = new Map();
         this.volumeHistory = new Map();
         this.opportunityHistory = new Map();
-        
+
         // Scoring weights (can be adjusted dynamically)
         this.weights = {
             chain: {
@@ -129,15 +129,15 @@ class RankingEngine extends EventEmitter {
                 bridgeEfficiencyWeight: 0.10 // For Cross-Rollup Arbitrage
             },
         };
-        
+
         // Initialize default rankings
         this.initializeRankings();
-        
+
         // Update interval
         this.discoveryInterval = 60000; // 1 minute for structure
         this.tickInterval = 1000;       // 1 second for price ticks (HFT)
     }
-    
+
     initializeRankings() {
         // Initialize chain rankings with baseline scores
         const defaultChains = [
@@ -192,7 +192,7 @@ class RankingEngine extends EventEmitter {
             { id: 'meter', name: 'Meter', baseScore: 0 },
             { id: 'oasis', name: 'Oasis Emerald', baseScore: 0 }
         ];
-        
+
         defaultChains.forEach(chain => {
             this.chainRankings.set(chain.id, {
                 ...chain,
@@ -204,7 +204,7 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         });
-        
+
         // Initialize DEX rankings
         const defaultDexes = [
             { id: 'uniswap_v3', chain: 'ethereum', baseScore: 0 },
@@ -258,7 +258,7 @@ class RankingEngine extends EventEmitter {
             { id: 'phoenix', chain: 'solana', baseScore: 0 },
             { id: 'openbook', chain: 'solana', baseScore: 0 }
         ];
-        
+
         defaultDexes.forEach(dex => {
             this.dexRankings.set(`${dex.chain}_${dex.id}`, {
                 ...dex,
@@ -271,7 +271,7 @@ class RankingEngine extends EventEmitter {
             });
         });
     }
-    
+
     /**
      * Update chain rankings based on real-time data
      */
@@ -279,23 +279,23 @@ class RankingEngine extends EventEmitter {
         for (const [chainId, data] of Object.entries(chainData)) {
             const current = this.chainRankings.get(chainId);
             if (!current) continue;
-            
+
             // Calculate new score
             const profitScore = this.calculateProfitScore(data.profit24h);
             const volumeScore = this.calculateVolumeScore(data.volume24h);
             const opportunityScore = this.calculateOpportunityScore(data.opportunitiesCount);
             const reliabilityScore = data.reliability || 0.99;
-            
-            const newScore = 
+
+            const newScore =
                 (profitScore * this.weights.chain.profitWeight) +
                 (volumeScore * this.weights.chain.volumeWeight) +
                 (opportunityScore * this.weights.chain.opportunityWeight) +
                 (reliabilityScore * 100 * this.weights.chain.reliabilityWeight);
-            
+
             // Apply momentum (smoothing)
             const momentum = 0.7;
             const finalScore = (current.score * momentum) + (newScore * (1 - momentum));
-            
+
             this.chainRankings.set(chainId, {
                 ...current,
                 score: Math.min(100, Math.max(0, finalScore)),
@@ -306,10 +306,10 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         }
-        
+
         this.emit('chainRankingsUpdated', this.getSortedChains());
     }
-    
+
     /**
      * Update DEX rankings based on real-time data
      */
@@ -317,23 +317,23 @@ class RankingEngine extends EventEmitter {
         for (const [dexKey, data] of Object.entries(dexData)) {
             const current = this.dexRankings.get(dexKey);
             if (!current) continue;
-            
+
             // Calculate new score
             const liquidityScore = this.calculateLiquidityScore(data.liquidity24h);
             const volumeScore = this.calculateVolumeScore(data.volume24h);
             const feeScore = (1 - data.avgFee) * 100;
             const reliabilityScore = (data.reliability || 0.98) * 100;
-            
-            const newScore = 
+
+            const newScore =
                 (liquidityScore * this.weights.dex.liquidityWeight) +
                 (volumeScore * this.weights.dex.volumeWeight) +
                 (feeScore * this.weights.dex.feeWeight) +
                 (reliabilityScore * this.weights.dex.reliabilityWeight);
-            
+
             // Apply momentum
             const momentum = 0.8;
             const finalScore = (current.score * momentum) + (newScore * (1 - momentum));
-            
+
             this.dexRankings.set(dexKey, {
                 ...current,
                 score: Math.min(100, Math.max(0, finalScore)),
@@ -344,10 +344,10 @@ class RankingEngine extends EventEmitter {
                 lastUpdate: Date.now()
             });
         }
-        
+
         this.emit('dexRankingsUpdated', this.getSortedDexes());
     }
-    
+
     /**
      * Update trading pair rankings based on arbitrage opportunities
      * ENTERPRISE GRADE: REAL multi-DEX spread calculation
@@ -359,7 +359,7 @@ class RankingEngine extends EventEmitter {
             // We now fetch real prices from multiple DEXs to calculate actual arbitrage spread.
             // This is NOT simulated - we query actual on-chain pools and DEX APIs.
             // =======================================================================================
-            
+
             // The `data` object comes from `updateWithRealData` and contains raw pair info
             const { baseTokenAddress, chainId, volume24h, priceChange24h, isNFT, gasPriority } = data;
 
@@ -369,18 +369,18 @@ class RankingEngine extends EventEmitter {
                 baseTokenAddress,
                 chainId
             );
-            
+
             // Use real spread data, not simulated 24h price changes
             const spreadScore = Math.min(100, (realSpreadBps || 0) * 10);
-            
+
             // Frequency score (more opportunities = better)
             // Use price change data to determine how volatile this pair has been
             const opportunityFrequency = priceChange24h ? Math.min(10, Math.max(0, Math.abs(priceChange24h) / 2)) : 0;
             const frequencyScore = Math.min(100, opportunityFrequency * 10);
-            
+
             // Volume score
             const volumeScore = this.calculateVolumeScore(volume24h);
-            
+
             // Historical profit score
             // Calculate profit based on real-time spread and 24h volume
             const profit24h = (volume24h / 1000000) * (realSpreadBps / 10000);
@@ -389,14 +389,14 @@ class RankingEngine extends EventEmitter {
             // NFT floor volatility scoring based on real market data
             const nftScore = (isNFT ? 1 : 0) * (this.weights.pair.nftFloorVolatilityWeight * 100);
             const mevScore = (gasPriority || 0) * (this.weights.pair.txGasPriorityWeight * 100);
-            
-            const newScore = 
+
+            const newScore =
                 (spreadScore * this.weights.pair.spreadWeight) +
                 (frequencyScore * this.weights.pair.frequencyWeight) +
                 (volumeScore * this.weights.pair.volumeWeight) +
                 (profitScore * this.weights.pair.profitWeight) +
                 nftScore + mevScore;
-            
+
             const existing = this.pairRankings.get(pairKey) || { score: 0 };
             const finalScore = (existing.score * 0.7) + (newScore * 0.3); // Apply momentum
 
@@ -415,17 +415,17 @@ class RankingEngine extends EventEmitter {
 
         // Calculate and emit market volatility index
         this.calculateMarketVolatility();
-        
+
         this.emit('pairRankingsUpdated', this.getSortedPairs());
     }
-    
+
     /**
      * Get top N chains by profitability
      */
     getTopChains(count = 10) {
         return this.getSortedChains().slice(0, count);
     }
-    
+
     /**
      * Get sorted chains by score
      */
@@ -433,14 +433,14 @@ class RankingEngine extends EventEmitter {
         return Array.from(this.chainRankings.values())
             .sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get top DEXs for a specific chain
      */
     getTopDexes(chainId, count = 5) {
         return this.getSortedDexes(chainId).slice(0, count);
     }
-    
+
     /**
      * Get sorted DEXs by score
      */
@@ -451,14 +451,14 @@ class RankingEngine extends EventEmitter {
         }
         return dexes.sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get top trading pairs by profitability
      */
     getTopPairs(count = 20) {
         return this.getSortedPairs().slice(0, count);
     }
-    
+
     /**
      * Get sorted pairs by score
      */
@@ -466,39 +466,39 @@ class RankingEngine extends EventEmitter {
         return Array.from(this.pairRankings.values())
             .sort((a, b) => b.score - a.score);
     }
-    
+
     /**
      * Get best opportunity across all pairs
      */
     getBestOpportunity() {
         const topPairs = this.getTopPairs(10);
         if (topPairs.length === 0) return null;
-        
+
         // Get the highest scoring pair
         return topPairs[0];
     }
-    
+
     /**
      * Get recommended chain for next trade
      */
     getRecommendedChain() {
         const topChains = this.getTopChains(3);
         if (topChains.length === 0) return null;
-        
+
         // Return top chain with highest score
         return topChains[0];
     }
-    
+
     /**
      * Get recommended DEX for a chain
      */
     getRecommendedDex(chainId) {
         const topDexes = this.getTopDexes(chainId, 3);
         if (topDexes.length === 0) return null;
-        
+
         return topDexes[0];
     }
-    
+
     /**
      * Calculate profit score (0-100)
      */
@@ -507,7 +507,7 @@ class RankingEngine extends EventEmitter {
         // Logarithmic scaling for profit
         return Math.min(100, Math.log10(profit + 1) * 20);
     }
-    
+
     /**
      * Calculate volume score (0-100)
      */
@@ -516,7 +516,7 @@ class RankingEngine extends EventEmitter {
         // Logarithmic scaling for volume
         return Math.min(100, Math.log10(volume + 1) * 15);
     }
-    
+
     /**
      * Calculate opportunity frequency score (0-100)
      */
@@ -524,7 +524,7 @@ class RankingEngine extends EventEmitter {
         if (count <= 0) return 0;
         return Math.min(100, count * 2);
     }
-    
+
     /**
      * Calculate liquidity score (0-100)
      */
@@ -532,7 +532,7 @@ class RankingEngine extends EventEmitter {
         if (liquidity <= 0) return 0;
         return Math.min(100, Math.log10(liquidity + 1) * 12);
     }
-    
+
     /**
      * KILLER STRATEGY: Market Volatility Index (MVI)
      * Calculates a 0-100 score representing current market turbulence.
@@ -562,31 +562,31 @@ class RankingEngine extends EventEmitter {
         this.weights = { ...this.weights, ...newWeights };
         this.emit('weightsUpdated', this.weights);
     }
-    
+
     /**
      * Start auto-update cycle
      */
     start() {
         console.log('[RANKING] 🚀 Starting High-Frequency Engine...');
-        
+
         // STRATEGY 2: Dual-Loop Architecture
-        
+
         // 1. Slow Loop: Market Discovery (New Pairs/Chains)
         this.discoveryTimer = setInterval(async () => {
             await this.performAutoUpdate();
         }, this.discoveryInterval);
-        
+
         // 2. Fast Loop: Price Ticks (Hot-Path Optimization)
         this.tickTimer = setInterval(async () => {
             await this.performFastTick();
         }, this.tickInterval);
-        
+
         // Initial boot
         this.performAutoUpdate();
         // STRATEGY 3: True Event-Driven Updates via WebSocket
         this.startWebSocketListener();
     }
-    
+
     /**
      * Perform automatic ranking update - NOW WITH REAL DATA
      */
@@ -594,7 +594,7 @@ class RankingEngine extends EventEmitter {
         try {
             // Fetch latest data from real data sources (DexScreener, Birdeye, RPC)
             await this.updateWithRealData();
-            
+
             // Emit update events
             this.emit('autoUpdateComplete', {
                 chains: this.getSortedChains(),
@@ -606,7 +606,7 @@ class RankingEngine extends EventEmitter {
             // No fallback simulation allowed in production
         }
     }
-    
+
     /**
      * Perform Fast Tick Update (Hot-Path)
      * Updates only the top 50 pairs to minimize latency
@@ -633,13 +633,13 @@ class RankingEngine extends EventEmitter {
         });
 
         await Promise.all(updates);
-        
+
         // Emit tick event for UI (throttled)
         if (Date.now() % 5000 < 1000) {
             this.emit('priceTick', { count: topPairs.length, timestamp: Date.now() });
         }
     }
-    
+
     /**
      * Starts a WebSocket listener for 'newHeads' to get true event-driven updates.
      * This is a core HFT strategy to reduce latency below polling intervals.
@@ -703,7 +703,7 @@ class RankingEngine extends EventEmitter {
             setTimeout(() => this.startWebSocketListener(), 5000);
         });
     }
-    
+
     /**
      * Fetch real market data from OpenOcean API (Replacement for DexScreener)
      * Uses OpenOcean's token list to discover active assets and pairs
@@ -721,7 +721,7 @@ class RankingEngine extends EventEmitter {
                 'avalanche': 'avax'
             };
             const pairMap = new Map();
-            
+
             const promises = Object.entries(chainMapping).map(async ([internalId, apiSlug]) => {
                 try {
                     const urlObj = new URL(`${this.dataSources.openOcean}/${apiSlug}/tokenList`);
@@ -732,7 +732,7 @@ class RankingEngine extends EventEmitter {
                         headers: { 'User-Agent': 'AlphaPro/1.0' }
                     };
                     const response = await this.httpGet(options);
-                    
+
                     if (response && response.data && Array.isArray(response.data)) {
                         // Process top tokens to create discovery pairs
                         // We filter for tokens with USD price to ensure they are active
@@ -756,18 +756,18 @@ class RankingEngine extends EventEmitter {
                     console.warn(`[RANKING] OpenOcean fetch failed for ${internalId}: ${e.message}`);
                 }
             });
-            
+
             await Promise.all(promises);
-            
+
             console.log(`[RANKING] Discovered ${pairMap.size} assets via OpenOcean across ${Object.keys(chainMapping).length} chains`);
             return Array.from(pairMap.values());
-            
+
         } catch (error) {
             console.error('[RANKING] OpenOcean market data error:', error.message);
         }
         return [];
     }
-    
+
     /**
      * Fetch real data from CoinGecko API
      */
@@ -781,7 +781,7 @@ class RankingEngine extends EventEmitter {
                 method: 'GET',
                 headers: { 'User-Agent': 'AlphaPro/1.0' }
             };
-            
+
             const data = await this.httpGet(options);
             if (Array.isArray(data)) {
                 console.log(`[RANKING] Received ${data.length} assets from CoinGecko`);
@@ -793,14 +793,14 @@ class RankingEngine extends EventEmitter {
         }
         return [];
     }
-    
+
     /**
      * Fetch on-chain data from RPC endpoints
      */
     async fetchOnChainData(chain) {
         const rpcUrl = RPC_ENDPOINTS[chain];
         if (!rpcUrl) return null;
-        
+
         try {
             // Simple block number query as connectivity test
             const response = await this.rpcCall(rpcUrl, 'eth_blockNumber', []);
@@ -813,20 +813,20 @@ class RankingEngine extends EventEmitter {
             return { connected: false };
         }
     }
-    
+
     /**
      * HTTP GET helper with timeout
      */
     httpGet(urlOrOptions) {
         return new Promise((resolve, reject) => {
             const isUrl = typeof urlOrOptions === 'string';
-            const options = isUrl 
+            const options = isUrl
                 ? new URL(urlOrOptions)
                 : urlOrOptions;
-            
+
             const protocol = options.protocol === 'https:' ? https : http;
             options.agent = keepAliveAgent; // Use persistent agent
-            
+
             const req = protocol.get(options, (res) => {
                 let data = '';
                 res.on('data', chunk => data += chunk);
@@ -838,16 +838,16 @@ class RankingEngine extends EventEmitter {
                     }
                 });
             });
-            
+
             req.setTimeout(5000, () => {
                 req.destroy();
                 reject(new Error('Request timeout'));
             });
-            
+
             req.on('error', reject);
         });
     }
-    
+
     /**
      * RPC call helper
      */
@@ -859,7 +859,7 @@ class RankingEngine extends EventEmitter {
                 params,
                 id: 1
             });
-            
+
             const url = new URL(rpcUrl);
             const options = {
                 hostname: url.hostname,
@@ -871,7 +871,7 @@ class RankingEngine extends EventEmitter {
                     'Content-Length': Buffer.byteLength(data)
                 }
             };
-            
+
             const protocol = url.protocol === 'https:' ? https : http;
             const req = protocol.request(options, (res) => {
                 let body = '';
@@ -885,29 +885,29 @@ class RankingEngine extends EventEmitter {
                     }
                 });
             });
-            
+
             req.setTimeout(5000, () => {
                 req.destroy();
                 reject(new Error('RPC timeout'));
             });
-            
+
             req.on('error', reject);
             req.write(data);
             req.end();
         });
     }
-    
+
     /**
      * Update rankings with REAL DATA
      */
     async updateWithRealData() {
         console.log('[RANKING] Fetching real market data...');
-        
+
         let hasRealData = false;
-        
+
         // Fetch OpenOcean data (Replacement for DexScreener)
         const dexData = await this.fetchOpenOceanMarketData();
-        
+
         // Fetch CoinGecko data (Market Sentiment Layer)
         const geckoData = await this.fetchCoinGeckoData();
         if (geckoData.length > 0) {
@@ -920,7 +920,7 @@ class RankingEngine extends EventEmitter {
 
             const pairUpdates = {};
             // This loop just prepares the data for updatePairRankings, which does the heavy lifting.
-            for (const pair of dexData) { 
+            for (const pair of dexData) {
                 const pairKey = `${pair.chainId}:${pair.pairAddress}`;
 
                 pairUpdates[pairKey] = {
@@ -939,7 +939,7 @@ class RankingEngine extends EventEmitter {
             }
             // Await the update to ensure it completes before the next cycle
             await this.updatePairRankings(pairUpdates);
-            
+
             // Update chain scores based on aggregate data
             const chainScores = new Map();
             dexData.forEach(pair => {
@@ -950,19 +950,19 @@ class RankingEngine extends EventEmitter {
                     count: existing.count + 1
                 });
             });
-            
+
             chainScores.forEach((data, chainId) => {
                 const chain = this.chainRankings.get(chainId);
                 if (chain) {
                     chain.score = this.calculateVolumeScore(data.volume) * 0.5 +
-                                  this.calculateLiquidityScore(data.liquidity) * 0.3 +
-                                  Math.min(20, data.count); // More pairs = better
+                        this.calculateLiquidityScore(data.liquidity) * 0.3 +
+                        Math.min(20, data.count); // More pairs = better
                     chain.volume24h = data.volume;
                     chain.lastUpdate = Date.now();
                 }
             });
         }
-        
+
         // Test RPC connectivity for each chain
         for (const chain of Object.keys(RPC_ENDPOINTS)) {
             if (RPC_ENDPOINTS[chain]) {
@@ -974,19 +974,19 @@ class RankingEngine extends EventEmitter {
                 }
             }
         }
-        
+
         // Fallback to simulation if no real data
         if (!hasRealData) {
             console.warn('[RANKING] WARNING: No real data available. Waiting for next update cycle.');
         }
-        
+
         this.emit('realDataUpdate', {
             timestamp: Date.now(),
             hasRealData,
             chains: this.getSortedChains()
         });
     }
-    
+
     /**
      * Get full ranking report
      */
@@ -1019,7 +1019,7 @@ class RankingEngine extends EventEmitter {
             }
         };
     }
-    
+
     /**
      * Stop the ranking engine
      */
@@ -1041,7 +1041,7 @@ class RankingEngine extends EventEmitter {
         }
         console.log('[RANKING] Engine stopped');
     }
-    
+
     /**
      * Get specific pair data (Low Latency Accessor)
      */
@@ -1072,19 +1072,19 @@ class RankingEngine extends EventEmitter {
             if (!rpcUrl) return 0;
 
             const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-            
+
             // Get current block number for fresh data
             const blockNumber = await provider.getBlockNumber();
-            
+
             // Query multiple DEX pools for the same token pair to find real arbitrage spread
             // This is the ENTERPRISE GRADE solution - query actual on-chain pools
             const dexPoolAddresses = await this.getDexPoolAddresses(provider, chainId, pairAddress);
-            
+
             if (dexPoolAddresses.length === 0) {
                 // No known pools - return a conservative estimate based on actual volume
                 return this.estimateSpreadFromVolume(chainId);
             }
-            
+
             // Query all known pools in parallel for real-time prices
             const poolPrices = await Promise.all(
                 dexPoolAddresses.map(async (poolAddr) => {
@@ -1095,19 +1095,19 @@ class RankingEngine extends EventEmitter {
                     }
                 })
             );
-            
+
             // Filter successful queries and calculate real spread
             const validPrices = poolPrices.filter(p => p !== null && p.price > 0);
-            
+
             if (validPrices.length >= 2) {
                 // Calculate REAL spread from actual on-chain prices
                 const prices = validPrices.map(p => p.price).sort((a, b) => a - b);
                 const lowestPrice = prices[0];
                 const highestPrice = prices[prices.length - 1];
-                const realSpreadBps = lowestPrice > 0 
-                    ? ((highestPrice - lowestPrice) / lowestPrice) * 10000 
+                const realSpreadBps = lowestPrice > 0
+                    ? ((highestPrice - lowestPrice) / lowestPrice) * 10000
                     : 0;
-                
+
                 console.log(`[RANKING] Real on-chain spread: ${realSpreadBps.toFixed(2)} bps from ${validPrices.length} pools`);
                 return realSpreadBps;
             } else if (validPrices.length === 1) {
@@ -1115,10 +1115,10 @@ class RankingEngine extends EventEmitter {
                 // Uniswap V3 fee tiers: 0.05% (5bps), 0.3% (30bps), 1% (100bps)
                 return 30; // Conservative estimate for single pool
             }
-            
+
             // Fallback: Estimate from volume data
             return this.estimateSpreadFromVolume(chainId);
-            
+
         } catch (error) {
             console.warn(`[RANKING] On-chain spread error: ${error.message}`);
             return this.estimateSpreadFromVolume(chainId);
@@ -1133,7 +1133,7 @@ class RankingEngine extends EventEmitter {
     async getDexPoolAddresses(provider, chainId, tokenAddress) {
         // Uniswap V3 Factory address (same on Ethereum, Optimism, Arbitrum, Polygon, Base)
         const factoryAddress = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
-        
+
         // Common quote tokens to check against
         const quoteTokens = {
             'ethereum': ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', '0xdAC17F958D2ee523a2206206994597C13D831ec7'], // WETH, USDC, USDT
@@ -1142,14 +1142,14 @@ class RankingEngine extends EventEmitter {
             'polygon': ['0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'],
             'base': ['0x4200000000000000000000000000000000000006', '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913']
         };
-        
+
         const tokensToCheck = quoteTokens[chainId] || [];
         if (tokensToCheck.length === 0) return [];
 
         const factoryAbi = ['function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)'];
         const factory = new ethers.Contract(factoryAddress, factoryAbi, provider);
         const feeTiers = [500, 3000, 10000]; // 0.05%, 0.3%, 1%
-        
+
         const promises = [];
         for (const quoteToken of tokensToCheck) {
             // Skip if the token we are checking is the quote token itself
@@ -1180,21 +1180,24 @@ class RankingEngine extends EventEmitter {
                 "function token0() external view returns (address)",
                 "function token1() external view returns (address)"
             ];
-            
+
             const pool = new ethers.Contract(poolAddress, poolAbi, provider);
-            
+
             const [slot0, token0, token1] = await Promise.all([
                 pool.slot0(),
                 pool.token0(),
                 pool.token1()
             ]);
-            
-            // Convert sqrtPriceX96 to actual price
-            // sqrtPriceX96 = sqrt(price) * 2^96
-            // price = (sqrtPriceX96 / 2^96)^2
-            const sqrtPriceX96 = slot0.sqrtPriceX96;
-            const price = (sqrtPriceX96 / BigInt(2**96)) ** BigInt(2);
-            
+
+            // Convert sqrtPriceX96 to actual price using high-precision BigInt arithmetic
+            // Formula: price = (sqrtPriceX96^2 / 2^192) * 1e18 (to maintain precision)
+            const sqrtPriceX96 = BigInt(slot0.sqrtPriceX96.toString());
+            const Q192 = BigInt(2) ** BigInt(192);
+            const precision = BigInt(10) ** BigInt(18);
+
+            // Multiply before division to maintain 18 decimal places of precision
+            const price = (sqrtPriceX96 * sqrtPriceX96 * precision) / Q192;
+
             // Convert to human-readable price (assuming WETH/USDC type pair)
             return {
                 price: parseFloat(price.toString()) / 1e18,
