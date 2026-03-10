@@ -35,7 +35,7 @@ git push -u origin main
 1. Go to https://dashboard.render.com
 2. Click "New" → "Blueprint"
 3. Connect your GitHub repository: `TemamAb/alphalie`
-4. Select the `render.yaml` file from `modules/deployments/render.yaml`
+ 4. Render will automatically detect `render.yaml` in the root of your repository.
 5. Click "Apply Blueprint"
 
 ### Option B: Manual Service Setup

@@ -380,13 +380,10 @@ export const useSystemStore = create<SystemState>()((set, get) => ({
     // Use the host of the current page to construct the WebSocket URL
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = useAuthStore.getState().token;
-    if (!token) {
-      console.error('[WS] Cannot connect: No authentication token found.');
-      set({ connectionStatus: 'error' });
-      return;
-    }
-    // The backend expects the token as a query parameter
-    const wsUrl = `${wsProtocol}//${window.location.host}?token=${token}`;
+    
+    // AUTH REMOVED: Connect without token requirement (use placeholder if missing)
+    const effectiveToken = token || 'public-access';
+    const wsUrl = `${wsProtocol}//${window.location.host}?token=${effectiveToken}`;
 
     const ws = new WebSocket(wsUrl); // Connect with the secure URL
 

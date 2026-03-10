@@ -5,22 +5,18 @@
  */
 const EventEmitter = require('events');
 const { ethers } = require('ethers');
+const rankingEngine = require('./RankingEngine'); // Import Ranking Engine
 
 class WhaleWatcher extends EventEmitter {
     constructor() {
         super();
         this.whaleThresholdUsd = 1000000; // $1M threshold
-        this.ethPrice = 2500; // Baseline, updated dynamically
         this.detectedWhales = [];
         // Known competitor bot addresses (placeholders)
         this.competitorAddresses = new Set([
             '0x0000000000000000000000000000000000000000', 
             '0xae2fc483527b8ef99eb5d9b44875f005ba1fae13', // jaredfromsubway.eth (example)
         ]);
-    }
-
-    setEthPrice(price) {
-        if (price > 0) this.ethPrice = price;
     }
 
     analyzeTransaction(tx) {
@@ -32,7 +28,10 @@ class WhaleWatcher extends EventEmitter {
                 valueEth = parseFloat(ethers.utils.formatEther(tx.value));
             }
             
-            const valueUsd = valueEth * this.ethPrice;
+            // DYNAMIC PRICE: Get live ETH price from Ranking Engine
+            const ethPairData = rankingEngine.getPairData('ethereum', '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'); // WETH address
+            const liveEthPrice = ethPairData?.priceUsd || 3000; // Use live price or a reasonable fallback
+            const valueUsd = valueEth * liveEthPrice;
             const isWhale = valueUsd >= this.whaleThresholdUsd;
 
             // 2. Competitor Analysis (Address matching)

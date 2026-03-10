@@ -57,7 +57,7 @@ COPY --from=dashboard-builder /dashboard/dist ./client/dist
 ENV NODE_ENV=production
 
 # Create a writable tmp directory for temporary files
-RUN mkdir -p /usr/src/app/tmp && chmod 777 /usr/src/app/tmp
+RUN mkdir -p /usr/src/app/tmp && chmod 755 /usr/src/app/tmp
 
 # Expose the port the API server will run on.
 EXPOSE 3000

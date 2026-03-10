@@ -15,6 +15,8 @@ This implements:
 - Dynamic parameter reconfiguration
 """
 
+from flask import Flask, jsonify
+from flask_cors import CORS
 import os
 import time
 import threading
@@ -249,37 +251,15 @@ class TheOracle:
                     else:
                         raise Exception("RPC call failed")
             except Exception as e:
-                logger.warning(f"Could not fetch on-chain competitor data: {e}")
-                # Fallback to simulated data with clear indicator
-                competitors = self._generate_simulated_competitor_metrics()
+                logger.warning(f"Could not fetch on-chain competitor data: {e}. Returning empty set.")
+                competitors = {}
         else:
-            # No RPC configured - use simulated but realistic data
-            logger.info("No ETH_RPC_URL configured - using simulated competitor data")
-            competitors = self._generate_simulated_competitor_metrics()
+            # No RPC configured
+            logger.info("No ETH_RPC_URL configured - Competitor tracking disabled.")
+            competitors = {}
         
         self.competitor_metrics = competitors
         return competitors
-    
-    def _generate_simulated_competitor_metrics(self):
-        """Generate simulated competitor metrics with realistic values"""
-        import random
-        return {
-            "VectorFinance": {
-                "ppt": round(random.uniform(50, 500), 2),
-                "velocity": round(random.uniform(10, 100), 2),
-                "tier": random.choice(["Market Maker", "Institutional"])
-            },
-            "QuantumLeap": {
-                "ppt": round(random.uniform(30, 300), 2),
-                "velocity": round(random.uniform(5, 50), 2),
-                "tier": random.choice(["Market Maker", "Growth"])
-            },
-            "AlphaDAO": {
-                "ppt": round(random.uniform(20, 200), 2),
-                "velocity": round(random.uniform(3, 30), 2),
-                "tier": random.choice(["Growth", "Retail"])
-            }
-        }
     
     def detect_market_regime(self):
         """
@@ -444,6 +424,8 @@ def get_status():
         'best_fitness': oracle.best_fitness,
         'optimization_count': len(oracle.optimization_history)
     })
+def health_check():
+    return jsonify({"status": "healthy", "service": "brain"}), 200
 
 
 @app.route('/optimize', methods=['POST'])

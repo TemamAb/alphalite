@@ -1,7 +1,4 @@
-flask
-flask-cors
-numpy
-pandas
-scipy
-requests
-gunicorn
+# Dependencies for the AlphaPro Brain (Oracle)
+Flask>=2.0
+Flask-Cors>=3.0
+requests>=2.25

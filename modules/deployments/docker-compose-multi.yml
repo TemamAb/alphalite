@@ -1,36 +1,84 @@
-# AlphaPro Multi-Instance Production Deployment
-# Runs 10 parallel instances for fault tolerance and stability
-# Each instance is independent - if one fails, others continue
+# AlphaPro Production Deployment
+# 4 Containers: 2 API + 1 Brain + 1 Dashboard
+# SECURED: Full security hardening applied
 
 services:
   # ============================================================
-  # INSTANCE 1 (Primary)
+  # Load Balancer (Nginx) - NEW
   # ============================================================
-  alphapro-api-1:
-    build: ../api
-    container_name: alphapro-api-1
+  loadbalancer:
+    image: nginx:alpine
+    container_name: alphapro-loadbalancer
     ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-1
-    env_file:
-      - ../../.env
+      - "3001:80" # Changed to 3001 to avoid conflict with other compose files
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Mount the new config
+    restart: unless-stopped
+    depends_on:
+      - api-1
+      - api-2
+    networks:
+      - alphapro-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+  # ============================================================
+  # Dashboard (React + Nginx)
+  # ============================================================
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: modules/dashboard/Dockerfile
+    container_name: alphapro-dashboard
+    ports:
+      - "8080:80"
     restart: unless-stopped
     networks:
       - alphapro-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  alphapro-brain-1:
-    build: ../brain
-    container_name: alphapro-brain-1
+  # ============================================================
+  # Brain (AI Optimization Engine)
+  # ============================================================
+  brain:
+    build:
+      context: ../..
+      dockerfile: modules/brain/Dockerfile
+    container_name: alphapro-brain
     ports:
       - "5001:5000"
     environment:
@@ -39,286 +87,180 @@ services:
     restart: unless-stopped
     networks:
       - alphapro-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
-  # INSTANCE 2
+  # API Instance 1 (Primary)
   # ============================================================
-  alphapro-api-2:
-    build: ../api
+  api-1:
+    build:
+      context: ../..
+      dockerfile: modules/api/Dockerfile
+    container_name: alphapro-api-1
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TRADING_MODE=LIVE
+      - INSTANCE_ID=alphapro-1
+      - BRAIN_URL=http://brain:5000
+    env_file:
+      - ../../.env
+    depends_on:
+      brain:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - alphapro-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # API Instance 2 (Secondary)
+  # ============================================================
+  api-2:
+    build:
+      context: ../..
+      dockerfile: modules/api/Dockerfile
     container_name: alphapro-api-2
-    ports:
-      - "3002:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
       - TRADING_MODE=LIVE
       - INSTANCE_ID=alphapro-2
+      - BRAIN_URL=http://brain:5000
     env_file:
-      - .env
+      - ../../.env
+    depends_on:
+      brain:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - alphapro-net
-
-  alphapro-brain-2:
-    build: ../brain
-    container_name: alphapro-brain-2
-    ports:
-      - "5002:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 3
-  # ============================================================
-  alphapro-api-3:
-    build: ../api
-    container_name: alphapro-api-3
-    ports:
-      - "3003:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-3
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-3:
-    build: ../brain
-    container_name: alphapro-brain-3
-    ports:
-      - "5003:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
-  # INSTANCE 4
+  # PostgreSQL Database (Copied from root docker-compose.yml)
   # ============================================================
-  alphapro-api-4:
-    build: ../api
-    container_name: alphapro-api-4
-    ports:
-      - "3004:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-4
-    env_file:
-      - .env
+  postgres:
+    image: postgres:15-alpine
+    container_name: alphapro_postgres_multi
     restart: unless-stopped
+    environment:
+      - POSTGRES_USER=alphapro
+      - POSTGRES_PASSWORD=alphapro_secure_pwd
+      - POSTGRES_DB=alphapro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - alphapro-net
-
-  alphapro-brain-4:
-    build: ../brain
-    container_name: alphapro-brain-4
-    ports:
-      - "5004:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapro -d alphapro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ============================================================
-  # INSTANCE 5
+  # Redis Cache (Copied from root docker-compose.yml)
   # ============================================================
-  alphapro-api-5:
-    build: ../api
-    container_name: alphapro-api-5
-    ports:
-      - "3005:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-5
-    env_file:
-      - .env
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro_redis_multi
     restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
     networks:
       - alphapro-net
-
-  alphapro-brain-5:
-    build: ../brain
-    container_name: alphapro-brain-5
-    ports:
-      - "5005:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 6
-  # ============================================================
-  alphapro-api-6:
-    build: ../api
-    container_name: alphapro-api-6
-    ports:
-      - "3006:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-6
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-6:
-    build: ../brain
-    container_name: alphapro-brain-6
-    ports:
-      - "5006:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 7
-  # ============================================================
-  alphapro-api-7:
-    build: ../api
-    container_name: alphapro-api-7
-    ports:
-      - "3007:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-7
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-7:
-    build: ../brain
-    container_name: alphapro-brain-7
-    ports:
-      - "5007:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 8
-  # ============================================================
-  alphapro-api-8:
-    build: ../api
-    container_name: alphapro-api-8
-    ports:
-      - "3008:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-8
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-8:
-    build: ../brain
-    container_name: alphapro-brain-8
-    ports:
-      - "5008:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 9
-  # ============================================================
-  alphapro-api-9:
-    build: ../api
-    container_name: alphapro-api-9
-    ports:
-      - "3009:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-9
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-9:
-    build: ../brain
-    container_name: alphapro-brain-9
-    ports:
-      - "5009:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  # ============================================================
-  # INSTANCE 10 (Backup)
-  # ============================================================
-  alphapro-api-10:
-    build: ../api
-    container_name: alphapro-api-10
-    ports:
-      - "3010:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - TRADING_MODE=LIVE
-      - INSTANCE_ID=alphapro-10
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - alphapro-net
-
-  alphapro-brain-10:
-    build: ../brain
-    container_name: alphapro-brain-10
-    ports:
-      - "5010:5000"
-    environment:
-      - PORT=5000
-      - BRAIN_PORT=5000
-    restart: unless-stopped
-    networks:
-      - alphapro-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   alphapro-net:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

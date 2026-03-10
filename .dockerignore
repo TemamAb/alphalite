@@ -1,56 +1,24 @@
-# ============================================================
-# .dockerignore — Keep Docker build context lean
-# ============================================================
+# Ignore node_modules to prevent large build contexts and platform mismatches
+**/node_modules
 
-# Node.js dependencies (re-installed in container)
-node_modules/
-modules/*/node_modules/
+# Ignore build artifacts
+**/dist
+**/build
+**/coverage
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+# Ignore git metadata
+**/.git
 
-# Environment files (secrets managed via Render env vars)
-.env
-.env.*
-!.env.example
+# Ignore environment variables (security)
+**/.env
 
-# Build outputs
-dist/
-build/
-*.log
+# Ignore Python cache and virtual environments
+**/__pycache__
+**/*.pyc
+**/venv
+**/.venv
 
-# Development tools
-.git/
-.gitignore
-.github/
-
-# Test files
-modules/tests/
-*.test.js
-*.spec.js
-*.test.ts
-*.spec.ts
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Documentation  
-*.md
-CODE_QUALITY_AUDIT.md
-PRODUCTION_ANALYSIS.md
-docs/
-
-# OS artifacts
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
+# Ignore IDE settings
+**/.vscode
+**/.idea
+**/.DS_Store

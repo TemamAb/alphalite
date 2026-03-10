@@ -1,158 +1,95 @@
-# AlphaPro Production Deployment Configuration for Render.com
-# IMPORTANT: Do NOT hardcode sensitive values!
-# Use Render's Environment Variables and Secrets feature instead.
-# All secrets MUST be configured in Render Dashboard > Environment > Secrets
+# AlphaPro Production Deployment Blueprint for Render.com
+# This file defines all services, databases, and environment variables.
+# Secrets (like PRIVATE_KEY) must be set in the Render Dashboard.
 
 services:
-  # PostgreSQL Database (Required for API)
-  - name: alphapro-db
-    runtime: postgres
-    plan: starter
-    branch: master
-
-  # Redis Cache (Required for API)
-  - name: alphapro-redis
-    runtime: redis
-    plan: starter
-    branch: master
-
-  # The Brain (Python Sidecar) - AI Analysis
-  - name: alphapro-brain
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
-    plan: starter
-    branch: master
+  # 1. API Service (Node.js Backend)
+  - type: web
+    name: alphapro-api
+    env: docker
+    dockerfilePath: ./modules/api/Dockerfile
+    dockerContext: . # Build from the root of the repo
+    healthCheckPath: /api/health
+    plan: standard # Choose a plan with enough memory
+    numInstances: 1 # Can be scaled up in the Render dashboard
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.11"
-      - key: FLASK_ENV
-        value: production
-      - key: FLASK_DEBUG
-        value: "0"
-
-  # The Core (Node API + React Frontend)
-  - name: alphapro-api
-    runtime: docker
-    dockerfilePath: Dockerfile
-    rootDir: .
-    plan: standard
-    branch: master
-    envVars:
-      # ============================================
-      # DATABASE & CACHE - Auto-provisioned by Render
-      # ============================================
-      - key: DATABASE_URL
-        fromSecret: database_url
-      - key: REDIS_URL
-        fromSecret: redis_url
-
-      # ============================================
-      # 🔴 CRITICAL: Set these in Render Secrets!
-      # ============================================
-      
-      # Trading Configuration
       - key: NODE_ENV
         value: production
-      - key: TRADING_MODE
-        value: PAPER
       - key: PORT
-        value: "3000"
-
-      # ⚠️ REQUIRED FOR LIVE TRADING - MUST be set in Render Secrets
-      - key: PRIVATE_KEY
-        fromSecret: private_key
-        sync: false
-      
-      # Wallet Address (Smart Wallet for gasless transactions)
-      - key: WALLET_ADDRESS
-        fromSecret: wallet_address
-
-      # ============================================
-      # 🔑 API KEYS - MUST be set in Render Secrets
-      # ============================================
-      
-      # Gasless Transaction Configuration (Pimlico)
-      - key: PIMLICO_API_KEY
-        fromSecret: pimlico_api_key
-      - key: BUNDLER_URL
-        fromSecret: bundler_url
-      - key: PAYMASTER_URL
-        fromSecret: paymaster_url
-      - key: ENTRYPOINT_ADDRESS
-        value: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
-
-      # Blockchain RPC Endpoints - MUST use your own API keys from Render Secrets
-      - key: ETH_RPC_URL
-        fromSecret: eth_rpc_url
-      - key: ARBITRUM_RPC_URL
-        fromSecret: arbitrum_rpc_url
-      - key: OPTIMISM_RPC_URL
-        fromSecret: optimism_rpc_url
-      - key: POLYGON_RPC_URL
-        fromSecret: polygon_rpc_url
-      - key: BASE_RPC_URL
-        fromSecret: base_rpc_url
-
-      # WebSocket URLs for Real-time Mempool
-      - key: ETH_WS_URL
-        fromSecret: eth_ws_url
-      - key: ARBITRUM_WS_URL
-        fromSecret: arbitrum_ws_url
-      - key: POLYGON_WS_URL
-        fromSecret: polygon_ws_url
-      - key: OPTIMISM_WS_URL
-        fromSecret: optimism_ws_url
-      - key: BASE_WS_URL
-        fromSecret: base_ws_url
-
-      # Alchemy API Key
-      - key: ALCHEMY_API_KEY
-        fromSecret: alchemy_api_key
-
-      # Infura API Key (Backup)
-      - key: INFURA_API_KEY
-        fromSecret: infura_api_key
-
-      # Birdeye API Key
-      - key: BIRDEYE_API_KEY
-        fromSecret: birdeye_api_key
-
-      # AI Service (Configured via Render Secrets)
-      - key: OPENAI_API_KEY
-        fromSecret: openai_api_key
-
-      # Brain Service
+        value: 3000 # Render will use this internally
+      - key: TRADING_MODE
+        value: LIVE
+      # --- Connections to other services ---
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alphapro-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: alphapro-redis
+          property: connectionString
       - key: BRAIN_URL
-        value: http://alphapro-brain:5000
+        fromService:
+          type: web
+          name: alphapro-brain
+          property: url
+      # --- Secrets (Set these in Render Dashboard) ---
+      # Add ALL other required secrets (PIMLICO_API_KEY, RPC URLs, etc.)
+      # in the Render UI. This file just shows the pattern.
+      - key: PRIVATE_KEY
+        sync: false
+      - key: WALLET_ADDRESS
+        sync: false
+      - key: PIMLICO_API_KEY
+        sync: false
+      - key: ETH_RPC_URL
+        sync: false
 
-      # ============================================
-      # 🔒 SECURITY - MUST be set in Render Secrets
-      # ============================================
-      
-      - key: ADMIN_API_KEY
-        fromSecret: admin_api_key
-      - key: JWT_SECRET
-        fromSecret: jwt_secret
+  # 2. Brain Service (Python AI)
+  - type: web
+  - name: alphapro-brain
+    env: docker
+    dockerfilePath: ./modules/brain/Dockerfile
+    dockerContext: .
+    healthCheckPath: /status
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: ETH_RPC_URL
+        fromService:
+          type: web
+          name: alphapro-api # Get it from the API's env group
+          envVarKey: ETH_RPC_URL
 
-      # Market Data APIs (Free tier - can use defaults)
-      - key: COINGECKO_API_URL
-        value: https://api.coingecko.com/api/v3
-      - key: DEXSCREENER_API_URL
-        value: https://api.dexscreener.com/latest/dex
-      - key: BIRDEYE_API_URL
-        value: https://public-api.birdeye.so
-
-  # Dashboard (React Frontend)
+  # 3. Dashboard Service (React Frontend)
+  - type: static
   - name: alphapro-dashboard
-    runtime: static
+    rootDir: modules/dashboard # Tell Render where the dashboard code is
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     plan: starter
-    branch: master
     envVars:
       - key: VITE_API_URL
-        value: https://alphapro-api.onrender.com
-      - key: VITE_WS_URL
-        value: wss://alphapro-api.onrender.com/ws
+        fromService:
+          type: web
+          name: alphapro-api
+          property: url # Dynamically get the API's public URL
 
+# --- Managed Backend Services ---
+
+databases:
+  - name: alphapro-db
+    plan: starter
+    databaseName: alphapro # Optional: specify db name
+    user: alphapro # Optional: specify user
+
+# Redis is also a service, but of a specific type
+services:
+  - type: redis
+    name: alphapro-redis
+    plan: starter
+    ipAllowList: [] # Allow only internal connections from other Render services
