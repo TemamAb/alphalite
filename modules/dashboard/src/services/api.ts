@@ -14,11 +14,11 @@ const RETRY_DELAY = 1000; // 1 second
 async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MAX_RETRIES): Promise<T> {
   // Get token from zustand store for consistency
   const token = useAuthStore.getState().token;
-  
+
   // Create abort controller for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -39,7 +39,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MA
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchApi(endpoint, options, retries - 1);
       }
-      
+
       const error = await response.json().catch(() => ({ message: 'Network error' }));
       throw new Error(error.message || `HTTP ${response.status}`);
     }
@@ -47,19 +47,19 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MA
     return response.json();
   } catch (error: unknown) {
     clearTimeout(timeoutId);
-    
+
     // Handle abort error (timeout)
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Request timeout after ${REQUEST_TIMEOUT}ms`);
     }
-    
+
     // Handle network errors with retry
     if (retries > 0 && error instanceof TypeError && error.message.includes('Network')) {
       console.warn(`[API] Network error, retrying... (${retries} attempts left)`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
       return fetchApi(endpoint, options, retries - 1);
     }
-    
+
     throw error;
   }
 }
@@ -67,29 +67,29 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MA
 // Deployment API
 export const deploymentApi = {
   getAll: () => fetchApi<Deployment[]>('/api/deployments'),
-  
+
   getById: (id: string) => fetchApi<Deployment>(`/api/deployments/${id}`),
-  
+
   getStats: () => fetchApi<DeploymentStats>('/api/deployments/stats'),
-  
+
   getHealth: () => fetchApi<SystemHealth>('/api/deployments/health'),
-  
-  deploy: (config: Partial<Deployment>) => 
+
+  deploy: (config: Partial<Deployment>) =>
     fetchApi<Deployment>('/api/deployments', {
       method: 'POST',
       body: JSON.stringify(config),
     }),
-  
-  restart: (id: string) => 
+
+  restart: (id: string) =>
     fetchApi<Deployment>(`/api/deployments/${id}/restart`, {
       method: 'POST',
     }),
-  
-  stop: (id: string) => 
+
+  stop: (id: string) =>
     fetchApi<Deployment>(`/api/deployments/${id}/stop`, {
       method: 'POST',
     }),
-  
+
   update: (id: string, config: Partial<Deployment>) =>
     fetchApi<Deployment>(`/api/deployments/${id}`, {
       method: 'PATCH',
@@ -100,10 +100,10 @@ export const deploymentApi = {
 // Metrics API
 export const metricsApi = {
   getApiMetrics: () => fetchApi<ApiMetrics>('/api/metrics/api'),
-  
+
   getSystemMetrics: () => fetchApi<SystemHealth>('/api/metrics/system'),
-  
-  getHistoricalMetrics: (params: { from: string; to: string; interval?: string }) => 
+
+  getHistoricalMetrics: (params: { from: string; to: string; interval?: string }) =>
     fetchApi<Array<{ timestamp: string; value: number }>>(
       `/api/metrics/history?from=${params.from}&to=${params.to}&interval=${params.interval || '1m'}`
     ),
@@ -112,42 +112,42 @@ export const metricsApi = {
 // Wallet API
 export const walletApi = {
   getAll: () => fetchApi<Wallet[]>('/api/wallets'),
-  
+
   add: (wallet: Omit<Wallet, 'id' | 'createdAt'>) =>
     fetchApi<Wallet>('/api/wallets', {
       method: 'POST',
       body: JSON.stringify(wallet),
     }),
-  
+
   // Add wallet with private key (for trading)
   addWithKey: (wallet: { address: string; privateKey: string; name: string; chain: string }) =>
     fetchApi<Wallet>('/api/wallets/add', {
       method: 'POST',
       body: JSON.stringify(wallet),
     }),
-  
+
   // Bulk import wallets
   bulkImport: (wallets: { address: string; privateKey?: string; name: string; chain: string }[]) =>
     fetchApi<Wallet[]>('/api/wallets/import', {
       method: 'POST',
       body: JSON.stringify({ addresses: wallets.map(w => w.address), keys: wallets.filter(w => w.privateKey).map(w => w.privateKey) }),
     }),
-  
+
   // Verify private key and get address
   verifyKey: (privateKey: string) =>
     fetchApi<{ address: string }>('/api/wallets/verify-key', {
       method: 'POST',
       body: JSON.stringify({ privateKey }),
     }),
-  
+
   remove: (id: string) =>
     fetchApi<void>(`/api/wallets/${id}`, {
       method: 'DELETE',
     }),
-  
+
   getBalance: (address: string) =>
     fetchApi<{ balance: number; lastUpdate: string }>(`/api/wallets/${address}/balance`),
-  
+
   validate: (address: string) =>
     fetchApi<{ valid: boolean; chain: string }>(`/api/wallets/validate?address=${address}`),
 };
@@ -163,43 +163,48 @@ export interface EngineStartOptions {
 
 export const engineApi = {
   getStatus: () => fetchApi<EngineStatus>('/api/engine/status'),
-  
+
   start: (mode: 'live', options?: EngineStartOptions) =>
     fetchApi<EngineStatus>('/api/engine/state', {
       method: 'POST',
-      body: JSON.stringify({ 
-        action: 'start', 
+      body: JSON.stringify({
+        action: 'start',
         mode: mode.toUpperCase(),
         deploymentId: options?.deploymentId,
         deploymentName: options?.deploymentName,
         walletAddress: options?.walletAddress
       }),
     }),
-  
+
   stop: () =>
     fetchApi<EngineStatus>('/api/engine/state', {
       method: 'POST',
       body: JSON.stringify({ action: 'pause' }),
     }),
-  
+
   getStrategies: () =>
     fetchApi<string[]>('/api/engine/strategies'),
-  
+
   addStrategy: (strategy: string) =>
     fetchApi<string[]>('/api/engine/strategies', {
       method: 'POST',
       body: JSON.stringify({ strategy }),
     }),
-  
+
   removeStrategy: (strategy: string) =>
     fetchApi<string[]>(`/api/engine/strategies/${encodeURIComponent(strategy)}`, {
       method: 'DELETE',
     }),
-  
+
   getProfitHistory: (params?: { days?: number }) =>
     fetchApi<Array<{ date: string; profit: number; loss: number }>>(
       `/api/engine/profit?days=${params?.days || 7}`
     ),
+
+  triggerOptimization: () =>
+    fetchApi<{ success: boolean; message: string }>('/api/ai/optimizer/trigger', {
+      method: 'POST',
+    }),
 };
 
 // Auth API
@@ -212,17 +217,17 @@ export const authApi = {
         body: JSON.stringify({ email, password }),
       }
     ),
-  
+
   logout: () =>
     fetchApi<void>('/api/auth/logout', {
       method: 'POST',
     }),
-  
+
   refreshToken: () =>
     fetchApi<{ token: string }>('/api/auth/refresh', {
       method: 'POST',
     }),
-  
+
   getCurrentUser: () =>
     fetchApi<{ id: string; email: string; role: string }>('/api/auth/me'),
 };
@@ -244,7 +249,8 @@ export function createWebSocketConnection(
 ): WebSocket {
   // Properly construct WebSocket URL based on current protocol
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+  const token = useAuthStore.getState().token;
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws${token ? `?token=${token}` : ''}`;
   const ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {

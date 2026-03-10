@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { deploymentApi, walletApi, metricsApi } from '../services/api';
+import { deploymentApi, walletApi, metricsApi, createWebSocketConnection } from '../services/api';
 
 // ==================== Auth Store ====================
 interface AuthState {
@@ -13,17 +13,17 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   user: null,
-  
+
   checkAuth: async () => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       set({ isAuthenticated: true });
     }
   },
-  
+
   login: async (email: string, password: string) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    
+    const API_URL = import.meta.env.VITE_API_URL || '';
+
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     const data = await response.json();
-    
+
     if (data.token) {
       localStorage.setItem('auth_token', data.token);
       set({ isAuthenticated: true, user: data.user });
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw new Error('No token received');
     }
   },
-  
+
   logout: () => {
     localStorage.removeItem('auth_token');
     set({ isAuthenticated: false, user: null });
@@ -97,11 +97,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   wallets: [],
   refreshInterval: 5000,
   engineStatus: 'idle',
-  
+
   fetchStats: async () => {
     try {
       const data = await deploymentApi.getStats();
-      set({ 
+      set({
         stats: {
           totalPnl: (data as any).totalPnl || (data as any).profit || 0,
           activeStrategies: (data as any).activeStrategies || (data as any).strategies?.length || 0,
@@ -113,34 +113,38 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       console.error('[STORE] Failed to fetch stats:', error);
     }
   },
-  
+
   fetchDeployments: async () => {
     try {
       const data = await deploymentApi.getAll();
-      set({ deployments: (data as any).map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        status: d.status,
-        lastDeployed: d.lastDeployed || d.last_deployed || new Date().toISOString()
-      })) });
+      set({
+        deployments: (data as any).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          status: d.status,
+          lastDeployed: d.lastDeployed || d.last_deployed || new Date().toISOString()
+        }))
+      });
     } catch (error) {
       console.error('[STORE] Failed to fetch deployments:', error);
     }
   },
-  
+
   fetchWalletBalances: async () => {
     try {
       const wallets = await walletApi.getAll();
-      set({ wallets: (wallets as any).map((w: any) => ({
-        address: w.address,
-        balance: String(w.balance || w.balance_eth || '0'),
-        chain: w.chain || 'Ethereum'
-      })) });
+      set({
+        wallets: (wallets as any).map((w: any) => ({
+          address: w.address,
+          balance: String(w.balance || w.balance_eth || '0'),
+          chain: w.chain || 'Ethereum'
+        }))
+      });
     } catch (error) {
       console.error('[STORE] Failed to fetch wallets:', error);
     }
   },
-  
+
   setRefreshInterval: (interval: number) => {
     set({ refreshInterval: interval });
   },
@@ -152,6 +156,9 @@ interface SystemState {
   memoryUsage: number;
   networkLatency: number;
   uptime: number;
+  ws: WebSocket | null;
+  latestTrade: any | null;
+  connect: () => void;
   fetchSystemMetrics: () => Promise<void>;
 }
 
@@ -160,7 +167,24 @@ export const useSystemStore = create<SystemState>((set) => ({
   memoryUsage: 0,
   networkLatency: 0,
   uptime: 0,
-  
+  ws: null,
+  latestTrade: null,
+
+  connect: () => {
+    const ws = createWebSocketConnection((data: any) => {
+      if (data.type === 'metrics') {
+        set({
+          cpuUsage: data.cpu || 0,
+          memoryUsage: data.memory || 0,
+          networkLatency: data.latency || 0,
+        });
+      } else if (data.type === 'TRADE_COMPLETED') {
+        set({ latestTrade: data.data });
+      }
+    });
+    set({ ws });
+  },
+
   fetchSystemMetrics: async () => {
     try {
       const data = await metricsApi.getSystemMetrics();

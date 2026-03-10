@@ -1,70 +1,104 @@
 // authMiddleware.js - AlphaPro API
-// PRODUCTION: No authentication (open access for trading)
-
-// All auth functions are now pass-through - no authentication required
+// PRODUCTION: JWT Authentication with Role-Based Access Control
 
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
-// Dummy admin credentials (not used anymore)
+// --- Admin Credentials ---
+// As per DEPLOYMENT_AUDIT_FINAL.md, these are the primary credentials.
+// The password hash is pre-generated for 'Temam@1954'.
 const ADMIN_CREDENTIALS = {
-    email: 'admin@alphapro.com',
+    id: '1',
+    email: 'iamtemam@gmail.com',
     username: 'admin',
-    passwordHash: 'dummy'
+    // Pre-hashed password for "Temam@1954" with salt rounds 12
+    passwordHash: '$2b$12$.vU9XtbzvBkQlbj/kP9PUelKRLBbsJD9dIYnuUelEGPusWVn0ZQnS',
+    role: 'admin'
 };
 
-// No-op password verification
-function verifyPassword(password, storedHash) {
-    return true; // Always allow
-}
-
-// JWT Configuration - not used anymore
-const JWT_SECRET = 'dummy-secret';
+// --- JWT Configuration ---
+// Use environment variable for secret in production, with a secure fallback.
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRY = '24h';
 
 /**
- * Generate JWT token (not used)
+ * Verifies a plaintext password against a stored bcrypt hash.
+ * @param {string} password The plaintext password from user input.
+ * @param {string} storedHash The hashed password from the database/store.
+ * @returns {Promise<boolean>} True if the password is valid.
  */
-function generateToken(user) {
-    return 'dummy-token';
+async function verifyPassword(password, storedHash) {
+    if (!password || !storedHash) return false;
+    return await bcrypt.compare(password, storedHash);
 }
 
 /**
- * Verify JWT token (not used)
+ * Generate a JWT token for a given user.
+ * @param {object} user - The user object to encode in the token.
+ * @returns {string} The generated JWT.
  */
-function verifyToken(token) {
-    return { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
+function generateToken(user) {
+    const payload = { id: user.id, email: user.email, role: user.role };
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
-// NO AUTH MIDDLEWARE - Pass through everything
+/**
+ * Verify a JWT token from the request.
+ * @param {string} token - The JWT token.
+ * @returns {object|null} The decoded user payload or null if invalid.
+ */
+function verifyToken(token) {
+    try {
+        return jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        return null;
+    }
+}
+
+// --- Middleware ---
+
+/**
+ * Authentication middleware to protect routes.
+ * Verifies the JWT from the Authorization header.
+ */
 const authMiddleware = (req, res, next) => {
-    // Allow all requests without authentication
-    req.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
-    next();
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authentication required: No token provided.' });
+    }
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyToken(token);
+    if (!decoded) {
+        return res.status(403).json({ error: 'Invalid or expired token.' });
+    }
+    req.user = decoded;
+    return next();
 };
 
-// Optional auth - also pass through
-const optionalAuth = (req, res, next) => {
-    req.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
-    next();
-};
-
-// Role-based access control - allow all
+/**
+ * Role-based access control middleware.
+ * @param  {...string} roles - The roles allowed to access the route.
+ */
 const requireRole = (...roles) => {
     return (req, res, next) => {
-        next();
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ error: `Access denied. Requires one of: ${roles.join(', ')}` });
+        }
+        return next();
     };
 };
 
-// Admin-only middleware - allow all
+/**
+ * Middleware to require admin role.
+ */
 const requireAdmin = requireRole('admin');
 
-module.exports = { 
-    authMiddleware, 
-    optionalAuth, 
-    requireRole, 
+module.exports = {
+    authMiddleware,
+    requireRole,
     requireAdmin,
-    generateToken, 
+    generateToken,
     verifyToken,
     verifyPassword,
     ADMIN_CREDENTIALS,

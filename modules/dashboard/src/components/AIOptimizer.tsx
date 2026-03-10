@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { engineApi } from '../services/api';
 
 const AIOptimizer = () => {
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -6,11 +7,15 @@ const AIOptimizer = () => {
 
   const handleOptimize = async () => {
     setIsOptimizing(true);
-    // Simulate optimization
-    setTimeout(() => {
-      setOptimizationResults('Optimization complete! Parameters tuned for maximum efficiency.');
+    try {
+      const result = await engineApi.triggerOptimization();
+      setOptimizationResults(result.message || 'Optimization cycle triggered successfully.');
+    } catch (error) {
+      console.error('Optimization failed:', error);
+      setOptimizationResults('Failed to trigger optimization. Check logs for details.');
+    } finally {
       setIsOptimizing(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -23,11 +28,10 @@ const AIOptimizer = () => {
         <button
           onClick={handleOptimize}
           disabled={isOptimizing}
-          className={`px-4 py-2 rounded ${
-            isOptimizing
+          className={`px-4 py-2 rounded ${isOptimizing
               ? 'bg-gray-600 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700'
-          } text-white transition-colors`}
+            } text-white transition-colors`}
         >
           {isOptimizing ? 'Optimizing...' : 'Run Optimization'}
         </button>

@@ -17,10 +17,10 @@ const wss = new WebSocketServer({ server });
 
 // --- Middleware ---
 app.use(cors({
-  origin: true, // Allow all origins in production (Render handles this)
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+    origin: true, // Allow all origins in production (Render handles this)
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -76,7 +76,7 @@ app.get('/api/csrf-token', csrfTokenGenerator);
 // --- Public Health Check (No Auth Required) ---
 // Keep health endpoint public for load balancers/monitoring
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // --- Prometheus Metrics Endpoint (No Auth Required) ---
@@ -96,6 +96,7 @@ app.get('/metrics', async (req, res) => {
 // Import API routes
 const tradingRoutes = require('./routes/tradingRoutes');
 const authRoutes = require('./routes/authRoutes');
+const metricsRoutes = require('./routes/metricsRoutes');
 
 console.log('[APP] Routes loaded');
 
@@ -111,18 +112,21 @@ app.use('/api/auth', authLimiter, authRoutes);
 // - csrfValidator: Validates X-CSRF-Token header/cookie
 // Use toMiddleware helper to ensure each is an array of functions
 
-// PRODUCTION: No authentication middleware
-// const { authMiddleware } = require('./middleware/authMiddleware');
+// PRODUCTION: Enable authentication middleware
+const { authMiddleware } = require('./middleware/authMiddleware');
 const { csrfValidator } = require('./middleware/csrfProtection');
 
-// Protected routes WITHOUT authentication - open access for trading
+// Protected routes WITH authentication
 const protectedMiddleware = [
     ...toMiddleware(apiLimiter),
     ...toMiddleware(tradingLimiter),
-    // No authMiddleware - open access
+    authMiddleware, // Applied before tradingRoutes
     tradingRoutes
 ];
 app.use('/api', ...protectedMiddleware);
+
+// --- Metrics Routes (Protected) ---
+app.use('/api/metrics', authMiddleware, metricsRoutes);
 
 // --- Start Real-Time Metrics Service ---
 if (realTimeMetrics && realTimeMetrics.start) {
@@ -139,38 +143,53 @@ if (process.env.NODE_ENV === 'production' && backupScheduler && backupScheduler.
 const { verifyToken } = require('./middleware/authMiddleware');
 
 wss.on('connection', (ws, req) => {
-  // No authentication required for WebSocket
-  console.log('[WSS] Client connected (no auth required)');
-  
-  ws.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
-  
-  ws.on('close', () => console.log('[WSS] Client disconnected'));
-  ws.on('error', console.error);
+    // Authenticate WebSocket connection via token in query string
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+
+    if (!token) {
+        console.warn('[WSS] Connection rejected: No token provided');
+        ws.close(4001, 'Authentication token required');
+        return;
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+        console.warn('[WSS] Connection rejected: Invalid token');
+        ws.close(4003, 'Invalid or expired token');
+        return;
+    }
+
+    console.log(`[WSS] Client connected: ${decoded.email}`);
+    ws.user = decoded;
+
+    ws.on('close', () => console.log(`[WSS] Client disconnected: ${decoded.email}`));
+    ws.on('error', console.error);
 });
 
 // --- Production Static File Serving ---
 // This block is crucial for the unified Docker image. It will only run when
 // the NODE_ENV environment variable is set to 'production'.
 if (process.env.NODE_ENV === 'production') {
-  const clientDistPath = path.join(__dirname, 'client', 'dist');
-  console.log(`[PROD] Serving static files from: ${clientDistPath}`);
+    const clientDistPath = path.join(__dirname, 'client', 'dist');
+    console.log(`[PROD] Serving static files from: ${clientDistPath}`);
 
-  // Serve the static files (JS, CSS, images) from the built React app
-  app.use(express.static(clientDistPath));
+    // Serve the static files (JS, CSS, images) from the built React app
+    app.use(express.static(clientDistPath));
 
-  // For any other request, serve the index.html file.
-  // This allows client-side routing (e.g., React Router) to take over.
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
+    // For any other request, serve the index.html file.
+    // This allows client-side routing (e.g., React Router) to take over.
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
 }
 
 // Only start server if run directly (allows testing via supertest)
 if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-  });
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+    });
 }
 
 module.exports = { app, server };

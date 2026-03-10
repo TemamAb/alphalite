@@ -8,6 +8,7 @@ services:
     name: alphapro-api
     env: docker
     dockerfilePath: ./modules/api/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: . # Build from the root of the repo
     healthCheckPath: /api/health
     plan: standard # Choose a plan with enough memory

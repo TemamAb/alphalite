@@ -32,29 +32,29 @@ try { profitEngine = require('../../engine/EnterpriseProfitEngine'); } catch (e)
 router.post('/ai/optimizer/trigger', async (req, res) => {
     try {
         console.log('[API] Manual AI optimization triggered by user');
-        
+
         if (!aiAutoOptimizer || !aiAutoOptimizer.triggerOptimization) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'AI optimizer service not available' 
+            return res.status(503).json({
+                success: false,
+                error: 'AI optimizer service not available'
             });
         }
-        
+
         // Trigger the optimization process
         // Note: This is an async process but we might not wait for full completion 
         // if it takes too long, or we can await it if it's fast enough.
         // For now, we'll trigger it and return success immediately.
         aiAutoOptimizer.triggerOptimization();
 
-        res.json({ 
-            success: true, 
-            message: 'AI optimization cycle triggered successfully.' 
+        res.json({
+            success: true,
+            message: 'AI optimization cycle triggered successfully.'
         });
     } catch (error) {
         console.error('[API] Failed to trigger optimization:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to trigger optimization cycle.' 
+        res.status(500).json({
+            success: false,
+            error: 'Failed to trigger optimization cycle.'
         });
     }
 });
@@ -67,12 +67,12 @@ router.post('/ai/optimizer/trigger', async (req, res) => {
 router.post('/ai/optimizer/config', (req, res) => {
     try {
         if (!aiAutoOptimizer || !aiAutoOptimizer.updateConfig) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'AI optimizer service not available' 
+            return res.status(503).json({
+                success: false,
+                error: 'AI optimizer service not available'
             });
         }
-        
+
         const { mutationRate, optimizationInterval } = req.body;
         aiAutoOptimizer.updateConfig({ mutationRate, optimizationInterval });
         res.json({ success: true, message: 'AI configuration updated' });
@@ -90,9 +90,9 @@ router.post('/ai/optimizer/config', (req, res) => {
 router.get('/ai/optimizer', (req, res) => {
     try {
         if (!aiAutoOptimizer || !aiAutoOptimizer.getState) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'AI optimizer service not available' 
+            return res.status(503).json({
+                success: false,
+                error: 'AI optimizer service not available'
             });
         }
         const state = aiAutoOptimizer.getState();
@@ -111,19 +111,19 @@ router.get('/ai/optimizer', (req, res) => {
 router.get('/copilot', async (req, res) => {
     try {
         const { question, persona, provider } = req.query;
-        
+
         if (!question) {
             return res.status(400).json({ error: 'Question is required' });
         }
 
         // Check if AI service is available
         if (!aiServiceFactory) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'AI service not available' 
+            return res.status(503).json({
+                success: false,
+                error: 'AI service not available'
             });
         }
-        
+
         // Initialize factory with environment variables if not already done
         // Ideally this should be done once at startup, but for safety we check here
         if (!aiServiceFactory.config.openaiApiKey && !aiServiceFactory.config.geminiApiKey) {
@@ -134,14 +134,14 @@ router.get('/copilot', async (req, res) => {
         }
 
         const aiService = aiServiceFactory.getService(provider || 'openai');
-        
+
         if (!aiService) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'AI service not available for provider: ' + (provider || 'openai') 
+            return res.status(503).json({
+                success: false,
+                error: 'AI service not available for provider: ' + (provider || 'openai')
             });
         }
-        
+
         const systemPrompt = `You are Alpha Copilot, an advanced AI trading assistant. 
         Current Persona: ${persona ? persona.toUpperCase() : 'AUTO'}.
         Provide concise, actionable insights for high-frequency trading.`;
@@ -188,12 +188,12 @@ router.get('/copilot', async (req, res) => {
 router.post('/copilot/action', async (req, res) => {
     try {
         if (!fileSystemService || !fileSystemService.executeAction) {
-            return res.status(503).json({ 
-                success: false, 
-                error: 'File system service not available' 
+            return res.status(503).json({
+                success: false,
+                error: 'File system service not available'
             });
         }
-        
+
         const { action, filePath, content } = req.body;
         const result = await fileSystemService.executeAction(action, { filePath, content });
         res.json(result);
@@ -212,7 +212,7 @@ router.get('/config/wallet', (req, res) => {
     try {
         const address = process.env.WALLET_ADDRESS;
         const privateKey = process.env.PRIVATE_KEY;
-        
+
         if (!address) {
             return res.json({ found: false });
         }
@@ -240,8 +240,8 @@ router.get('/config/wallet', (req, res) => {
 router.get('/brain/theoretical-max', async (req, res) => {
     try {
         if (!brainConnector || !brainConnector.getTheoreticalMaximum) {
-            return res.status(503).json({ 
-                error: 'Brain connector service not available' 
+            return res.status(503).json({
+                error: 'Brain connector service not available'
             });
         }
         const data = await brainConnector.getTheoreticalMaximum();
@@ -260,8 +260,8 @@ router.get('/brain/theoretical-max', async (req, res) => {
 router.get('/competitors/activity', async (req, res) => {
     try {
         if (!competitorAnalysis || !competitorAnalysis.getCompetitorActivity) {
-            return res.status(503).json({ 
-                error: 'Competitor analysis service not available' 
+            return res.status(503).json({
+                error: 'Competitor analysis service not available'
             });
         }
         const data = await competitorAnalysis.getCompetitorActivity();
@@ -281,14 +281,14 @@ router.get('/engine/status', (req, res) => {
     // IA-8 FIX: Query the REAL engine and orchestrator for their status
     try {
         if (!profitEngine || !executionOrchestrator) {
-            return res.status(503).json({ 
-                error: 'Engine services not available' 
+            return res.status(503).json({
+                error: 'Engine services not available'
             });
         }
-        
+
         const engineStatus = profitEngine.getStatus();
         const orchestratorStatus = executionOrchestrator.getStatus();
-        
+
         res.json({
             isRunning: orchestratorStatus.isRunning,
             mode: engineStatus.mode,
@@ -311,35 +311,35 @@ router.post('/engine/state', async (req, res) => {
     // IA-8 FIX: Control the REAL engine and orchestrator
     try {
         if (!profitEngine || !executionOrchestrator) {
-            return res.status(503).json({ 
-                error: 'Engine services not available' 
+            return res.status(503).json({
+                error: 'Engine services not available'
             });
         }
-        
+
         const { action, mode } = req.body;
-        
+
         if (action === 'start') {
             // Validate mode
             if (mode && (mode !== 'LIVE' && mode !== 'PAPER')) {
                 return res.status(400).json({ error: 'Invalid mode. Use LIVE or PAPER' });
             }
-            
+
             if (mode) {
                 profitEngine.setMode(mode);
             }
             await profitEngine.start();
             executionOrchestrator.start();
-            
+
             console.log(`[API] Engine start command issued. Mode: ${profitEngine.getMode()}`);
-            
+
             res.json({ success: true, message: `Engine started in ${profitEngine.getMode()} mode.` });
 
         } else if (action === 'stop') {
             executionOrchestrator.stop();
             // Note: profitEngine doesn't have a stop, it's event-driven. Stopping the orchestrator is sufficient.
-            
+
             console.log('[API] Engine stop command issued.');
-            
+
             res.json({ success: true, message: 'Engine stopped.' });
 
         } else {
@@ -359,8 +359,8 @@ router.post('/engine/state', async (req, res) => {
 router.get('/engine/strategies', (req, res) => {
     try {
         if (!profitEngine) {
-            return res.status(503).json({ 
-                error: 'Profit engine not available' 
+            return res.status(503).json({
+                error: 'Profit engine not available'
             });
         }
         // IA-8 FIX: Get strategies from the REAL engine
@@ -379,8 +379,8 @@ router.get('/engine/strategies', (req, res) => {
 router.post('/engine/strategies', (req, res) => {
     try {
         if (!profitEngine) {
-            return res.status(503).json({ 
-                error: 'Profit engine not available' 
+            return res.status(503).json({
+                error: 'Profit engine not available'
             });
         }
         // IA-8 FIX: Reload strategies in the REAL engine
@@ -415,13 +415,13 @@ router.delete('/engine/strategies/:name', (req, res) => {
 router.get('/engine/profit', async (req, res) => {
     try {
         if (!tradeAuditService) {
-            return res.status(503).json({ 
-                error: 'Trade audit service not available' 
+            return res.status(503).json({
+                error: 'Trade audit service not available'
             });
         }
-        
+
         const { days = 7 } = req.query;
-        
+
         // Fetch recent trades from the audit service
         const history = await tradeAuditService.getTradeHistory({ limit: 1000 });
 
@@ -478,15 +478,15 @@ router.get('/engine/profit', async (req, res) => {
 router.get('/stats', async (req, res) => {
     try {
         if (!profitEngine) {
-            return res.status(503).json({ 
-                error: 'Profit engine not available' 
+            return res.status(503).json({
+                error: 'Profit engine not available'
             });
         }
-        
+
         // Integrate with real engine stats
         const engineStatus = profitEngine.getStatus();
         const engineStats = engineStatus.stats || { totalTrades: 0, totalProfit: 0, successfulTrades: 0 };
-        
+
         res.json({
             totalRequests: 0, // This should come from a proper metrics collector
             successfulTrades: engineStats.successfulTrades,
@@ -570,15 +570,15 @@ router.get('/deployments/:id', (req, res) => {
 router.post('/deployments/:id/restart', (req, res) => {
     try {
         const { id } = req.params;
-        deploymentPersistenceService.update(id, { 
-            status: 'running', 
-            lastRestart: new Date().toISOString() 
+        deploymentPersistenceService.update(id, {
+            status: 'running',
+            lastRestart: new Date().toISOString()
         })
-        .then(updated => {
-            if (!updated) return res.status(404).json({ error: 'Deployment not found' });
-            res.json(updated);
-        })
-        .catch(err => { throw err; });
+            .then(updated => {
+                if (!updated) return res.status(404).json({ error: 'Deployment not found' });
+                res.json(updated);
+            })
+            .catch(err => { throw err; });
     } catch (error) {
         console.error('[API] Failed to restart deployment:', error);
         res.status(500).json({ error: 'Failed to restart deployment' });
@@ -663,9 +663,9 @@ router.get('/deployments/health', (req, res) => {
  * @desc Get all wallets
  * @access Private
  */
-router.get('/wallets', (req, res) => {
+router.get('/wallets', async (req, res) => {
     try {
-        const wallets = walletPersistenceService.getAllWallets();
+        const wallets = await walletPersistenceService.getAllWallets();
         res.json(wallets);
     } catch (error) {
         console.error('[API] Failed to get wallets:', error);
@@ -678,11 +678,11 @@ router.get('/wallets', (req, res) => {
  * @desc Add a new wallet
  * @access Private
  */
-router.post('/wallets', (req, res) => {
+router.post('/wallets', async (req, res) => {
     // This endpoint is deprecated in favor of /wallets/add which includes the key
     try {
         const { address, privateKey, name, chain } = req.body;
-        const newWallet = walletPersistenceService.saveWallet(address, privateKey, chain);
+        const newWallet = await walletPersistenceService.saveWallet(address, privateKey, chain);
         res.status(201).json(newWallet);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add wallet' });
@@ -694,10 +694,10 @@ router.post('/wallets', (req, res) => {
  * @desc Add wallet with private key
  * @access Private
  */
-router.post('/wallets/add', (req, res) => {
+router.post('/wallets/add', async (req, res) => {
     try {
         const { address, privateKey, name, chain } = req.body; // Name is not persisted yet
-        const wallet = walletPersistenceService.saveWallet(address, privateKey, chain);
+        const wallet = await walletPersistenceService.saveWallet(address, privateKey, chain);
         res.status(201).json(wallet);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add wallet' });
@@ -709,10 +709,10 @@ router.post('/wallets/add', (req, res) => {
  * @desc Remove wallet
  * @access Private
  */
-router.delete('/wallets/:address', (req, res) => {
+router.delete('/wallets/:address', async (req, res) => {
     try {
         const { address } = req.params;
-        walletPersistenceService.deleteWallet(address);
+        await walletPersistenceService.deleteWallet(address);
         res.json({ success: true });
     } catch (error) {
         console.error('[API] Failed to remove wallet:', error);
@@ -725,10 +725,10 @@ router.delete('/wallets/:address', (req, res) => {
  * @desc Get wallet balance
  * @access Private
  */
-router.get('/wallets/:address/balance', (req, res) => {
+router.get('/wallets/:address/balance', async (req, res) => {
     try {
-        const { address } = req.params; 
-        const wallet = walletPersistenceService.getWallet(address);
+        const { address } = req.params;
+        const wallet = await walletPersistenceService.getWallet(address);
         if (!wallet) {
             return res.status(404).json({ error: 'Wallet not found' });
         }
@@ -770,7 +770,7 @@ router.get('/wallets/validate', (req, res) => {
 router.post('/wallets/verify-key', (req, res) => {
     try {
         const { privateKey } = req.body;
-        
+
         if (!privateKey) {
             return res.status(400).json({ error: 'Invalid private key' });
         }
@@ -778,7 +778,7 @@ router.post('/wallets/verify-key', (req, res) => {
         // Real cryptographic derivation
         // This validates the key format and derives the actual address
         const wallet = new ethers.Wallet(privateKey);
-        
+
         res.json({ address: wallet.address });
     } catch (error) {
         console.error('[API] Failed to verify key:', error);
@@ -817,12 +817,12 @@ router.post('/executeTrade', async (req, res) => {
             return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid tokenIn address' });
         }
         if (tokenOut && (!tokenOut.startsWith('0x') || tokenOut.length !== 42)) {
-             return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid tokenOut address' });
+            return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid tokenOut address' });
         }
         if (!amountIn || amountIn <= 0) {
             return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Amount must be positive' });
         }
-        
+
         const validDexes = ['uniswap_v3', 'sushiswap', 'curve', 'balancer', 'pancakeswap', 'quickswap'];
         if (dex && !validDexes.includes(dex) && dex !== 'auto') {
             return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Invalid DEX selected' });
@@ -844,10 +844,10 @@ router.post('/executeTrade', async (req, res) => {
         // Queue execution via Orchestrator
         executionOrchestrator.queueOpportunity(opportunity);
 
-        res.json({ 
-            success: true, 
-            message: 'Trade execution queued', 
-            tradeId: opportunity.txHash 
+        res.json({
+            success: true,
+            message: 'Trade execution queued',
+            tradeId: opportunity.txHash
         });
 
     } catch (error) {
