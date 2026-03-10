@@ -8,8 +8,8 @@ const crypto = require('crypto');
 const ADMIN_CREDENTIALS = {
     email: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
     username: 'admin',
-    // Pre-computed hash for 'Temam@1954' using PBKDF2 (no bcrypt required)
-    passwordHash: 'cGxhY2Vob2xkZXItMzYwMGY3MzktZTIzNy00NTI4LWIzYzMtOWI1ZjE5ZGU5MGU5'
+    // Pre-computed hash for 'Temam@1954' using SHA256
+    passwordHash: '044068ca5dc251860a7a9be79feafe21bb4a93bcceb7949b48'
 };
 
 // Simple hash verification using PBKDF2 (pure JS, no native deps)
