@@ -69,7 +69,7 @@ services:
   - type: static # This was a separate item, now it's part of the service definition
     name: alphapro-dashboard
     rootDir: modules/dashboard # Tell Render where the dashboard code is
-    buildCommand: npm install && npm run build
+    buildCommand: echo "Static site, no build needed."
     staticPublishPath: dist
     plan: starter
     envVars:
