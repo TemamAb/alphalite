@@ -18,11 +18,11 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
 // --- Security Middleware ---
-// Import authentication and rate limiting
-const { authMiddleware, optionalAuth } = require('./middleware/authMiddleware');
+// NO AUTH VERSION: Rate limiting only
 const { apiLimiter, authLimiter, tradingLimiter } = require('./middleware/rateLimiter');
-const { csrfValidator, csrfTokenGenerator } = require('./middleware/csrfProtection');
+const { csrfTokenGenerator } = require('./middleware/csrfProtection');
 
 // Ensure middleware is always an array of functions (handle express-rate-limit v7 array return)
 const toMiddleware = (m) => {
