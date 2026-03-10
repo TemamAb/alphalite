@@ -47,8 +47,8 @@ services:
         sync: false
 
   # 2. Brain Service (Python AI)
-  - type: web
-  - name: alphapro-brain
+  - type: web # This was a separate item, now it's part of the service definition
+    name: alphapro-brain
     env: docker
     dockerfilePath: ./modules/brain/Dockerfile
     dockerContext: .
@@ -66,8 +66,8 @@ services:
           envVarKey: ETH_RPC_URL
 
   # 3. Dashboard Service (React Frontend)
-  - type: static
-  - name: alphapro-dashboard
+  - type: static # This was a separate item, now it's part of the service definition
+    name: alphapro-dashboard
     rootDir: modules/dashboard # Tell Render where the dashboard code is
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -82,13 +82,12 @@ services:
 # --- Managed Backend Services ---
 
 databases:
-  - name: alphapro-db
-    plan: starter
-    databaseName: alphapro # Optional: specify db name
-    user: alphapro # Optional: specify user
+  - name: alphapro-db # PostgreSQL Database
+    plan: starter # Free tier
+    databaseName: alphapro
+    user: alphapro
 
 # Redis is also a service, but of a specific type
-services:
   - type: redis
     name: alphapro-redis
     plan: starter

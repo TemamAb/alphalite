@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores';
-import { useAuthStore } from '@/stores';
 import CollapsiblePanel from './CollapsiblePanel';
 import Tooltip from './Tooltip'; // Assuming Tooltip component exists
 import { Info, Wand2, ChevronLeft, ChevronRight } from 'lucide-react';

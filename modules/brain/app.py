@@ -402,6 +402,16 @@ class TheOracle:
 # Initialize Oracle
 oracle = TheOracle()
 
+@app.route('/oracle-status', methods=['GET'])
+def get_oracle_status():
+    """Get current Oracle status"""
+    return jsonify({
+        'config': asdict(oracle.current_config),
+        'market_regime': oracle.market_regime,
+        'iterations': oracle.iterations,
+        'best_fitness': oracle.best_fitness,
+        'optimization_count': len(oracle.optimization_history)
+    })
 def optimization_loop():
     """Background thread for continuous optimization"""
     while True:
@@ -415,16 +425,8 @@ def optimization_loop():
 
 
 @app.route('/status', methods=['GET'])
-def get_status():
-    """Get current Oracle status"""
-    return jsonify({
-        'config': asdict(oracle.current_config),
-        'market_regime': oracle.market_regime,
-        'iterations': oracle.iterations,
-        'best_fitness': oracle.best_fitness,
-        'optimization_count': len(oracle.optimization_history)
-    })
 def health_check():
+    """A lightweight health check endpoint."""
     return jsonify({"status": "healthy", "service": "brain"}), 200
 
 

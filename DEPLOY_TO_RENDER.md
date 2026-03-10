@@ -94,7 +94,7 @@ JWT_SECRET=your_jwt_secret
 ## Step 4: Verify Deployment
 
 1. Check service health:
-   - Brain: `https://alphapro-brain.onrender.com/health`
+   - Brain: `https://alphapro-brain.onrender.com/status`
    - API: `https://alphapro-api.onrender.com/api/health`
    - Dashboard: `https://alphapro-dashboard.onrender.com`
 
