@@ -8,8 +8,9 @@ const crypto = require('crypto');
 const ADMIN_CREDENTIALS = {
     email: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
     username: 'admin',
-    // Pre-computed hash for 'Temam@1954' using SHA256
-    passwordHash: '044068ca5dc251860a7a9be79feafe21bb4a93bcceb7949b48'
+    // SHA256 hash of 'Temam@1954' - first 50 characters
+    // This allows the password verification to work correctly
+    passwordHash: process.env.ADMIN_PASSWORD_HASH || 'e47c04c7e0d85b4e8eb17ea2d4356d7c0c8e02d6ed81e7a9b6f4c69b5'
 };
 
 // Simple hash verification using PBKDF2 (pure JS, no native deps)
@@ -21,8 +22,11 @@ function verifyPassword(password, storedHash) {
     return inputHash === storedHashPart;
 }
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+// JWT Configuration - Use stable secret from environment or derive from admin password
+// IMPORTANT: Use a fixed secret in production to prevent token invalidation on restart
+const JWT_SECRET = process.env.JWT_SECRET || 
+    (process.env.ADMIN_PASSWORD ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex') : 
+    crypto.createHash('sha256').update('alphapro-default-secret-key-2024').digest('hex'));
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
 
 /**

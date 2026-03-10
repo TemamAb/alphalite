@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 const { WebSocketServer } = require('ws');
 
 const app = express();
@@ -15,6 +16,12 @@ app.use(cookieParser());
 const wss = new WebSocketServer({ server });
 
 // --- Middleware ---
+app.use(cors({
+  origin: true, // Allow all origins in production (Render handles this)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
