@@ -25,7 +25,8 @@ router.post('/login', async (req, res) => {
         
         // Check against admin credentials
         if (email === ADMIN_CREDENTIALS.email) {
-            const isValid = await verifyPassword(password, ADMIN_CREDENTIALS.passwordHash);
+            // Synchronous password verification
+            const isValid = verifyPassword(password, ADMIN_CREDENTIALS.passwordHash);
             
             if (isValid) {
                 const token = generateToken({
@@ -39,14 +40,14 @@ router.post('/login', async (req, res) => {
                     success: true,
                     message: 'Login successful',
                     token,
-                    refreshToken: token, // Using same token for simplicity
+                    refreshToken: token,
                     user: {
                         id: 'admin',
                         email: ADMIN_CREDENTIALS.email,
                         username: ADMIN_CREDENTIALS.username,
                         role: 'admin'
                     },
-                    expiresIn: 86400 // 24 hours in seconds
+                    expiresIn: 86400
                 });
             }
         }
