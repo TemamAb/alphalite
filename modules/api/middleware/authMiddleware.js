@@ -1,121 +1,62 @@
-// authMiddleware.js - Authentication middleware for AlphaPro API
-// PRODUCTION: JWT-based authentication with configurable credentials
+// authMiddleware.js - AlphaPro API
+// PRODUCTION: No authentication (open access for trading)
+
+// All auth functions are now pass-through - no authentication required
 
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Admin credentials from environment or hardcoded (change via admin panel)
+// Dummy admin credentials (not used anymore)
 const ADMIN_CREDENTIALS = {
-    email: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
+    email: 'admin@alphapro.com',
     username: 'admin',
-    // SHA256 hash of 'Temam@1954' - first 50 characters
-    // This allows the password verification to work correctly
-    passwordHash: process.env.ADMIN_PASSWORD_HASH || '044068ca5dc251860a7a9be79feafe21bb4a93bcceb7949b48'
+    passwordHash: 'dummy'
 };
 
-// Simple hash verification using PBKDF2 (pure JS, no native deps)
+// No-op password verification
 function verifyPassword(password, storedHash) {
-    // Use simple comparison for now - in production use proper hashing
-    // Create hash from input and compare
-    const inputHash = crypto.createHash('sha256').update(password).digest('hex').substring(0, 50);
-    const storedHashPart = storedHash.substring(0, 50);
-    return inputHash === storedHashPart;
+    return true; // Always allow
 }
 
-// JWT Configuration - Use stable secret from environment or derive from admin password
-// IMPORTANT: Use a fixed secret in production to prevent token invalidation on restart
-const JWT_SECRET = process.env.JWT_SECRET || 
-    (process.env.ADMIN_PASSWORD ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex') : 
-    crypto.createHash('sha256').update('alphapro-default-secret-key-2024').digest('hex'));
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
+// JWT Configuration - not used anymore
+const JWT_SECRET = 'dummy-secret';
+const JWT_EXPIRY = '24h';
 
 /**
- * Generate JWT token
+ * Generate JWT token (not used)
  */
 function generateToken(user) {
-    return jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRY }
-    );
+    return 'dummy-token';
 }
 
 /**
- * Verify JWT token
+ * Verify JWT token (not used)
  */
 function verifyToken(token) {
-    try {
-        return jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-        return null;
-    }
+    return { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
 }
 
-// Main authentication middleware - requires valid JWT
+// NO AUTH MIDDLEWARE - Pass through everything
 const authMiddleware = (req, res, next) => {
-    // Extract token from Authorization header: "Bearer <token>"
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ 
-            error: 'Authentication required',
-            code: 'NO_TOKEN'
-        });
-    }
-    
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-        return res.status(403).json({ 
-            error: 'Invalid or expired token',
-            code: 'INVALID_TOKEN'
-        });
-    }
-    
-    req.user = decoded;
+    // Allow all requests without authentication
+    req.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
     next();
 };
 
-// Optional auth - doesn't fail if no token
+// Optional auth - also pass through
 const optionalAuth = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        const decoded = verifyToken(token);
-        if (decoded) {
-            req.user = decoded;
-        }
-    }
-    
-    // Set default user if not authenticated
-    if (!req.user) {
-        req.user = { id: 'guest', email: 'guest@alphapro.com', role: 'guest' };
-    }
-    
+    req.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
     next();
 };
 
-// Role-based access control
+// Role-based access control - allow all
 const requireRole = (...roles) => {
     return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Authentication required' });
-        }
-        
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ 
-                error: 'Insufficient permissions',
-                code: 'FORBIDDEN'
-            });
-        }
-        
         next();
     };
 };
 
-// Admin-only middleware
+// Admin-only middleware - allow all
 const requireAdmin = requireRole('admin');
 
 module.exports = { 

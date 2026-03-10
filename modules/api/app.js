@@ -111,16 +111,15 @@ app.use('/api/auth', authLimiter, authRoutes);
 // - csrfValidator: Validates X-CSRF-Token header/cookie
 // Use toMiddleware helper to ensure each is an array of functions
 
-// PRODUCTION: Use real authentication middleware
-const { authMiddleware } = require('./middleware/authMiddleware');
+// PRODUCTION: No authentication middleware
+// const { authMiddleware } = require('./middleware/authMiddleware');
 const { csrfValidator } = require('./middleware/csrfProtection');
 
-// Protected routes with real auth
+// Protected routes WITHOUT authentication - open access for trading
 const protectedMiddleware = [
     ...toMiddleware(apiLimiter),
     ...toMiddleware(tradingLimiter),
-    authMiddleware,  // JWT authentication required
-    // csrfValidator, // Optional: Uncomment after testing
+    // No authMiddleware - open access
     tradingRoutes
 ];
 app.use('/api', ...protectedMiddleware);
@@ -140,25 +139,10 @@ if (process.env.NODE_ENV === 'production' && backupScheduler && backupScheduler.
 const { verifyToken } = require('./middleware/authMiddleware');
 
 wss.on('connection', (ws, req) => {
-  // Extract token from query string
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const token = url.searchParams.get('token');
+  // No authentication required for WebSocket
+  console.log('[WSS] Client connected (no auth required)');
   
-  // Verify JWT token
-  if (!token) {
-    ws.close(4001, 'Authentication required');
-    return;
-  }
-  
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    ws.close(4003, 'Invalid token');
-    return;
-  }
-  
-  // Attach user to WebSocket connection
-  ws.user = decoded;
-  console.log(`[WSS] Client connected: ${decoded.email} (${decoded.role})`);
+  ws.user = { id: 'admin', email: 'admin@alphapro.com', role: 'admin' };
   
   ws.on('close', () => console.log('[WSS] Client disconnected'));
   ws.on('error', console.error);
