@@ -14,6 +14,11 @@ COPY modules/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the static files into the Nginx webroot
 COPY modules/dashboard/dist /usr/share/nginx/html
+# Copy the static files from the project root into the Nginx webroot.
+# This adapts to the current file structure where index.html, etc., are at the root.
+COPY index.html /usr/share/nginx/html/
+COPY style.css /usr/share/nginx/html/
+COPY script.js /usr/share/nginx/html/
 
 # Expose port 80 for the web server
 EXPOSE 80
