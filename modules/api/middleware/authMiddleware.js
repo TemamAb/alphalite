@@ -10,7 +10,7 @@ const ADMIN_CREDENTIALS = {
     username: 'admin',
     // SHA256 hash of 'Temam@1954' - first 50 characters
     // This allows the password verification to work correctly
-    passwordHash: process.env.ADMIN_PASSWORD_HASH || 'e47c04c7e0d85b4e8eb17ea2d4356d7c0c8e02d6ed81e7a9b6f4c69b5'
+    passwordHash: process.env.ADMIN_PASSWORD_HASH || '044068ca5dc251860a7a9be79feafe21bb4a93bcceb7949b48'
 };
 
 // Simple hash verification using PBKDF2 (pure JS, no native deps)
