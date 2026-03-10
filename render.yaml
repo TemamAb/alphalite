@@ -66,10 +66,10 @@ services:
           envVarKey: ETH_RPC_URL
 
   # 3. Dashboard Service (React Frontend)
-  - type: static # This was a separate item, now it's part of the service definition
+  - type: static
     name: alphapro-dashboard
-    rootDir: modules/dashboard # Tell Render where the dashboard code is
-    buildCommand: echo "Static site, no build needed."
+    rootDir: modules/dashboard
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
     plan: starter
     envVars:
@@ -77,7 +77,7 @@ services:
         fromService:
           type: web
           name: alphapro-api
-          property: url # Dynamically get the API's public URL
+          property: url
 
   # 4. Redis Cache Service
   - type: redis

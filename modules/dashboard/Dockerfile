@@ -1,31 +1,42 @@
 # AlphaPro Dashboard Dockerfile
 # =============================
-# Serves a plain HTML/CSS/JS dashboard with Nginx.
+# Serves a React dashboard with Nginx.
 
-# Use a lightweight nginx image
+# Build stage
+FROM node:20-alpine3.18 AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Build the React app
+RUN npm run build
+
+# Production stage
 FROM nginx:1.25-alpine
 
 # Remove default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy custom Nginx configuration
-# This assumes the build context is the project root.
-COPY modules/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the static files into the Nginx webroot
-COPY modules/dashboard/dist /usr/share/nginx/html
-# Copy the static files from the project root into the Nginx webroot.
-# This adapts to the current file structure where index.html, etc., are at the root.
-COPY index.html /usr/share/nginx/html/
-COPY style.css /usr/share/nginx/html/
-COPY script.js /usr/share/nginx/html/
+# Copy built files from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 80 for the web server
+# Expose port 80
 EXPOSE 80
 
-# Healthcheck to ensure Nginx is running and serving the health endpoint
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget --quiet --spider http://localhost/health || exit 1
 
-# Command to start Nginx in the foreground
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
