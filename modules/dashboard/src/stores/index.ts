@@ -21,9 +21,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   
   login: async (email: string, password: string) => {
-    const mockUser = { id: '1', email };
-    localStorage.setItem('auth_token', 'mock_token');
-    set({ isAuthenticated: true, user: mockUser });
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Login failed');
+    }
+
+    const data = await response.json();
+    
+    if (data.token) {
+      localStorage.setItem('auth_token', data.token);
+      set({ isAuthenticated: true, user: data.user });
+    } else {
+      throw new Error('No token received');
+    }
   },
   
   logout: () => {
