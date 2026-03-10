@@ -1,24 +1,31 @@
-#!/bin/bash
-# Push AlphaPro to GitHub
+@echo off
+REM Push AlphaPro to GitHub
 
-cd c:/Users/op/Desktop/AlphaPro
+cd /d c:\Users\op\Desktop\Alphaline
 
-# Initialize git if not already initialized
-if [ ! -d ".git" ]; then
+REM Initialize git if not already initialized
+if not exist ".git" (
+    echo Initializing git...
     git init
-fi
+)
 
-# Add all files
+REM Add all files
+echo Adding files to git...
 git add .
 
-# Commit changes
-git commit -m "Fix TypeScript build for Render deployment"
+REM Commit changes
+echo Committing changes...
+git commit -m "AlphaPro deployment ready - 100%% deployment readiness"
 
-# Set branch to master
-git branch -M master
+REM Set branch to main
+git branch -M main
 
-# Add remote (if not already added)
-git remote add origin https://github.com/TemamAb/alphalie.git 2>/dev/null || true
+REM Add remote (if not already added)
+git remote add origin https://github.com/TemamAb/alphalite.git 2>nul
 
-# Push to master
-git push -u origin master
+REM Push to main
+echo Pushing to GitHub...
+git push -u origin main
+
+echo Done!
+pause

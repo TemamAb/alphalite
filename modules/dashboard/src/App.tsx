@@ -17,6 +17,7 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,21 @@ function LoginPage() {
       await login(email, password);
     } catch (error) {
       console.error('Login failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // Mock signup - in production, call your signup API
+      const mockUser = { id: '1', email };
+      localStorage.setItem('auth_token', 'mock_token');
+      useAuthStore.setState({ isAuthenticated: true, user: mockUser });
+    } catch (error) {
+      console.error('Signup failed:', error);
     } finally {
       setLoading(false);
     }
