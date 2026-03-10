@@ -79,6 +79,12 @@ services:
           name: alphapro-api
           property: url # Dynamically get the API's public URL
 
+  # 4. Redis Cache Service
+  - type: redis
+    name: alphapro-redis
+    plan: starter
+    ipAllowList: [] # Allow only internal connections from other Render services
+
 # --- Managed Backend Services ---
 
 databases:
@@ -86,9 +92,3 @@ databases:
     plan: starter # Free tier
     databaseName: alphapro
     user: alphapro
-
-# Redis is also a service, but of a specific type
-  - type: redis
-    name: alphapro-redis
-    plan: starter
-    ipAllowList: [] # Allow only internal connections from other Render services
