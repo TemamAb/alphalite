@@ -51,12 +51,19 @@ interface DashboardStats {
   winRate: number;
 }
 
+interface EngineStatus {
+  isRunning: boolean;
+  mode: string;
+  totalProfit?: number;
+  totalTrades?: number;
+}
+
 interface DashboardState {
   stats: DashboardStats;
   deployments: Deployment[];
   wallets: Wallet[];
   refreshInterval: number;
-  engineStatus: string;
+  engineStatus: EngineStatus;
   fetchStats: () => Promise<void>;
   fetchDeployments: () => Promise<void>;
   fetchWalletBalances: () => Promise<void>;
@@ -73,7 +80,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   deployments: [],
   wallets: [],
   refreshInterval: 5000,
-  engineStatus: 'idle',
+  engineStatus: { isRunning: false, mode: 'idle', totalProfit: 0, totalTrades: 0 },
   
   fetchStats: async () => {
     // Mock data - replace with actual API calls
