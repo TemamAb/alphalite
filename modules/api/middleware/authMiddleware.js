@@ -7,13 +7,13 @@ const bcrypt = require('bcrypt');
 
 // --- Admin Credentials ---
 // As per DEPLOYMENT_AUDIT_FINAL.md, these are the primary credentials.
-// The password hash is pre-generated for 'Temam@gmail'.
+// Allowed to be overridden via .env file injection.
 const ADMIN_CREDENTIALS = {
     id: '1',
-    email: 'iamtemam@gmail.com',
-    username: 'iamtemam@gmail.com',
-    // Pre-hashed password for "Temam@gmail" with salt rounds 12
-    passwordHash: '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16',
+    email: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
+    username: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
+    // Pre-hashed password for "Temam@gmail" with salt rounds 12 or use env
+    passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16',
     role: 'admin'
 };
 
