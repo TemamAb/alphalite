@@ -10,25 +10,23 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
-  user: null,
+  // Login system REMOVED - always authenticated
+  isAuthenticated: true,
+  user: { id: '1', email: 'admin@alphapro.io' },
   
   checkAuth: async () => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      set({ isAuthenticated: true });
-    }
+    // Always authenticated - no login system
+    set({ isAuthenticated: true, user: { id: '1', email: 'admin@alphapro.io' } });
   },
   
   login: async (email: string, password: string) => {
-    const mockUser = { id: '1', email };
-    localStorage.setItem('auth_token', 'mock_token');
-    set({ isAuthenticated: true, user: mockUser });
+    // No-op - login system removed
+    set({ isAuthenticated: true, user: { id: '1', email } });
   },
   
   logout: () => {
-    localStorage.removeItem('auth_token');
-    set({ isAuthenticated: false, user: null });
+    // No-op - login system removed, stay authenticated
+    set({ isAuthenticated: true, user: { id: '1', email: 'admin@alphapro.io' } });
   },
 }));
 

@@ -129,8 +129,10 @@ function Header() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    // Login system removed - no logout needed, just refresh or do nothing
+    logout();
+    // Navigate to home instead of login
+    navigate('/home');
   };
 
   return (

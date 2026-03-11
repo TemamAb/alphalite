@@ -11,6 +11,7 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    trustProxy: 1,
 });
 
 // Strict limiter for authentication endpoints
@@ -33,6 +34,7 @@ const tradingLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    trustProxy: 1,
 });
 
 module.exports = {
