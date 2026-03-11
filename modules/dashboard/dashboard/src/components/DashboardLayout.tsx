@@ -295,10 +295,12 @@ function Sidebar() {
 
   const navItems = [
     { to: '/home', icon: LayoutDashboard, label: 'Home', badge: null },
-    { to: '/copilot', icon: Bot, label: 'AlphaCopilot', badge: null },
     { to: '/strategies', icon: Cpu, label: 'Strategies', badge: null },
     { to: '/ai-optimizer', icon: Bot, label: 'AI Optimizer', badge: null },
     { to: '/blockchain-stream', icon: Activity, label: 'Blockchain Stream', badge: null },
+    { to: '/logs', icon: ScrollText, label: 'Logs', badge: null },
+    { to: '/wallets', icon: Wallet, label: 'Wallets', badge: null },
+    { to: '/security', icon: Shield, label: 'Security', badge: null },
     { to: '/health', icon: HeartPulse, label: 'Health', badge: null },
     { to: '/settings', icon: Settings, label: 'Settings', badge: null },
   ];

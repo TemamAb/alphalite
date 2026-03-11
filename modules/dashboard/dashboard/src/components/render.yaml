@@ -1,0 +1,67 @@
+# AlphaPro Blueprint for Render.com
+# This file defines all services, databases, and environment variables
+# for a one-click deployment of the AlphaPro system.
+
+services:
+  # 1. Main Web Service: Node.js Engine & React Dashboard
+  - type: web
+    name: alphapro-engine
+    env: docker
+    dockerfilePath: ./Dockerfile # Uses the root Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alphapro-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: alphapro-cache
+          property: connectionString
+      - key: BRAIN_API_URL
+        fromService:
+          type: web
+          name: alphapro-brain
+          property: url
+      # --- Secrets to be set in Render Dashboard ---
+      - key: JWT_SECRET
+        generateValue: true # Render will generate a secure secret
+      - key: ENCRYPTION_KEY
+        generateValue: true # Render will generate a secure key
+      - key: ETH_RPC_URL
+        sync: false
+      - key: WALLET_ADDRESS
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: PIMLICO_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # 2. Python AI Brain Service
+  - type: web
+    name: alphapro-brain
+    env: docker
+    dockerfilePath: ./modules/brain/Dockerfile
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # 3. PostgreSQL Database
+  - type: pserv
+    name: alphapro-db
+    env: postgres
+    plan: free # Or a paid plan for production
+
+  # 4. Redis Cache
+  - type: redis
+    name: alphapro-cache
+    plan: free # Or a paid plan for production
