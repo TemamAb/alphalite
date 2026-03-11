@@ -34,19 +34,62 @@ try {
 }
 
 /**
- * Get configuration value with Render-first (process.env), .env-second fallback
- * This allows: Render dashboard env vars > local .env file
+ * Read .env file directly to get values with priority
+ * This function checks .env file first, then process.env
+ */
+function readEnvFile(primaryKey, fallbackKeys = []) {
+    const possiblePaths = [
+        path.join(__dirname, '.env'),
+        path.join(__dirname, '..', '.env'),
+        path.join(process.cwd(), '.env')
+    ];
+    
+    for (const envPath of possiblePaths) {
+        if (fs.existsSync(envPath)) {
+            const envContent = fs.readFileSync(envPath, 'utf8');
+            const lines = envContent.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed && !trimmed.startsWith('#')) {
+                    const [key, ...valueParts] = trimmed.split('=');
+                    const value = valueParts.join('=').trim();
+                    if (key === primaryKey || fallbackKeys.includes(key)) {
+                        if (value && value.length > 0) {
+                            return value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Get configuration value with .env-first, Render-second fallback
+ * This allows: .env file > Render dashboard env vars
  */
 function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    // console.log(`[CONFIG] getConfigValue: primaryKey=${primaryKey}, fallbackKeys=${JSON.stringify(fallbackKeys)}`);
+    // For critical wallet/private key configs: check .env file first
+    const walletKeyNames = ['PRIVATE_KEY', 'WALLET_ADDRESS', 'wallet_address', 'private_key'];
+    const isWalletConfig = walletKeyNames.includes(primaryKey) || fallbackKeys.some(k => walletKeyNames.includes(k));
+    
+    // First priority: .env file for wallet configs (as requested - .env overrides)
+    if (isWalletConfig) {
+        const envFileValue = readEnvFile(primaryKey, fallbackKeys);
+        if (envFileValue) {
+            console.log(`[CONFIG] .env override for '${primaryKey}': ${envFileValue.substring(0, 10)}...`);
+            return envFileValue;
+        }
+    }
 
-    // First priority: Render's process.env (set in Render dashboard)
+    // Second priority: Render's process.env (set in Render dashboard)
     if (process.env[primaryKey]) {
         console.log(`[CONFIG] Found primary key '${primaryKey}': ${process.env[primaryKey].substring(0, 10)}...`);
         return process.env[primaryKey];
     }
 
-    // Second priority: fallback keys from .env file
+    // Third priority: fallback keys from .env file
     for (const key of fallbackKeys) {
         if (process.env[key]) {
             console.log(`[CONFIG] Found fallback key '${key}': ${process.env[key].substring(0, 10)}...`);
@@ -55,7 +98,7 @@ function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
     }
 
     console.log(`[CONFIG] Key '${primaryKey}' not found, returning default: ${defaultValue}`);
-    // Third priority: default value
+    // Fourth priority: default value
     return defaultValue;
 }
 
@@ -79,6 +122,17 @@ class ConfigService extends EventEmitter {
     constructor() {
         super();
 
+        // Get wallet configs first for auto-LIVE mode detection
+        const privateKey = getConfigValue('PRIVATE_KEY', ['private_key'], null);
+        const walletAddress = getConfigValue('WALLET_ADDRESS', ['wallet_address'], null);
+        
+        // Get trading mode - default to PAPER, auto-switch to LIVE if private key available
+        let tradingMode = getConfigValue('TRADING_MODE', ['trading_mode'], 'PAPER');
+        if (privateKey && walletAddress && tradingMode === 'PAPER') {
+            console.log('[CONFIG] ⚠️ PRIVATE_KEY detected - auto-switching to LIVE trading mode');
+            tradingMode = 'LIVE';
+        }
+
         // Default configuration with fallback logic
         this.config = {
             // Trading Configuration
@@ -90,7 +144,7 @@ class ConfigService extends EventEmitter {
             stopLossPercentage: getNumericValue('STOP_LOSS_PERCENTAGE', ['stop_loss_percentage'], 5),
 
             // Trading Mode
-            tradingMode: getConfigValue('TRADING_MODE', ['trading_mode'], 'PAPER'),
+            tradingMode: tradingMode,
             withdrawalMode: getConfigValue('WITHDRAWAL_MODE', ['withdrawal_mode'], 'MANUAL'),
 
             // Data Sources
@@ -204,8 +258,8 @@ class ConfigService extends EventEmitter {
                 optimismSepolia: getConfigValue('OPTIMISM_SEPOLIA_WS_URL', [], null),
                 baseSepolia: getConfigValue('BASE_SEPOLIA_WS_URL', [], null),
 
-                // Additional EVM
-                fantom: getConfigValue('FANTOM_WS_URL', ['ftm_ws_url'], null),
+                // Additional EVM Chains
+                fantom: getConfigValue('FANTOM_WS_URL', [], null),
                 cronos: getConfigValue('CRONOS_WS_URL', [], null),
                 gnosis: getConfigValue('GNOSIS_WS_URL', [], null),
                 kava: getConfigValue('KAVA_WS_URL', [], null),
@@ -215,12 +269,9 @@ class ConfigService extends EventEmitter {
                 evmos: getConfigValue('EVMOS_WS_URL', [], null),
                 canto: getConfigValue('CANTO_WS_URL', [], null),
                 aurora: getConfigValue('AURORA_WS_URL', [], null),
-                tenet: getConfigValue('TENET_WS_URL', [], null),
-                optyfi: getConfigValue('OPTYFI_WS_URL', [], null),
                 mantle: getConfigValue('MANTLE_WS_URL', [], null),
                 linea: getConfigValue('LINEA_WS_URL', [], null),
                 mode: getConfigValue('MODE_WS_URL', [], null),
-                fraxtal: getConfigValue('FRAXTAL_WS_URL', [], null),
                 blast: getConfigValue('BLAST_WS_URL', [], null),
                 rootstock: getConfigValue('ROOTSTOCK_WS_URL', [], null),
 
@@ -229,22 +280,23 @@ class ConfigService extends EventEmitter {
                 osmosis: getConfigValue('OSMOSIS_WS_URL', [], null),
                 injective: getConfigValue('INJECTIVE_WS_URL', [], null),
                 sei: getConfigValue('SEI_WS_URL', [], null),
-
-                // Other Chains
                 vechain: getConfigValue('VECHAIN_WS_URL', [], null),
                 thorchain: getConfigValue('THORCHAIN_WS_URL', [], null),
             },
 
-            // Pimlico Configuration
+            // Account Abstraction (Pimlico)
             pimlico: {
-                bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], null),
-                paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], null),
+                bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], 'https://api.pimlico.io/v2/1/rpc'),
+                paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], 'https://api.pimlico.io/v2/1/rpc'),
                 entryPoint: getConfigValue('ENTRYPOINT_ADDRESS', ['entrypoint_address'], '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'),
             },
+            bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], null),
+            paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], null),
+            entrypointAddress: getConfigValue('ENTRYPOINT_ADDRESS', ['entrypoint_address'], '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'),
 
-            // Wallet Configuration
-            walletAddress: getConfigValue('WALLET_ADDRESS', ['wallet_address'], null),
-            privateKey: getConfigValue('PRIVATE_KEY', ['private_key'], null),
+            // Wallet Configuration - Using .env as overriding source
+            walletAddress: walletAddress,
+            privateKey: privateKey,
 
             // Market Data APIs
             marketData: {
@@ -288,6 +340,7 @@ class ConfigService extends EventEmitter {
         const critical = [
             { name: 'Trading Mode', value: this.config.tradingMode },
             { name: 'Wallet Address', value: this.config.walletAddress ? this.config.walletAddress.substring(0, 10) + '...' : 'MISSING' },
+            { name: 'Private Key', value: this.config.privateKey ? 'configured' : 'MISSING' },
             { name: 'Pimlico API', value: this.config.pimlicoApiKey ? 'configured' : 'MISSING' },
             { name: 'Alchemy API', value: this.config.alchemyApiKey ? 'configured' : 'MISSING' },
             { name: 'ETH RPC', value: this.config.rpcUrls.ethereum ? 'configured' : 'MISSING' },
@@ -310,7 +363,7 @@ class ConfigService extends EventEmitter {
     }
 
     updateConfig(newConfig) {
-        this.config = { ...this.config, ...newConfig };
+        this.config = { ...this.config, newConfig };
         this.emit('config_update', this.config);
     }
 

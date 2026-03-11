@@ -5,6 +5,7 @@ import { useDashboardStore, useAuthStore } from '@/stores';
 interface TradingSettings {
     reinvestmentRate: number;
     capitalVelocity: number;
+    withdrawalMode: 'MANUAL' | 'AUTO';
 }
 
 interface PersonaConfig {
@@ -27,7 +28,8 @@ interface FrontRunConfig {
 const Settings: React.FC = () => {
     const [settings, setSettings] = useState<TradingSettings>({
         reinvestmentRate: 50,
-        capitalVelocity: 100
+        capitalVelocity: 100,
+        withdrawalMode: 'MANUAL'
     });
     const [personaSettings, setPersonaSettings] = useState<PersonasSettings>({
         strategist: { aggression: 50, riskTolerance: 50 },
@@ -285,6 +287,44 @@ const Settings: React.FC = () => {
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-purple-600"
                 />
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Maximum capital utilization per trade execution block ($1M - $500M).</p>
+            </div>
+
+            {/* Profit Withdrawal Mode */}
+            <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Profit Withdrawal Mode
+                    </label>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setSettings({...settings, withdrawalMode: 'MANUAL'})}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                settings.withdrawalMode === 'MANUAL'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            }`}
+                        >
+                            MANUAL
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSettings({...settings, withdrawalMode: 'AUTO'})}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                settings.withdrawalMode === 'AUTO'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            }`}
+                        >
+                            AUTO
+                        </button>
+                    </div>
+                </div>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {settings.withdrawalMode === 'MANUAL' 
+                        ? 'Profits are accumulated and must be manually withdrawn to your wallet.'
+                        : 'Profits are automatically withdrawn to your wallet after each trade.'}
+                </p>
             </div>
 
             {/* FrontRun Config Panel */}
