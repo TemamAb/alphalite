@@ -95,39 +95,21 @@ app.get('/metrics', async (req, res) => {
 // --- API Routes ---
 // Import API routes
 const tradingRoutes = require('./routes/tradingRoutes');
-const authRoutes = require('./routes/authRoutes');
 const metricsRoutes = require('./routes/metricsRoutes');
 
 console.log('[APP] Routes loaded');
 
-// --- Authentication Routes (NO AUTH REQUIRED - must be before authMiddleware) ---
-// Rate limited to prevent brute force
-// app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth', authRoutes);
-
-// --- Protected Trading Routes ---
-// All trading routes protected by:
-// - apiLimiter: 100 req/15min general limit
-// - tradingLimiter: 10 req/min STRICT limit for trading
-// - authMiddleware: JWT authentication required
-// - csrfValidator: Validates X-CSRF-Token header/cookie
-// Use toMiddleware helper to ensure each is an array of functions
-
-// PRODUCTION: Enable authentication middleware
-const { authMiddleware } = require('./middleware/authMiddleware');
-const { csrfValidator } = require('./middleware/csrfProtection');
-
-// Protected routes WITH authentication
+// --- Trading Routes (NO AUTH - Open Access) ---
+// All trading routes are now public
 const protectedMiddleware = [
     ...toMiddleware(apiLimiter),
     ...toMiddleware(tradingLimiter),
-    authMiddleware, // Applied before tradingRoutes
     tradingRoutes
 ];
 app.use('/api', ...protectedMiddleware);
 
-// --- Metrics Routes (Protected) ---
-app.use('/api/metrics', authMiddleware, metricsRoutes);
+// --- Metrics Routes (NO AUTH - Open Access) ---
+app.use('/api/metrics', metricsRoutes);
 
 // --- Start Real-Time Metrics Service ---
 if (realTimeMetrics && realTimeMetrics.start) {
@@ -139,32 +121,12 @@ if (process.env.NODE_ENV === 'production' && backupScheduler && backupScheduler.
     backupScheduler.start();
 }
 
-// --- WebSocket Server with Authentication ---
-// Authenticate WebSocket connections using JWT
-const { verifyToken } = require('./middleware/authMiddleware');
-
+// --- WebSocket Server (NO AUTH - Open Access) ---
 wss.on('connection', (ws, req) => {
-    // Authenticate WebSocket connection via token in query string
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const token = url.searchParams.get('token');
-
-    if (!token) {
-        console.warn('[WSS] Connection rejected: No token provided');
-        ws.close(4001, 'Authentication token required');
-        return;
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-        console.warn('[WSS] Connection rejected: Invalid token');
-        ws.close(4003, 'Invalid or expired token');
-        return;
-    }
-
-    console.log(`[WSS] Client connected: ${decoded.email}`);
-    ws.user = decoded;
-
-    ws.on('close', () => console.log(`[WSS] Client disconnected: ${decoded.email}`));
+    // Open access - no authentication required
+    console.log('[WSS] Client connected (open access)');
+    
+    ws.on('close', () => console.log('[WSS] Client disconnected'));
     ws.on('error', console.error);
 });
 
@@ -194,3 +156,4 @@ if (require.main === module) {
 }
 
 module.exports = { app, server };
+
