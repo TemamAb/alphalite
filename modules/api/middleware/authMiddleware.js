@@ -4,7 +4,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
-const configService = require('../../config/configService');
+const configService = require('../../../config/configService');
 
 // --- Admin Credentials ---
 // Load from config service (which reads from Render env vars or .env file)
