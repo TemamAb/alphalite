@@ -257,6 +257,13 @@ class ConfigService extends EventEmitter {
             marketApiKeys: {
                 coingecko: getConfigValue('COINGECKO_API_KEY', ['coingecko_key'], null),
                 birdeye: getConfigValue('BIRDEYE_API_KEY', ['birdeye_key'], null),
+            },
+
+            // Authentication Configuration
+            auth: {
+                adminEmail: getConfigValue('ADMIN_EMAIL', ['admin_email', 'ADMIN_EMAIL'], 'iamtemam@gmail.com'),
+                adminPasswordHash: getConfigValue('ADMIN_PASSWORD_HASH', ['admin_password_hash', 'ADMIN_PASSWORD_HASH'], '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16'),
+                jwtSecret: getConfigValue('JWT_SECRET', ['jwt_secret'], null),
             }
         };
 
@@ -288,6 +295,8 @@ class ConfigService extends EventEmitter {
             { name: 'Coingecko', value: this.config.marketData.coingeckoUrl ? 'configured' : 'MISSING' },
             { name: 'DexScreener', value: this.config.marketData.dexscreenerUrl ? 'configured' : 'MISSING' },
             { name: 'Birdeye', value: this.config.marketData.birdeyeUrl ? 'configured' : 'MISSING' },
+            { name: 'Admin Email', value: this.config.auth?.adminEmail || 'default' },
+            { name: 'JWT Secret', value: this.config.auth?.jwtSecret ? 'configured' : 'auto-generated' },
         ];
 
         critical.forEach(item => {

@@ -4,22 +4,23 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const configService = require('../../config/configService');
 
 // --- Admin Credentials ---
-// As per DEPLOYMENT_AUDIT_FINAL.md, these are the primary credentials.
-// Allowed to be overridden via .env file injection.
+// Load from config service (which reads from Render env vars or .env file)
+// Fall back to hardcoded defaults if not configured
 const ADMIN_CREDENTIALS = {
     id: '1',
-    email: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
-    username: process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
-    // Pre-hashed password for "Temam@gmail" with salt rounds 12 or use env
-    passwordHash: process.env.ADMIN_PASSWORD_HASH || '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16',
+    email: configService.config.auth?.adminEmail || process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
+    username: configService.config.auth?.adminEmail || process.env.ADMIN_EMAIL || 'iamtemam@gmail.com',
+    // Use config service hash, then env var, then hardcoded default
+    passwordHash: configService.config.auth?.adminPasswordHash || process.env.ADMIN_PASSWORD_HASH || '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16',
     role: 'admin'
 };
 
 // --- JWT Configuration ---
 // Use environment variable for secret in production, with a secure fallback.
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = configService.config.auth?.jwtSecret || process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRY = '24h';
 
 /**

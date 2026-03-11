@@ -7,7 +7,6 @@ services:
   - type: web
     name: alphapro-api
     env: docker
-    dockerfilePath: ./modules/api/Dockerfile
     dockerfilePath: ./Dockerfile
     dockerContext: . # Build from the root of the repo
     healthCheckPath: /api/health
