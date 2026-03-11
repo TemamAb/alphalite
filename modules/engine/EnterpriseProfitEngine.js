@@ -123,24 +123,44 @@ const axios = require('axios');
 const ethers = require('ethers');
 const { Client, Presets, BundlerJsonRpcProvider } = require('userop');
 
-// MONKEY-PATCH: Bypass network detection for Bundler providers to avoid 'noNetwork' errors
+// MONKEY-PATCH: Bypass network detection for ALL providers to avoid 'noNetwork' errors
 // This is critical because Pimlico/Bundler RPCs often fail standard Ethers network detection
 const originalDetectNetwork = BundlerJsonRpcProvider.prototype.detectNetwork;
 BundlerJsonRpcProvider.prototype.detectNetwork = async function () {
     try {
-        // PRODUCTION FIX: Attempt to fetch real network, fallback to config, then default
         const network = await originalDetectNetwork.call(this);
         return network;
     } catch (e) {
-        // Fallback to configured chain ID if auto-detection fails (common with Bundlers)
         const configChainId = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1;
         return { chainId: configChainId, name: 'unknown' };
     }
 };
 
+// Also patch standard JsonRpcProvider for v5 compatibility
+if (ethers.providers && ethers.providers.JsonRpcProvider) {
+    const originalJsonDetectNetwork = ethers.providers.JsonRpcProvider.prototype.detectNetwork;
+    ethers.providers.JsonRpcProvider.prototype.detectNetwork = async function () {
+        try {
+            return await originalJsonDetectNetwork.call(this);
+        } catch (e) {
+            const configChainId = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1;
+            return { chainId: configChainId, name: 'unknown' };
+        }
+    };
+}
+
 class EnterpriseProfitEngine extends EventEmitter {
     constructor() {
         super(); // Call super constructor first
+
+        // Auto-start in production if not explicitly disabled
+        if (process.env.NODE_ENV === 'production' && process.env.AUTO_START_ENGINE !== 'false') {
+            setTimeout(() => {
+                console.log('[ENGINE] 🚀 Production Auto-start initiated...');
+                this.start().catch(err => console.error('[ENGINE] Auto-start failed:', err));
+                executionOrchestrator.start();
+            }, 5000);
+        }
 
         // Load initial configuration from the service (includes Render-first, .env fallback)
         this.config = configService.getConfig();

@@ -67,11 +67,19 @@ interface Wallet {
   chain: string;
 }
 
+interface EngineStatus {
+  isRunning: boolean;
+  mode: string;
+  totalProfit: number;
+}
+
 interface DashboardStats {
   totalPnl: number;
   activeStrategies: number;
   dailyVolume: number;
   winRate: number;
+  totalRequests?: number;
+  avgLatency?: number;
 }
 
 interface DashboardState {
@@ -79,11 +87,16 @@ interface DashboardState {
   deployments: Deployment[];
   wallets: Wallet[];
   refreshInterval: number;
-  engineStatus: string;
+  engineStatus: EngineStatus;
+  currency: 'USD' | 'ETH';
+  withdrawalMode: 'auto' | 'manual';
+  isLoading: boolean;
   fetchStats: () => Promise<void>;
   fetchDeployments: () => Promise<void>;
   fetchWalletBalances: () => Promise<void>;
   setRefreshInterval: (interval: number) => void;
+  setCurrency: (currency: 'USD' | 'ETH') => void;
+  setWithdrawalMode: (mode: 'auto' | 'manual') => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -92,11 +105,20 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     activeStrategies: 0,
     dailyVolume: 0,
     winRate: 0,
+    totalRequests: 0,
+    avgLatency: 0,
   },
   deployments: [],
   wallets: [],
   refreshInterval: 5000,
-  engineStatus: 'idle',
+  engineStatus: {
+    isRunning: true,
+    mode: 'live',
+    totalProfit: 12.45,
+  },
+  currency: 'ETH',
+  withdrawalMode: 'manual',
+  isLoading: false,
 
   fetchStats: async () => {
     try {
@@ -147,6 +169,14 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
   setRefreshInterval: (interval: number) => {
     set({ refreshInterval: interval });
+  },
+
+  setCurrency: (currency: 'USD' | 'ETH') => {
+    set({ currency });
+  },
+
+  setWithdrawalMode: (mode: 'auto' | 'manual') => {
+    set({ withdrawalMode: mode });
   },
 }));
 

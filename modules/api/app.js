@@ -102,7 +102,8 @@ console.log('[APP] Routes loaded');
 
 // --- Authentication Routes (NO AUTH REQUIRED - must be before authMiddleware) ---
 // Rate limited to prevent brute force
-app.use('/api/auth', authLimiter, authRoutes);
+// app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 
 // --- Protected Trading Routes ---
 // All trading routes protected by:

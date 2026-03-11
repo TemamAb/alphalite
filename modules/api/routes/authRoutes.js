@@ -4,9 +4,9 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const { 
-    generateToken, 
-    verifyPassword, 
+const {
+    generateToken,
+    verifyPassword,
     ADMIN_CREDENTIALS,
     authMiddleware,
     requireAdmin
@@ -27,6 +27,7 @@ const findUserByEmail = async (email) => {
  * @access Public
  */
 router.post('/login', async (req, res) => {
+    console.log('[AUTH] Login attempt:', req.body.email);
     try {
         const { email, password } = req.body;
 
@@ -134,7 +135,7 @@ router.post('/change-password', authMiddleware, requireAdmin, async (req, res) =
     // 5. For this hardcoded example, this would mean updating a file or an in-memory object,
     //    which is not secure or persistent. Therefore, this feature remains not implemented.
 
-    return res.status(501).json({ 
+    return res.status(501).json({
         error: 'Password change is not implemented for the hardcoded admin user.',
         message: 'To change the password, you must generate a new password hash and update the `passwordHash` in `modules/api/middleware/authMiddleware.js`, then restart the server.'
     });

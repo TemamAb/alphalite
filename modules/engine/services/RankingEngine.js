@@ -44,11 +44,11 @@ try {
 
 // RPC endpoints for on-chain data (FREE alternatives to paid oracles)
 const RPC_ENDPOINTS = {
-    ethereum: process.env.ETH_RPC_URL || process.env.INFURA_ETH || 'https://eth.llamarpc.com', // Free RPC
+    ethereum: process.env.ETH_RPC_URL || process.env.INFURA_ETH || 'https://cloudflare-eth.com', // Resilient provider
     arbitrum: process.env.ARBITRUM_RPC_URL || process.env.INFURA_ARB || 'https://arb1.arbitrum.io/rpc',
     optimism: process.env.OPTIMISM_RPC_URL || process.env.INFURA_OPT || 'https://mainnet.optimism.io',
-    polygon: process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com', // Free RPC
-    base: process.env.BASE_RPC_URL || 'https://base.llamarpc.com', // Free RPC
+    polygon: process.env.POLYGON_RPC_URL || 'https://polygon.llamarpc.com', // Keep for now, add others if needed
+    base: process.env.BASE_RPC_URL || 'https://mainnet.base.org', // Use official endpoint
     avalanche: process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
     bsc: process.env.BSC_RPC_URL || 'https://bsc-dataseed1.binance.org'
 };

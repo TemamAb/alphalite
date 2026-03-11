@@ -113,7 +113,7 @@ class ConfigService extends EventEmitter {
             // Blockchain RPC URLs - 55+ Networks Supported (with public fallbacks)
             rpcUrls: {
                 // EVM Chains (Alchemy)
-                ethereum: getConfigValue('ETH_RPC_URL', ['ETH_RPC_URL', 'ethereum_rpc', 'ETHRPC'], 'https://eth.llamarpc.com'),
+                ethereum: getConfigValue('ETH_RPC_URL', ['ETH_RPC_URL', 'ethereum_rpc', 'ETHRPC'], 'https://cloudflare-eth.com'),
                 polygon: getConfigValue('POLYGON_RPC_URL', ['POLYGON_RPC_URL', 'polygon_rpc'], 'https://polygon.llamarpc.com'),
                 arbitrum: getConfigValue('ARBITRUM_RPC_URL', ['ARBITRUM_RPC_URL', 'arbitrum_rpc'], 'https://arb1.arbitrum.io/rpc'),
                 optimism: getConfigValue('OPTIMISM_RPC_URL', ['OPTIMISM_RPC_URL', 'optimism_rpc'], 'https://mainnet.optimism.io'),

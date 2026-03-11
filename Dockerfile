@@ -26,44 +26,45 @@ FROM node:20-alpine3.18
 
 WORKDIR /usr/src/app
 
-# Install build essentials required for compiling native Node.js modules.
+# Install build essentials
 RUN apk update && apk add --no-cache python3 make g++ openssl1.1-compat
 
-# Copy API package files from modules/api
-COPY modules/api/package.json modules/api/package-lock.json* ./
+# Copy root package files and prisma schema for postinstall
+COPY package.json ./
+RUN mkdir -p modules/api/prisma
+COPY modules/api/prisma/ ./modules/api/prisma/
 
-# Install production dependencies for the API.
+# Install dependencies and allow scripts to build native modules (like bcrypt)
 RUN npm install --omit=dev
 
-# Copy the Prisma schema. This is needed for `prisma generate`.
+# Copy the Prisma schema and generate
 COPY modules/api/prisma/ ./prisma/
-
-# Generate Prisma client for production
 RUN npx prisma generate
 
-# Copy the rest of the API source code
-COPY modules/api/ ./
-
-# Copy engine services
+# IMPORTANT: Preserve module structure to fix relative require() paths
+# Instead of flattening into root, copy into 'modules/api'
+COPY modules/api/ ./modules/api/
 COPY modules/engine/ ./modules/engine/
-
-# Copy config directory
 COPY config/ ./config/
 
-# Copy the built dashboard from the builder stage into the API's expected client directory.
-COPY --from=dashboard-builder /dashboard/dist ./client/dist
+# Move the node_modules and prisma into the modules/api folder so app.js can find them easily,
+# or just run from the root and point to app.js. 
+# We'll run from root but must ensure app.js is found.
+# COPY the build from stage 1 to the correct static path in modules/api
+COPY --from=dashboard-builder /dashboard/dist ./modules/api/client/dist
 
-# Set the environment to production to enable serving of static files in app.js.
+# Set the environment
 ENV NODE_ENV=production
+ENV PORT=3000
 
-# Create a writable tmp directory for temporary files
+# Create tmp directory
 RUN mkdir -p /usr/src/app/tmp && chmod 755 /usr/src/app/tmp
 
-# Expose the port the API server will run on.
+# Expose port
 EXPOSE 3000
 
-# Define the command to start the application.
-CMD [ "node", "app.js" ]
+# Start from the correct relative path
+CMD [ "node", "modules/api/app.js" ]
 
 # =============================================================================
 # SECURITY NOTES:

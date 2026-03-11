@@ -19,8 +19,8 @@ try { aiServiceFactory = require('../../engine/services/AIServiceFactory'); } ca
 try { fileSystemService = require('../../engine/services/FileSystemService'); } catch (e) { console.warn('[TRADING] FileSystemService not available'); }
 try { brainConnector = require('../../engine/services/BrainConnector'); } catch (e) { console.warn('[TRADING] BrainConnector not available'); }
 try { competitorAnalysis = require('../../engine/services/CompetitorAnalysisService'); } catch (e) { console.warn('[TRADING] CompetitorAnalysisService not available'); }
-try { executionOrchestrator = require('../../engine/services/ExecutionOrchestrator'); } catch (e) { console.warn('[TRADING] ExecutionOrchestrator not available'); }
-try { profitEngine = require('../../engine/EnterpriseProfitEngine'); } catch (e) { console.warn('[TRADING] EnterpriseProfitEngine not available'); }
+try { executionOrchestrator = require('../../engine/services/ExecutionOrchestrator'); } catch (e) { console.warn('[TRADING] ExecutionOrchestrator not available:', e.message); }
+try { profitEngine = require('../../engine/EnterpriseProfitEngine'); } catch (e) { console.warn('[TRADING] EnterpriseProfitEngine not available:', e.message); }
 
 // ... existing routes ...
 

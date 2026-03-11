@@ -16,7 +16,7 @@ class ObservabilityService {
     constructor() {
         // Initialize Prometheus Registry
         this.register = new client.Registry();
-        
+
         // Add default metrics (CPU, memory, etc.)
         client.collectDefaultMetrics({ register: this.register, prefix: 'alphapro_' });
 
@@ -89,6 +89,15 @@ class ObservabilityService {
     }
 
     /**
+     * Log a warning message
+     * @param {string} message 
+     * @param {object} meta 
+     */
+    warn(message, meta = {}) {
+        this.logger.warn(message, meta);
+    }
+
+    /**
      * Log an error message and increment error metric
      * @param {string} message 
      * @param {Error|object} error 
@@ -96,9 +105,9 @@ class ObservabilityService {
      */
     error(message, error, meta = {}) {
         this.logger.error(message, { ...meta, error });
-        this.metrics.errorsTotal.inc({ 
-            type: error.name || 'UnknownError', 
-            severity: 'error' 
+        this.metrics.errorsTotal.inc({
+            type: error.name || 'UnknownError',
+            severity: 'error'
         });
     }
 
@@ -151,7 +160,7 @@ class ObservabilityService {
      */
     async sendAlert(title, message, severity = 'info') {
         this.logger.warn(`[ALERT] ${title}: ${message}`, { severity });
-        
+
         // Webhook integration (e.g., Slack)
         if (process.env.SLACK_WEBHOOK_URL) {
             try {
@@ -161,7 +170,7 @@ class ObservabilityService {
                     text: `*${title}*\n${message}`,
                     color: severity === 'critical' ? '#ff0000' : severity === 'warning' ? '#ffcc00' : '#36a64f'
                 };
-                
+
                 // Note: Actual fetch call would go here
                 // await fetch(process.env.SLACK_WEBHOOK_URL, { method: 'POST', body: JSON.stringify(payload) });
             } catch (err) {

@@ -17,30 +17,17 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignup, setIsSignup] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await login(email, password);
-    } catch (error) {
-      console.error('Login failed:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      // Mock signup - in production, call your signup API
-      const mockUser = { id: '1', email };
-      localStorage.setItem('auth_token', 'mock_token');
-      useAuthStore.setState({ isAuthenticated: true, user: mockUser });
-    } catch (error) {
-      console.error('Signup failed:', error);
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      setError(err.message || 'Invalid credentials or server error.');
     } finally {
       setLoading(false);
     }
@@ -64,6 +51,22 @@ function LoginPage() {
         <h1 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
           AlphaPro Login
         </h1>
+
+        {error && (
+          <div style={{
+            backgroundColor: 'rgba(233, 69, 96, 0.1)',
+            border: '1px solid #e94560',
+            color: '#e94560',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            marginBottom: '1rem',
+            fontSize: '0.875rem',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', color: '#aaa', marginBottom: '0.5rem' }}>Email</label>
@@ -124,11 +127,11 @@ function LoginPage() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, checkAuth } = useAuthStore();
-  
+
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-  
+
   // Production mode - authentication REQUIRED for security
   // Auth can only be disabled via explicit env var in production builds
   if (!isAuthenticated) {
@@ -138,7 +141,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return <Navigate to="/login" replace />;
     }
   }
-  
+
   return <>{children}</>;
 }
 

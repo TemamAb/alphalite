@@ -33,26 +33,31 @@ const { setTimeout: setTimeoutPromises } = require('timers/promises');
 let configService;
 try {
     // Try AlphaPro root configService first (reads from process.env)
-    configService = require('../../../configService');
+    configService = require('../../config/configService');
 } catch (e) {
     try {
-        // Try alphapro-api/configService as fallback
+        // Try root as fallback
         configService = require('../../configService');
     } catch (e2) {
-        console.error('[DATA-FUSION] Could not load configService:', e2.message);
-        // Fallback to reading env directly
-        configService = {
-            getConfig: () => ({
-                alchemyApiKey: process.env.ALCHEMY_API_KEY,
-                wsUrls: {
-                    ethereum: process.env.ETH_WS_URL,
-                    arbitrum: process.env.ARBITRUM_WS_URL,
-                    polygon: process.env.POLYGON_WS_URL,
-                    optimism: process.env.OPTIMISM_WS_URL,
-                    base: process.env.BASE_WS_URL
-                }
-            })
-        };
+        try {
+            // Try legacy path
+            configService = require('../../../configService');
+        } catch (e3) {
+            console.error('[DATA-FUSION] Could not load configService:', e2.message);
+            // Fallback to reading env directly
+            configService = {
+                getConfig: () => ({
+                    alchemyApiKey: process.env.ALCHEMY_API_KEY,
+                    wsUrls: {
+                        ethereum: process.env.ETH_WS_URL,
+                        arbitrum: process.env.ARBITRUM_WS_URL,
+                        polygon: process.env.POLYGON_WS_URL,
+                        optimism: process.env.OPTIMISM_WS_URL,
+                        base: process.env.BASE_WS_URL
+                    }
+                })
+            };
+        }
     }
 }
 

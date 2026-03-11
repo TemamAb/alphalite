@@ -11,7 +11,7 @@ const bcrypt = require('bcrypt');
 const ADMIN_CREDENTIALS = {
     id: '1',
     email: 'iamtemam@gmail.com',
-    username: 'admin',
+    username: 'iamtemam@gmail.com',
     // Pre-hashed password for "Temam@1954" with salt rounds 12
     passwordHash: '$2b$12$.vU9XtbzvBkQlbj/kP9PUelKRLBbsJD9dIYnuUelEGPusWVn0ZQnS',
     role: 'admin'

@@ -10,10 +10,10 @@ const tradeExecutor = require('./TradeExecutor');
 // Robust config loading
 let configService;
 try {
-    configService = require('../../../configService');
+    configService = require('../../../config/configService');
 } catch (e) {
     try {
-        configService = require('../../../config/configService');
+        configService = require('../../../configService');
     } catch (e2) {
         // Fallback mock if config service is missing
         configService = { getConfig: () => ({}), on: () => { } };
