@@ -1,0 +1,28 @@
+# fly.toml - Fly.io Configuration for AlphaPro
+
+app = "alphalite"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3000
+  
+  [[services.ports]]
+    port = 80
+  
+  [[services.ports]]
+    port = 443
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "512mb"
