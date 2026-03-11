@@ -88,10 +88,10 @@ function Header() {
   }, [fetchEthPrice]);
 
   // Calculate total wallet balance from all wallets
-  const totalWalletBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
+  const totalWalletBalance = (wallets || []).reduce((sum, w) => sum + (parseFloat(w.balance) || 0), 0);
   const displayBalance = currency === 'ETH' 
-    ? `${totalWalletBalance.toFixed(4)} ETH` 
-    : `${(totalWalletBalance * ethPrice).toFixed(2)} USD`;
+    ? `${(totalWalletBalance ?? 0).toFixed(4)} ETH` 
+    : `${((totalWalletBalance ?? 0) * ethPrice).toFixed(2)} USD`;
 
   // Convert refresh interval string to milliseconds
   const parseInterval = (val: string): number => {
@@ -271,7 +271,7 @@ function Header() {
         {/* Uptime */}
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Activity className="w-4 h-4" />
-          <span>{stats.uptime.toFixed(1)}%</span>
+          <span>{(stats?.uptime ?? 0).toFixed(1)}%</span>
         </div>
 
         {/* User Menu */}
@@ -362,7 +362,7 @@ function Sidebar() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">Avg Latency</span>
-                <span className="text-white">{stats.avgLatency.toFixed(0)}ms</span>
+                <span className="text-white">{(stats?.avgLatency ?? 0).toFixed(0)}ms</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">Requests/min</span>
