@@ -7,13 +7,13 @@ const bcrypt = require('bcrypt');
 
 // --- Admin Credentials ---
 // As per DEPLOYMENT_AUDIT_FINAL.md, these are the primary credentials.
-// The password hash is pre-generated for 'Temam@1954'.
+// The password hash is pre-generated for 'Temam@gmail'.
 const ADMIN_CREDENTIALS = {
     id: '1',
     email: 'iamtemam@gmail.com',
     username: 'iamtemam@gmail.com',
-    // Pre-hashed password for "Temam@1954" with salt rounds 12
-    passwordHash: '$2b$12$.vU9XtbzvBkQlbj/kP9PUelKRLBbsJD9dIYnuUelEGPusWVn0ZQnS',
+    // Pre-hashed password for "Temam@gmail" with salt rounds 12
+    passwordHash: '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16',
     role: 'admin'
 };
 
