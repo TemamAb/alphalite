@@ -129,8 +129,10 @@ function Header() {
   };
 
   const handleLogout = async () => {
+    // Auth disabled - logout is a no-op, just stay on current page
     await logout();
-    navigate('/login');
+    // No navigation - auth is disabled, user stays logged in
+    console.log('[AUTH] Logout requested but auth is disabled');
   };
 
   return (

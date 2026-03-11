@@ -2,54 +2,36 @@ import { create } from 'zustand';
 import { deploymentApi, walletApi, metricsApi, createWebSocketConnection } from '../services/api';
 
 // ==================== Auth Store ====================
+// Authentication DISABLED - Open access for all users
 interface AuthState {
   isAuthenticated: boolean;
   user: null | { id: string; email: string };
+  token: string; // Added for compatibility - always returns a dummy token
   checkAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
-  user: null,
+  isAuthenticated: true, // Always authenticated - auth disabled
+  user: { id: 'system', email: 'admin@alphapro.local' },
+  token: 'auth-disabled-dummy-token', // Dummy token for API compatibility
 
   checkAuth: async () => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      set({ isAuthenticated: true });
-    }
+    // No-op - always authenticated
+    set({ isAuthenticated: true, user: { id: 'system', email: 'admin@alphapro.local' }, token: 'auth-disabled-dummy-token' });
   },
 
   login: async (email: string, password: string) => {
-    const API_URL = import.meta.env.VITE_API_URL || '';
-
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Login failed');
-    }
-
-    const data = await response.json();
-
-    if (data.token) {
-      localStorage.setItem('auth_token', data.token);
-      set({ isAuthenticated: true, user: data.user });
-    } else {
-      throw new Error('No token received');
-    }
+    // No-op - auth disabled
+    console.log('[AUTH] Login called but auth is disabled - allowing access');
+    set({ isAuthenticated: true, user: { id: 'system', email: email || 'admin@alphapro.local' }, token: 'auth-disabled-dummy-token' });
   },
 
   logout: () => {
-    localStorage.removeItem('auth_token');
-    set({ isAuthenticated: false, user: null });
+    // No-op - auth disabled, stay authenticated
+    console.log('[AUTH] Logout called but auth is disabled - staying authenticated');
+    set({ isAuthenticated: true, user: { id: 'system', email: 'admin@alphapro.local' }, token: 'auth-disabled-dummy-token' });
   },
 }));
 

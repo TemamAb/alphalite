@@ -58,11 +58,11 @@ const csrfValidator = (req, res, next) => {
     }
     
     // Skip for API endpoints that don't require CSRF (public APIs)
+    // Note: Auth endpoints removed - authentication is disabled
     const publicPaths = [
-        '/api/auth/login',
-        '/api/auth/register',
         '/api/health',
-        '/api/public'
+        '/api/public',
+        '/api/csrf-token'
     ];
     
     if (publicPaths.some(path => req.path.startsWith(path))) {

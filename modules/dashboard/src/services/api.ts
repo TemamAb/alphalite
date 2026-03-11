@@ -207,26 +207,23 @@ export const engineApi = {
     }),
 };
 
-// Auth API
+// Auth API - DISABLED
 export const authApi = {
-  login: (email: string, password: string) =>
-    fetchApi<{ token: string; user: { id: string; email: string; role: string } }>(
-      '/api/auth/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }
-    ),
+  // Authentication is disabled - these are no-ops
+  login: async (email: string, password: string) => {
+    console.log('[AUTH-API] Login called but auth is disabled');
+    return { token: 'disabled', user: { id: 'system', email: email || 'admin@alphapro.local', role: 'admin' } };
+  },
 
-  logout: () =>
-    fetchApi<void>('/api/auth/logout', {
-      method: 'POST',
-    }),
+  logout: async () => {
+    console.log('[AUTH-API] Logout called but auth is disabled');
+    return void 0;
+  },
 
-  refreshToken: () =>
-    fetchApi<{ token: string }>('/api/auth/refresh', {
-      method: 'POST',
-    }),
+  refreshToken: async () => {
+    console.log('[AUTH-API] RefreshToken called but auth is disabled');
+    return { token: 'disabled' };
+  },
 
   getCurrentUser: () =>
     fetchApi<{ id: string; email: string; role: string }>('/api/auth/me'),

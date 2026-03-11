@@ -66,7 +66,7 @@ const Settings: React.FC = () => {
                 const data = await response.json();
                 setSettings(data);
             } else if (response.status === 401) {
-                setMessage({ type: 'error', text: 'Session expired. Please login again.' });
+                setMessage({ type: 'error', text: 'Session issue. Please refresh the page.' });
             }
         } catch (error) {
             console.error('Failed to fetch settings', error);
