@@ -47,6 +47,10 @@ COPY modules/api/ ./modules/api/
 COPY modules/engine/ ./modules/engine/
 COPY config/ ./config/
 
+# Copy .env file for wallet/private key configuration (as requested by user)
+# Note: Ensure .env exists in build context or mount it at runtime
+COPY .env .env
+
 # Move the node_modules and prisma into the modules/api folder so app.js can find them easily,
 # or just run from the root and point to app.js. 
 # We'll run from root but must ensure app.js is found.

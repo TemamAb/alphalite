@@ -41,11 +41,16 @@ function readEnvFile(primaryKey, fallbackKeys = []) {
     const possiblePaths = [
         path.join(__dirname, '.env'),
         path.join(__dirname, '..', '.env'),
-        path.join(process.cwd(), '.env')
+        path.join(process.cwd(), '.env'),
+        path.join(__dirname, '..', '..', '.env'),
+        '/app/.env',
+        path.resolve('./.env'),
+        path.resolve(process.cwd(), '../.env')
     ];
     
     for (const envPath of possiblePaths) {
         if (fs.existsSync(envPath)) {
+            console.log(`[CONFIG] Reading .env from: ${envPath}`);
             const envContent = fs.readFileSync(envPath, 'utf8');
             const lines = envContent.split('\n');
             for (const line of lines) {
@@ -55,6 +60,7 @@ function readEnvFile(primaryKey, fallbackKeys = []) {
                     const value = valueParts.join('=').trim();
                     if (key === primaryKey || fallbackKeys.includes(key)) {
                         if (value && value.length > 0) {
+                            console.log(`[CONFIG] Found ${key} in .env file: ${value.substring(0, 10)}...`);
                             return value;
                         }
                     }
@@ -62,6 +68,7 @@ function readEnvFile(primaryKey, fallbackKeys = []) {
             }
         }
     }
+    console.log(`[CONFIG] .env file not found in any of these paths:`, possiblePaths.join(', '));
     return null;
 }
 
