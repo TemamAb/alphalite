@@ -15,126 +15,61 @@ const dataSources = require('./data_sources.json');
 let dotenv;
 try {
     dotenv = require('dotenv');
-    // Try multiple paths for .env file
+    // Define potential paths for the .env file, from most to least specific.
+    // This covers local execution, Docker execution, and different CWDs.
     const possiblePaths = [
-        path.join(__dirname, '.env'),
-        path.join(__dirname, '..', '.env'),
-        path.join(process.cwd(), '.env')
+        path.resolve(process.cwd(), '.env'),          // Project root (standard)
+        path.resolve(__dirname, '..', '.env'),        // Relative to this file
+        '/usr/src/app/.env'                           // Docker container path
     ];
 
+    let envPathFound = null;
     for (const envPath of possiblePaths) {
         if (fs.existsSync(envPath)) {
-            dotenv.config({ path: envPath });
-            console.log('[CONFIG] Loaded .env file from:', envPath);
+            envPathFound = envPath;
             break;
         }
     }
+
+    if (envPathFound) {
+        // Use override: true to ensure .env values take precedence over system env vars.
+        // This is critical for ensuring the correct private key is used.
+        dotenv.config({ path: envPathFound, override: true });
+        console.log(`[CONFIG] ✅ Loaded and prioritized .env file from: ${envPathFound}`);
+    } else {
+        console.log('[CONFIG] ⚠️ No .env file found. Relying on system environment variables.');
+    }
 } catch (e) {
-    console.log('[CONFIG] dotenv not available, using process.env only');
-}
-
-/**
- * Read .env file directly to get values with priority
- * This function checks .env file first, then process.env
- */
-function readEnvFile(primaryKey, fallbackKeys = []) {
-    const possiblePaths = [
-        path.join(__dirname, '.env'),
-        path.join(__dirname, '..', '.env'),
-        path.join(process.cwd(), '.env'),
-        path.join(__dirname, '..', '..', '.env'),
-        '/app/.env',
-        path.resolve('./.env'),
-        path.resolve(process.cwd(), '../.env')
-    ];
-    
-    for (const envPath of possiblePaths) {
-        if (fs.existsSync(envPath)) {
-            console.log(`[CONFIG] Reading .env from: ${envPath}`);
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            const lines = envContent.split('\n');
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed && !trimmed.startsWith('#')) {
-                    const [key, ...valueParts] = trimmed.split('=');
-                    const value = valueParts.join('=').trim();
-                    if (key === primaryKey || fallbackKeys.includes(key)) {
-                        if (value && value.length > 0) {
-                            console.log(`[CONFIG] Found ${key} in .env file: ${value.substring(0, 10)}...`);
-                            return value;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    console.log(`[CONFIG] .env file not found in any of these paths:`, possiblePaths.join(', '));
-    return null;
-}
-
-/**
- * Get configuration value with .env-first, Render-second fallback
- * This allows: .env file > Render dashboard env vars
- */
-function getConfigValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    // For critical wallet/private key configs: check .env file first
-    const walletKeyNames = ['PRIVATE_KEY', 'WALLET_ADDRESS', 'wallet_address', 'private_key'];
-    const isWalletConfig = walletKeyNames.includes(primaryKey) || fallbackKeys.some(k => walletKeyNames.includes(k));
-    
-    // First priority: .env file for wallet configs (as requested - .env overrides)
-    if (isWalletConfig) {
-        const envFileValue = readEnvFile(primaryKey, fallbackKeys);
-        if (envFileValue) {
-            console.log(`[CONFIG] .env override for '${primaryKey}': ${envFileValue.substring(0, 10)}...`);
-            return envFileValue;
-        }
-    }
-
-    // Second priority: Render's process.env (set in Render dashboard)
-    if (process.env[primaryKey]) {
-        console.log(`[CONFIG] Found primary key '${primaryKey}': ${process.env[primaryKey].substring(0, 10)}...`);
-        return process.env[primaryKey];
-    }
-
-    // Third priority: fallback keys from .env file
-    for (const key of fallbackKeys) {
-        if (process.env[key]) {
-            console.log(`[CONFIG] Found fallback key '${key}': ${process.env[key].substring(0, 10)}...`);
-            return process.env[key];
-        }
-    }
-
-    console.log(`[CONFIG] Key '${primaryKey}' not found, returning default: ${defaultValue}`);
-    // Fourth priority: default value
-    return defaultValue;
-}
-
-/**
- * Get numeric config value
- */
-function getNumericValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    const value = getConfigValue(primaryKey, fallbackKeys, defaultValue);
-    return value ? parseFloat(value) : defaultValue;
-}
-
-/**
- * Get integer config value
- */
-function getIntValue(primaryKey, fallbackKeys = [], defaultValue = null) {
-    const value = getConfigValue(primaryKey, fallbackKeys, defaultValue);
-    return value ? parseInt(value) : defaultValue;
+    console.log('[CONFIG] dotenv not available, relying on system environment variables only.');
 }
 
 class ConfigService extends EventEmitter {
     constructor() {
         super();
 
+        // Helper functions to get values from process.env with fallbacks and type casting
+        const getConfigValue = (key, fallbacks = [], def = null) => {
+            const keys = [key, ...fallbacks];
+            for (const k of keys) {
+                if (process.env[k]) return process.env[k];
+            }
+            return def;
+        };
+        const getNumericValue = (key, fallbacks = [], def = null) => {
+            const val = getConfigValue(key, fallbacks, def);
+            return val ? parseFloat(val) : def;
+        };
+        const getIntValue = (key, fallbacks = [], def = null) => {
+            const val = getConfigValue(key, fallbacks, def);
+            return val ? parseInt(val) : def;
+        };
+
         // Get wallet configs first for auto-LIVE mode detection
-        const privateKey = getConfigValue('PRIVATE_KEY', ['private_key'], null);
-        const walletAddress = getConfigValue('WALLET_ADDRESS', ['wallet_address'], null);
+        const privateKey = process.env.PRIVATE_KEY || null;
+        const walletAddress = process.env.WALLET_ADDRESS || null;
         
         // Get trading mode - default to PAPER, auto-switch to LIVE if private key available
-        let tradingMode = getConfigValue('TRADING_MODE', ['trading_mode'], 'PAPER');
+        let tradingMode = process.env.TRADING_MODE || 'PAPER';
         if (privateKey && walletAddress && tradingMode === 'PAPER') {
             console.log('[CONFIG] ⚠️ PRIVATE_KEY detected - auto-switching to LIVE trading mode');
             tradingMode = 'LIVE';
@@ -143,12 +78,12 @@ class ConfigService extends EventEmitter {
         // Default configuration with fallback logic
         this.config = {
             // Trading Configuration
-            maxConcurrentExecutions: getIntValue('MAX_CONCURRENT_EXECUTIONS', ['max_concurrent_executions'], 5),
-            minOpportunitySize: getNumericValue('MIN_OPPORTUNITY_SIZE', ['min_opportunity_size'], 100),
+            maxConcurrentExecutions: getIntValue('MAX_CONCURRENT_EXECUTIONS', [], 5),
+            minOpportunitySize: getNumericValue('MIN_OPPORTUNITY_SIZE', [], 100),
 
             // Risk Management
-            maxPositionSize: getNumericValue('MAX_POSITION_SIZE', ['max_position_size'], 10000),
-            stopLossPercentage: getNumericValue('STOP_LOSS_PERCENTAGE', ['stop_loss_percentage'], 5),
+            maxPositionSize: getNumericValue('MAX_POSITION_SIZE', [], 10000),
+            stopLossPercentage: getNumericValue('STOP_LOSS_PERCENTAGE', [], 5),
 
             // Trading Mode
             tradingMode: tradingMode,
@@ -159,17 +94,16 @@ class ConfigService extends EventEmitter {
 
             // API Keys - Render first, .env fallback
             // Also extract from WebSocket URLs if embedded
-            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY',
-                ['ALCHEMY-API-KEY', 'ALCHEMY-API-KEY', 'alchemy_api_key', 'ALCHEMY_KEY'],
+            alchemyApiKey: getConfigValue('ALCHEMY_API_KEY', [],
                 this.extractAlchemyKey(
-                    getConfigValue('ETH_WS_URL', ['eth_ws_url'], null) ||
-                    getConfigValue('ALCHEMY_WS_URL', ['alchemy_ws_url'], null) ||
-                    getConfigValue('ALCHEMY_WS', ['alchemy_ws'], null)
+                    getConfigValue('ETH_WS_URL', [], null) ||
+                    getConfigValue('ALCHEMY_WS_URL', [], null) ||
+                    getConfigValue('ALCHEMY_WS', [], null)
                 )
             ),
-            infuraApiKey: getConfigValue('INFURA_API_KEY', ['infura_api_key', 'INFURA_API_KEY'], null),
-            pimlicoApiKey: getConfigValue('PIMLICO_API_KEY', ['pimlico_api_key'], null),
-            openaiApiKey: getConfigValue('OPENAI_API_KEY', ['openai_api_key'], null),
+            infuraApiKey: getConfigValue('INFURA_API_KEY', [], null),
+            pimlicoApiKey: getConfigValue('PIMLICO_API_KEY', [], null),
+            openaiApiKey: getConfigValue('OPENAI_API_KEY', [], null),
 
             // Blockchain RPC URLs - 55+ Networks Supported (with public fallbacks)
             rpcUrls: {
@@ -292,10 +226,10 @@ class ConfigService extends EventEmitter {
             },
 
             // Account Abstraction (Pimlico)
-            pimlico: {
-                bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], 'https://api.pimlico.io/v2/1/rpc'),
-                paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], 'https://api.pimlico.io/v2/1/rpc'),
-                entryPoint: getConfigValue('ENTRYPOINT_ADDRESS', ['entrypoint_address'], '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'),
+            pimlico: { // This structure is kept for compatibility with EnterpriseProfitEngine
+                bundlerUrl: getConfigValue('BUNDLER_URL', [], 'https://api.pimlico.io/v2/1/rpc'),
+                paymasterUrl: getConfigValue('PAYMASTER_URL', [], 'https://api.pimlico.io/v2/1/rpc'),
+                entryPoint: getConfigValue('ENTRYPOINT_ADDRESS', [], '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'),
             },
             bundlerUrl: getConfigValue('BUNDLER_URL', ['bundler_url'], null),
             paymasterUrl: getConfigValue('PAYMASTER_URL', ['paymaster_url'], null),
@@ -307,22 +241,22 @@ class ConfigService extends EventEmitter {
 
             // Market Data APIs
             marketData: {
-                coingeckoUrl: getConfigValue('COINGECKO_API_URL', ['coingecko_api_url', 'coingecko_url', 'COINGECKO_URL'], 'https://api.coingecko.com/api/v3'),
-                dexscreenerUrl: getConfigValue('DEXSCREENER_API_URL', ['dexscreener_api_url', 'DEXSCREENER_URL', 'DEXSCREENER_API'], 'https://api.dexscreener.com/latest/dex'),
-                birdeyeUrl: getConfigValue('BIRDEYE_API_URL', ['birdeye_api_url', 'BIRDEYE_URL', 'BIRDEYE_API'], 'https://public-api.birdeye.so'),
+                coingeckoUrl: getConfigValue('COINGECKO_API_URL', [], 'https://api.coingecko.com/api/v3'),
+                dexscreenerUrl: getConfigValue('DEXSCREENER_API_URL', [], 'https://api.dexscreener.com/latest/dex'),
+                birdeyeUrl: getConfigValue('BIRDEYE_API_URL', [], 'https://public-api.birdeye.so'),
             },
 
             // Market Data API Keys
             marketApiKeys: {
-                coingecko: getConfigValue('COINGECKO_API_KEY', ['coingecko_key'], null),
-                birdeye: getConfigValue('BIRDEYE_API_KEY', ['birdeye_key'], null),
+                coingecko: getConfigValue('COINGECKO_API_KEY', [], null),
+                birdeye: getConfigValue('BIRDEYE_API_KEY', [], null),
             },
 
             // Authentication Configuration
             auth: {
-                adminEmail: getConfigValue('ADMIN_EMAIL', ['admin_email', 'ADMIN_EMAIL'], 'iamtemam@gmail.com'),
-                adminPasswordHash: getConfigValue('ADMIN_PASSWORD_HASH', ['admin_password_hash', 'ADMIN_PASSWORD_HASH'], '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16'),
-                jwtSecret: getConfigValue('JWT_SECRET', ['jwt_secret'], null),
+                adminEmail: getConfigValue('ADMIN_EMAIL', [], 'iamtemam@gmail.com'),
+                adminPasswordHash: getConfigValue('ADMIN_PASSWORD_HASH', [], '$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16'),
+                jwtSecret: getConfigValue('JWT_SECRET', [], null),
             }
         };
 

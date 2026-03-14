@@ -1,25 +1,27 @@
-# AlphaPro Production Deployment Blueprint for Render.com
-# This file defines all services, databases, and environment variables.
-# Secrets (like PRIVATE_KEY) must be set in the Render Dashboard.
+# AlphaPro Unified Production Blueprint for Render.com
+# 100% Production Ready Deployment Configuration
 
 services:
-  # 1. API Service (Node.js Backend)
+  # 1. Main Unified Service (Trading Engine + API + Dashboard)
   - type: web
-    name: alphapro-api
+    name: alphapro-enterprise
     env: docker
     dockerfilePath: ./Dockerfile
-    dockerContext: . # Build from the root of the repo
+    dockerContext: .
     healthCheckPath: /api/health
-    plan: standard # Choose a plan with enough memory
-    numInstances: 1 # Can be scaled up in the Render dashboard
+    plan: standard # High-performance plan for HFT engine
+    numInstances: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000 # Render will use this internally
+        value: 3000
       - key: TRADING_MODE
         value: LIVE
-      # --- Connections to other services ---
+      - key: AUTO_START_ENGINE
+        value: "true"
+      
+      # --- Infrastructure Connections ---
       - key: DATABASE_URL
         fromDatabase:
           name: alphapro-db
@@ -29,25 +31,45 @@ services:
           type: redis
           name: alphapro-redis
           property: connectionString
-      - key: BRAIN_URL
+      - key: BRAIN_API_URL
         fromService:
           type: web
           name: alphapro-brain
           property: url
-      # --- Secrets (Set these in Render Dashboard) ---
-      # Add ALL other required secrets (PIMLICO_API_KEY, RPC URLs, etc.)
-      # in the Render UI. This file just shows the pattern.
+
+      # --- Essential Secrets (To be set in Render Dashboard) ---
+      # Primary Keys
       - key: PRIVATE_KEY
         sync: false
       - key: WALLET_ADDRESS
         sync: false
       - key: PIMLICO_API_KEY
         sync: false
+      - key: ALCHEMY_API_KEY
+        sync: false
+      
+      # RPC Matrix (Optional: Defaults provided in configService)
       - key: ETH_RPC_URL
         sync: false
+      - key: POLYGON_RPC_URL
+        sync: false
+      - key: ARBITRUM_RPC_URL
+        sync: false
+      - key: OPTIMISM_RPC_URL
+        sync: false
+      - key: BASE_RPC_URL
+        sync: false
 
-  # 2. Brain Service (Python AI)
-  - type: web # This was a separate item, now it's part of the service definition
+      # Authentication
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: iamtemam@gmail.com
+      - key: ADMIN_PASSWORD_HASH
+        value: "$2b$12$EHjRMYpfJVsqFmZ.avN80OUZsLm7UoQY3S6euIZxrd3bkTWA6eR16"
+
+  # 2. Intelligence Oracle (Python AI)
+  - type: web
     name: alphapro-brain
     env: docker
     dockerfilePath: ./modules/brain/Dockerfile
@@ -59,36 +81,17 @@ services:
         value: 5000
       - key: PYTHON_VERSION
         value: "3.11"
-      - key: ETH_RPC_URL
-        fromService:
-          type: web
-          name: alphapro-api # Get it from the API's env group
-          envVarKey: ETH_RPC_URL
 
-  # 3. Dashboard Service (React Frontend)
-  - type: static
-    name: alphapro-dashboard
-    rootDir: modules/dashboard
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    plan: starter
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: alphapro-api
-          property: url
-
-  # 4. Redis Cache Service
+  # 3. Distributed Cache (Redis)
   - type: redis
     name: alphapro-redis
     plan: starter
-    ipAllowList: [] # Allow only internal connections from other Render services
+    ipAllowList: [] # Internal only
 
-# --- Managed Backend Services ---
-
+# --- Managed Persistence Layer ---
 databases:
-  - name: alphapro-db # PostgreSQL Database
-    plan: starter # Free tier
+  - name: alphapro-db
+    plan: starter
     databaseName: alphapro
     user: alphapro
+

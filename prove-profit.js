@@ -188,8 +188,14 @@ function printReport(opportunities, engineData, priceData) {
   console.log(`     7d  Projected:  ${c('green', '$' + proj7d.toFixed(2))}`);
 
   console.log('\n' + c('bold', '='.repeat(65)));
-  console.log(c('cyan', '  🚀 Engine is RUNNING and generating REAL opportunities.'));
-  console.log(c('dim',  '  Connect wallet with PRIVATE_KEY in .env to execute LIVE trades.'));
+  if (opportunities.length > 0) {
+    console.log(c('cyan', '  🚀 Engine is RUNNING and generating REAL opportunities.'));
+    console.log(c('dim',  '  Connect wallet with PRIVATE_KEY in .env to execute LIVE trades.'));
+  } else {
+    console.log(c('yellow', '  🚀 Engine is RUNNING and monitoring the mempool.'));
+    console.log(c('dim',  '     Waiting for a profitable opportunity...'));
+    console.log(c('dim',  '     (This is normal during low market volatility)'));
+  }
   console.log(c('bold', '='.repeat(65)) + '\n');
 }
 

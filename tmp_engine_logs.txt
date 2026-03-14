@@ -1,0 +1,197 @@
+[APP] Middleware loaded
+{"level":"info","message":"[CONFIG] .env file not found in any of these paths: /usr/src/app/config/.env, /usr/src/app/.env, /usr/src/app/.env, /usr/src/.env, /app/.env, /usr/src/app/.env, /usr/src/.env","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.930Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'PRIVATE_KEY': 0x0d2a2abb...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.932Z"}
+{"level":"info","message":"[CONFIG] .env file not found in any of these paths: /usr/src/app/config/.env, /usr/src/app/.env, /usr/src/app/.env, /usr/src/.env, /app/.env, /usr/src/app/.env, /usr/src/.env","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.933Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'WALLET_ADDRESS': 0x748Aa8ee...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.933Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'TRADING_MODE': LIVE...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.934Z"}
+{"level":"info","message":"[CONFIG] Key 'MAX_CONCURRENT_EXECUTIONS' not found, returning default: 5","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.935Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'MIN_OPPORTUNITY_SIZE': 0.05...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.935Z"}
+{"level":"info","message":"[CONFIG] Key 'MAX_POSITION_SIZE' not found, returning default: 10000","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.936Z"}
+{"level":"info","message":"[CONFIG] Key 'STOP_LOSS_PERCENTAGE' not found, returning default: 5","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.937Z"}
+{"level":"info","message":"[CONFIG] Key 'WITHDRAWAL_MODE' not found, returning default: MANUAL","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.937Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ETH_WS_URL': wss://eth-...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.939Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ALCHEMY_API_KEY': mK2nj6ZSi1...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.940Z"}
+{"level":"info","message":"[CONFIG] Key 'INFURA_API_KEY' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.941Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'PIMLICO_API_KEY': pim_UbfKR9...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.942Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'OPENAI_API_KEY': sk-proj-AL...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.943Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ETH_RPC_URL': https://et...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.943Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'POLYGON_RPC_URL': https://po...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.944Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ARBITRUM_RPC_URL': https://ar...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.944Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'OPTIMISM_RPC_URL': https://op...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.944Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BASE_RPC_URL': https://ba...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.945Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'AVALANCHE_RPC_URL': https://av...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.945Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BSC_RPC_URL': https://bs...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.946Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'CELO_RPC_URL': https://ce...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.946Z"}
+{"level":"info","message":"[CONFIG] Key 'ARBITRUM_NOVA_RPC_URL' not found, returning default: https://nova.arbitrum.io/rpc","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.946Z"}
+{"level":"info","message":"[CONFIG] Key 'POLYGON_ZKEVM_RPC_URL' not found, returning default: https://zkevm-rpc.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.946Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'SCROLL_RPC_URL': https://sc...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.947Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ZORA_RPC_URL': https://zo...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.947Z"}
+{"level":"info","message":"[CONFIG] Key 'SEPOLIA_RPC_URL' not found, returning default: https://rpc.sepolia.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.947Z"}
+{"level":"info","message":"[CONFIG] Key 'GOERLI_RPC_URL' not found, returning default: https://goerli.infura.io/v3/","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.947Z"}
+{"level":"info","message":"[CONFIG] Key 'ARBITRUM_SEPOLIA_RPC_URL' not found, returning default: https://sepolia.arbitrum.io/rpc","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.947Z"}
+{"level":"info","message":"[CONFIG] Key 'OPTIMISM_SEPOLIA_RPC_URL' not found, returning default: https://sepolia.optimism.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Key 'BASE_SEPOLIA_RPC_URL' not found, returning default: https://sepolia.base.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'SOLANA_RPC_URL': https://so...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'STARKNET_RPC_URL': https://st...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'APTOS_RPC_URL': https://ap...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'FANTOM_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.948Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'CRONOS_RPC_URL': https://ev...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.949Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'GNOSIS_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.949Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'KAVA_RPC_URL': https://ev...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.949Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'MOONBEAM_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.949Z"}
+{"level":"info","message":"[CONFIG] Key 'ASTAR_RPC_URL' not found, returning default: https://rpc.astar.network","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.949Z"}
+{"level":"info","message":"[CONFIG] Key 'MOONRIVER_RPC_URL' not found, returning default: https://rpc.moonriver.moonbeam.network","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.950Z"}
+{"level":"info","message":"[CONFIG] Key 'EVMOS_RPC_URL' not found, returning default: https://evmos-rpc.theams.info","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.950Z"}
+{"level":"info","message":"[CONFIG] Key 'CANTO_RPC_URL' not found, returning default: https://canto.evm.bronbro.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.957Z"}
+{"level":"info","message":"[CONFIG] Key 'AURORA_RPC_URL' not found, returning default: https://mainnet.aurora.dev","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.958Z"}
+{"level":"info","message":"[CONFIG] Key 'TENET_RPC_URL' not found, returning default: https://rpc.tenet.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.959Z"}
+{"level":"info","message":"[CONFIG] Key 'OPTYFI_RPC_URL' not found, returning default: https://mainnet.opty.fi","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.959Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'MANTLE_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.959Z"}
+{"level":"info","message":"[CONFIG] Key 'BERACHAIN_RPC_URL' not found, returning default: https://rpc.berachain.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.959Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'LINEA_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.959Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'MODE_RPC_URL': https://ma...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'FRAXTAL_RPC_URL' not found, returning default: https://rpc.frax.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BLAST_RPC_URL': https://rp...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'ROOTSTOCK_RPC_URL' not found, returning default: https://public-node.rsk.co","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'RSK_RPC_URL' not found, returning default: https://public-node.rsk.co","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'COSMOS_RPC_URL' not found, returning default: https://rpc-cosmoshub.keplr.app","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'OSMOSIS_RPC_URL' not found, returning default: https://rpc-osmosis.keplr.app","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'INJECTIVE_RPC_URL' not found, returning default: https://public.injective.network","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.960Z"}
+{"level":"info","message":"[CONFIG] Key 'SEI_RPC_URL' not found, returning default: https://rpc.sei.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'SUI_RPC_URL' not found, returning default: https://rpc.mainnet.sui.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'NEAR_RPC_URL' not found, returning default: https://rpc.mainnet.near.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'ALGORAND_RPC_URL' not found, returning default: https://mainnet-api.algorand.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'HEDERA_RPC_URL' not found, returning default: https://mainnet.hashio.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'TEZOS_RPC_URL' not found, returning default: https://mainnet.api.tez.ie","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.961Z"}
+{"level":"info","message":"[CONFIG] Key 'VECHAIN_RPC_URL' not found, returning default: https://mainnet.vechain.energy","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'THORCHAIN_RPC_URL' not found, returning default: https://rpc.thorchain.info","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'XRPL_RPC_URL' not found, returning default: https://xrplcluster.org","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'DOGECOIN_RPC_URL' not found, returning default: https://rpc.dogecoin.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'LITECOIN_RPC_URL' not found, returning default: https://rpc.litecoin.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'BITCOIN_SV_RPC_URL' not found, returning default: https://bitcoinsv.io","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.962Z"}
+{"level":"info","message":"[CONFIG] Key 'KADENA_RPC_URL' not found, returning default: https://api.kadena.network","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.963Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ETH_WS_URL': wss://eth-...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'POLYGON_WS_URL': wss://poly...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ARBITRUM_WS_URL': wss://arb-...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'OPTIMISM_WS_URL': wss://opt-...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BASE_WS_URL': wss://base...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'AVALANCHE_WS_URL': wss://avax...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BSC_WS_URL': wss://bsc-...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'CELO_WS_URL': wss://celo...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Key 'ARBITRUM_NOVA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.964Z"}
+{"level":"info","message":"[CONFIG] Key 'POLYGON_ZKEVM_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'SCROLL_WS_URL': wss://scro...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ZORA_WS_URL': wss://zora...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Key 'SEPOLIA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Key 'GOERLI_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Key 'ARBITRUM_SEPOLIA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.965Z"}
+{"level":"info","message":"[CONFIG] Key 'OPTIMISM_SEPOLIA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'BASE_SEPOLIA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'FANTOM_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'CRONOS_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'GNOSIS_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'KAVA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'MOONBEAM_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'ASTAR_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.966Z"}
+{"level":"info","message":"[CONFIG] Key 'MOONRIVER_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'EVMOS_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'CANTO_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'AURORA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'MANTLE_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'LINEA_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'MODE_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'BLAST_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'ROOTSTOCK_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'COSMOS_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'OSMOSIS_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'INJECTIVE_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.967Z"}
+{"level":"info","message":"[CONFIG] Key 'SEI_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.968Z"}
+{"level":"info","message":"[CONFIG] Key 'VECHAIN_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.968Z"}
+{"level":"info","message":"[CONFIG] Key 'THORCHAIN_WS_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.968Z"}
+{"level":"info","message":"[CONFIG] Key 'BUNDLER_URL' not found, returning default: https://api.pimlico.io/v2/1/rpc","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.968Z"}
+{"level":"info","message":"[CONFIG] Key 'PAYMASTER_URL' not found, returning default: https://api.pimlico.io/v2/1/rpc","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.968Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ENTRYPOINT_ADDRESS': 0x5FF137D4...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.970Z"}
+{"level":"info","message":"[CONFIG] Key 'BUNDLER_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.970Z"}
+{"level":"info","message":"[CONFIG] Key 'PAYMASTER_URL' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.971Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ENTRYPOINT_ADDRESS': 0x5FF137D4...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.971Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'COINGECKO_API_URL': https://ap...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.971Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'DEXSCREENER_API_URL': https://ap...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.971Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'BIRDEYE_API_URL': https://pu...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.971Z"}
+{"level":"info","message":"[CONFIG] Key 'COINGECKO_API_KEY' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] Key 'BIRDEYE_API_KEY' not found, returning default: null","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ADMIN_EMAIL': iamtemam@g...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'ADMIN_PASSWORD_HASH': $2b$12.avN...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] Found primary key 'JWT_SECRET': 61be481104...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] Configuration service initialized","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.972Z"}
+{"level":"info","message":"[CONFIG] === Configuration Status ===","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.973Z"}
+{"level":"info","message":"[CONFIG]   Trading Mode: LIVE","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.973Z"}
+{"level":"info","message":"[CONFIG]   Wallet Address: 0x748Aa8ee...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Private Key: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Pimlico API: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Alchemy API: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   ETH RPC: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   WebSocket ETH: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Coingecko: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   DexScreener: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Birdeye: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   Admin Email: iamtemam@gmail.com","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG]   JWT Secret: configured","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CONFIG] ==============================","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.974Z"}
+{"level":"info","message":"[CAPITAL] Manager initialized with 50 ETH total velocity.","service":"alphapro-engine","timestamp":"2026-03-11T21:27:06.978Z"}
+{"level":"info","message":"[EXECUTOR] ✅ Initialized with Pimlico ERC-4337 Bundler (Gasless Mode)","service":"alphapro-engine","timestamp":"2026-03-11T21:27:08.910Z"}
+{"level":"info","message":"[DATABASE] Prisma client initialized","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.048Z"}
+{"level":"info","message":"[ENGINE] 🔐 LIVE Trading Mode Configured:","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.214Z"}
+{"level":"info","message":"[ENGINE] 💳 Smart Wallet will be created on first transaction","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.214Z"}
+{"level":"info","message":"[ENGINE] 🔐 LIVE Trading Mode Configured:","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.214Z"}
+{"level":"info","message":"[ENGINE]   Wallet: 0x748Aa8ee067585F5bd02f0988eF6E71f2d662751","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.214Z"}
+{"level":"info","message":"[ENGINE]   Pimlico API: pim_UbfK...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[ENGINE]   EntryPoint: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[ENGINE]   ⛽ Paymaster: ACTIVE (Sponsorship enabled)","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[ENGINE]   Signer Address: 0x748Aa8ee067585F5bd02f0988eF6E71f2d662751","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[ENGINE]   💰 Wallet Prefunding: NOT REQUIRED (Gasless)","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[ENGINE] 🎯 Ranking Engine Integration Active","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.215Z"}
+{"level":"info","message":"[DATA-FUSION] ⚡ Starting High-Speed Mempool Engine...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.216Z"}
+{"level":"info","message":"[DATA-FUSION] 🎯 Attempting Multi-Path Detection (Strategy 3)...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.216Z"}
+{"level":"info","message":"[MULTI-PATH] ⚡ Initiating Ultra-Low Latency Mode (<100ms)...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.217Z"}
+{"level":"info","message":"[ENGINE] Initialized in LIVE mode.","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.451Z"}
+{"level":"info","message":"[ENGINE] 📊 Strategy Rankings Loaded:","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.451Z"}
+{"level":"info","message":"[ENGINE]   1. Flash Loan (Risk: HIGH) - Profit: 3x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.451Z"}
+{"level":"info","message":"[ENGINE]   2. Cross-DEX (Risk: MEDIUM) - Profit: 2x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   3. Triangular (Risk: LOW) - Profit: 1.5x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   4. LVR (Risk: LOW) - Profit: 1x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   5. Sandwich Attack (Risk: HIGH) - Profit: 2.5x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   6. JIT Liquidity (Risk: MEDIUM) - Profit: 1.8x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   7. Liquidations (Risk: MEDIUM) - Profit: 2.2x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   8. Spatial Arbitrage (Risk: LOW) - Profit: 1.7x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   9. Statistical Arbitrage (Risk: LOW) - Profit: 1.4x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   10. Funding Rate Arbitrage (Risk: LOW) - Profit: 1.6x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   11. Basis Trading (Risk: LOW) - Profit: 1.3x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.452Z"}
+{"level":"info","message":"[ENGINE]   12. Volatility Arbitrage (Risk: MEDIUM) - Profit: 1.9x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   13. Cross-Chain Arbitrage (Risk: HIGH) - Profit: 2.8x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   14. MEV Extract (Risk: HIGH) - Profit: 2.4x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   15. Dex Aggregator (Risk: LOW) - Profit: 1.45x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   16. Index Rebalance (Risk: LOW) - Profit: 1.25x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   17. Oracle Manipulation (Risk: HIGH) - Profit: 2.6x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   18. Uniswap V3 Tick Strategy (Risk: MEDIUM) - Profit: 1.55x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   19. Curve StableSwap (Risk: LOW) - Profit: 1.2x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   20. NFT Floor Arbitrage (Risk: MEDIUM) - Profit: 2.1x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   21. NFT Floor Arbitrage (Risk: Medium) - Profit: 1.9x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   22. Cross-Rollup Bridge Arbitrage (Risk: High) - Profit: 2.8x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.453Z"}
+{"level":"info","message":"[ENGINE]   23. Back-Running (Risk: Low) - Profit: 1.2x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.454Z"}
+{"level":"info","message":"[ENGINE]   24. Leviathan Aggregation (Risk: High) - Profit: 5x","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.454Z"}
+{"level":"info","message":"[ENGINE] ✅ Subscribing to market data streams...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.454Z"}
+{"level":"info","message":"[ENGINE] 🛡️ REAL-TIME MEV SHIELD ACTIVE. NO MOCKS ALLOWED.","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.456Z"}
+{"level":"info","message":"[PERSONA] 🧠 AI Personas active and monitoring...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.463Z"}
+{"level":"info","message":"[DEPLOYMENT-PERSISTENCE] Service initialized.","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.490Z"}
+{"level":"warn","message":"[TRADING] AIServiceFactory not available","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.492Z"}
+{"level":"info","message":"[APP] Routes loaded","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.497Z"}
+{"level":"info","message":"[METRICS] 🚀 Real-Time Metrics Service started","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.498Z"}
+{"level":"info","message":"[BACKUP] 🛡️ Backup Scheduler initialized","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.499Z"}
+{"level":"info","message":"[BACKUP] 📅 Schedule set: Daily at 03:00 UTC","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.510Z"}
+{"level":"info","message":"[PROD] Serving static files from: /usr/src/app/modules/api/client/dist","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.511Z"}
+{"level":"info","message":"Server listening on port 3000 in production mode","service":"alphapro-engine","timestamp":"2026-03-11T21:27:09.520Z"}
+{"level":"info","message":"[MULTI-PATH] ✅ Shield Active: 1 parallel high-speed paths","service":"alphapro-engine","timestamp":"2026-03-11T21:27:10.556Z"}
+{"level":"info","message":"[DATA-FUSION] ✅ Multi-Path Detection active!","service":"alphapro-engine","timestamp":"2026-03-11T21:27:10.556Z"}
+{"level":"info","message":"[ENGINE] 🚀 Production Auto-start initiated...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:14.063Z"}
+{"level":"info","message":"[ENGINE] 🟢 Profit engine started and monitoring...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:14.063Z"}
+{"level":"info","message":"[ORCHESTRATOR] 🚀 Concurrency engine starting...","service":"alphapro-engine","timestamp":"2026-03-11T21:27:14.064Z"}

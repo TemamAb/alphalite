@@ -1,84 +1,61 @@
-# =============================================================================
-# AlphaPro Production Dockerfile
-# Builds: Dashboard (React) + API (Node.js) in a single container
-# =============================================================================
+# AlphaPro Sovereign Unified Dockerfile
+# Optimized for Render.com Production Deployment
 
-# --- Stage 1: Build Dashboard (Frontend) ---
-FROM node:20-alpine3.18 AS dashboard-builder
-
-WORKDIR /dashboard
-
-# Copy dashboard package files - FROM ROOT context
-COPY modules/dashboard/package.json modules/dashboard/package-lock.json* ./
-
-# Install dashboard dependencies
-RUN npm install
-
-# Copy the rest of the dashboard source code
-COPY modules/dashboard/ ./
-
-# Build the dashboard for production. The output will be in /dashboard/dist.
-RUN npm run build
-
-
-# --- Stage 2: Build API (Backend) & Create Final Production Image ---
-FROM node:20-alpine3.18
-
+# --- STAGE 1: Build Dashboard ---
+FROM node:18-alpine AS dashboard-builder
 WORKDIR /usr/src/app
 
-# Install build essentials
-RUN apk update && apk add --no-cache python3 make g++ openssl1.1-compat
+# Copy root manifest for workspace resolution
+COPY package.json package-lock.json* ./
+COPY modules/dashboard/package.json ./modules/dashboard/
 
-# Copy root package files and prisma schema for postinstall
-COPY package.json ./
-RUN mkdir -p modules/api/prisma
-COPY modules/api/prisma/ ./modules/api/prisma/
+# Install dependencies (using workspaces)
+RUN npm install
 
-# Install dependencies and allow scripts to build native modules (like bcrypt)
-RUN npm install --omit=dev
+# Copy dashboard source and build
+COPY modules/dashboard/ ./modules/dashboard/
+WORKDIR /usr/src/app/modules/dashboard
+RUN npm run build
 
-# Copy the Prisma schema and generate
-COPY modules/api/prisma/ ./prisma/
-RUN npx prisma generate
+# --- STAGE 2: Build Backend & Engine ---
+FROM node:18-alpine AS backend-builder
+WORKDIR /usr/src/app
 
-# IMPORTANT: Preserve module structure to fix relative require() paths
-# Instead of flattening into root, copy into 'modules/api'
-COPY modules/api/ ./modules/api/
-COPY modules/engine/ ./modules/engine/
+# Copy root manifest and api manifest
+COPY package.json package-lock.json* ./
+COPY modules/api/package.json ./modules/api/
+
+# Install production dependencies
+RUN npm install --only=production
+
+# Copy all modules needed for runtime
+COPY modules/ ./modules/
 COPY config/ ./config/
 
-# Copy .env file for wallet/private key configuration (as requested by user)
-# Note: Ensure .env exists in build context or mount it at runtime
-COPY .env .env
+# Generate Prisma Client (CRITICAL for production)
+WORKDIR /usr/src/app/modules/api
+RUN npx prisma generate
 
-# Move the node_modules and prisma into the modules/api folder so app.js can find them easily,
-# or just run from the root and point to app.js. 
-# We'll run from root but must ensure app.js is found.
-# COPY the build from stage 1 to the correct static path in modules/api
-COPY --from=dashboard-builder /dashboard/dist ./modules/api/client/dist
+# --- STAGE 3: Final Optimized Runtime ---
+FROM node:18-alpine
+WORKDIR /usr/src/app
 
-# Set the environment
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Create tmp directory
-RUN mkdir -p /usr/src/app/tmp && chmod 755 /usr/src/app/tmp
+# Copy node_modules from backend-builder
+COPY --from=backend-builder /usr/src/app/node_modules ./node_modules
+COPY --from=backend-builder /usr/src/app/modules/api/node_modules ./modules/api/node_modules
 
-# Expose port
+# Copy source code and built dashboard
+COPY --from=backend-builder /usr/src/app/modules ./modules
+COPY --from=backend-builder /usr/src/app/config ./config
+COPY --from=dashboard-builder /usr/src/app/modules/dashboard/dist ./modules/api/client/dist
+
 EXPOSE 3000
 
-# Start from the correct relative path
-CMD [ "node", "modules/api/app.js" ]
+# Healthcheck to ensure the container is ready
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget -no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# =============================================================================
-# SECURITY NOTES:
-# - Container runs as non-root user (node)
-# - All secrets must be passed via environment variables at runtime
-# - For additional security, add the following to docker-compose.yml:
-#   security_opt:
-#     - no-new-privileges:true
-#   read_only: true
-#   tmpfs:
-#     - /tmp
-# =============================================================================
-
+CMD ["node", "modules/api/app.js"]

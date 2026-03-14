@@ -307,7 +307,7 @@ class DataFusionEngine extends EventEmitter {
                     console.warn(`[DATA-FUSION] ⚠️ RPC errors: ${consecutiveFailures}`);
                 }
             }
-        }, 1000); // 1 second = 1000ms - MUCH FASTER than before!
+        }, 500); // 500ms for critical mempool detection (was 1000ms)
     }
 
     /**
@@ -361,7 +361,7 @@ class DataFusionEngine extends EventEmitter {
                     if (event.params && event.params.result && typeof event.params.result === 'string') {
                         self.emit('mempool:pendingTx', {
                             chain: chain.id,
-                            tx: event.params.result
+                            hash: event.params.result
                         });
                     }
                 } catch (e) {

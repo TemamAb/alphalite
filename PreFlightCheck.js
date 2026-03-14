@@ -55,9 +55,9 @@ class PreFlightCheckService {
 
 
     async checkDataProviders() {
-        // Simple check against DexScreener
+        // Simple check against DexScreener - use correct path to config
         const axios = require('axios');
-        const config = require('./data_sources.json');
+        const config = require('./config/data_sources.json');
         try {
             await axios.get(`${config.tier2_discovery.dexscreener.base_url}/pairs/eth/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`);
         } catch (error) {
@@ -68,3 +68,4 @@ class PreFlightCheckService {
 }
 
 module.exports = new PreFlightCheckService();
+

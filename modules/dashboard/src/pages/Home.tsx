@@ -191,11 +191,11 @@ export default function Home() {
                 <td className="py-2 text-slate-400 w-1/3">MODE</td>
                 <td className="py-2">
                   <span className={`px-2 py-0.5 rounded ${
-                    engineStatus.mode === 'live' 
+                    engineStatus?.mode === 'live' 
                       ? 'bg-green-900/50 text-green-400' 
                       : 'bg-green-900/50 text-green-400'
                   }`}>
-                    {engineStatus.mode.toUpperCase()}
+                    {(engineStatus?.mode || 'IDLE').toUpperCase()}
                   </span>
                 </td>
               </tr>

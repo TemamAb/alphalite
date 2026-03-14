@@ -226,7 +226,7 @@ function Header() {
               Engine
             </span>
             <span className={`text-sm font-bold leading-tight ${engineStatus.isRunning ? 'text-green-400' : 'text-red-400'}`}>
-              {engineStatus.isRunning ? engineStatus.mode.toUpperCase() : 'STOPPED'}
+              {engineStatus.isRunning ? (engineStatus.mode || 'LIVE').toUpperCase() : 'STOPPED'}
             </span>
           </div>
           <div className={`p-1.5 rounded-md ${engineStatus.isRunning ? 'bg-green-500/10' : 'bg-red-500/10'}`}>

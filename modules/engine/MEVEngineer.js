@@ -281,6 +281,8 @@ class MEVEngineer extends EventEmitter {
         try {
             const rpcUrl = this.getBestRPC(chain);
             const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+            const rpcUrl = this.getBestRPC(chain) || this.rpcEndpoints.ethereum[0];
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
             
             // Get current network fees
             const feeData = await provider.getFeeData();
@@ -310,8 +312,12 @@ class MEVEngineer extends EventEmitter {
                 currentGasPrice: currentGasPrice.toFixed(2),
                 recommendedGasPrice: recommendedGasPrice.toFixed(2),
                 baseFee: baseFee.toFixed(2),
+                currentGasPrice: currentGasPrice,
+                recommendedGasPrice: recommendedGasPrice,
+                baseFee: baseFee,
                 priorityFee: this.priorityFee,
                 maxFee: eip1559 ? ethers.utils.formatUnits(feeData.maxFeePerGas, 'gwei') : null,
+                maxFee: eip1559 ? ethers.formatUnits(feeData.maxFeePerGas, 'gwei') : null,
                 strategy,
                 rpcUsed: rpcUrl,
                 estimatedConfirmationTime: this.estimateConfirmationTime(recommendedGasPrice)
@@ -351,6 +357,7 @@ class MEVEngineer extends EventEmitter {
             const rpcUrl = gasStrategy.rpcUsed || this.getBestRPC(chain);
             
             const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
             
             // Estimate gas if not provided
             let gasLimit = txRequest.gasLimit;
@@ -360,6 +367,7 @@ class MEVEngineer extends EventEmitter {
                         to,
                         data,
                         value: value ? ethers.parseEther(value.toString()) : 0
+                        value: value ? ethers.parseEther(value.toString()) : 0n
                     });
                     // Add 20% buffer
                     gasLimit = (gasLimit * 120n) / 100n;
@@ -376,6 +384,7 @@ class MEVEngineer extends EventEmitter {
                 maxFeePerGas: ethers.parseUnits(gasStrategy.recommendedGasPrice.toString(), 'gwei'),
                 maxPriorityFeePerGas: ethers.parseUnits(this.priorityFee.toString(), 'gwei'),
                 value: value ? ethers.parseEther(value.toString()) : 0,
+                value: value ? ethers.parseEther(value.toString()) : 0n,
                 chainId: this.getChainId(chain)
             };
             
@@ -387,6 +396,7 @@ class MEVEngineer extends EventEmitter {
                     tx,
                     gasEstimate: gasLimit.toString(),
                     estimatedCost: ethers.utils.formatEther(tx.maxFeePerGas * gasLimit),
+                    estimatedCost: ethers.formatEther(tx.maxFeePerGas * gasLimit),
                     simulationTime: Date.now() - startTime,
                     rpcUsed: rpcUrl
                 };
@@ -417,6 +427,8 @@ class MEVEngineer extends EventEmitter {
                 gasUsed: receipt.gasUsed.toString(),
                 effectiveGasPrice: ethers.utils.formatUnits(receipt.effectiveGasPrice, 'gwei'),
                 totalCost: ethers.utils.formatEther(receipt.effectiveGasPrice * receipt.gasUsed),
+                effectiveGasPrice: ethers.formatUnits(receipt.effectiveGasPrice, 'gwei'),
+                totalCost: ethers.formatEther(receipt.effectiveGasPrice * receipt.gasUsed),
                 confirmationTime: Date.now() - startTime,
                 rpcUsed: rpcUrl
             };
@@ -580,6 +592,8 @@ class MEVEngineer extends EventEmitter {
             // Build simulation request
             const rpcUrl = this.getBestRPC('ethereum');
             const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+            const rpcUrl = this.getBestRPC('ethereum') || this.rpcEndpoints.ethereum[0];
+            const provider = new ethers.JsonRpcProvider(rpcUrl);
             
             // Simulate each transaction in the bundle
             let totalGasUsed = 0;
@@ -605,6 +619,7 @@ class MEVEngineer extends EventEmitter {
             // Calculate estimated profit (simplified)
             // In production, would calculate actual profit from state changes
             const estimatedProfit = ethers.utils.parseEther('0.001'); // placeholder
+            const estimatedProfit = ethers.parseEther('0.001'); // placeholder
 
             return {
                 success: true,
@@ -670,6 +685,7 @@ class MEVEngineer extends EventEmitter {
     async _signFlashbotsRequest(signer, request) {
         const message = JSON.stringify(request);
         const signature = await signer.signMessage(ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message)));
+        const signature = await signer.signMessage(ethers.keccak256(ethers.toUtf8Bytes(message)));
         return `${signer.address}:${signature}`;
     }
 

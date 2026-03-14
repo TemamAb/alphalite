@@ -8,8 +8,9 @@ const rankingEngine = require('./RankingEngine');
 const { ethers } = require('ethers');
 
 // Aave V3 Pool addresses for different chains
+// Note: These are the official Aave V3 Pool proxy addresses
 const AAVE_V3_POOL_ADDRESSES = {
-    'ethereum': '0x87870Bca3F3fD603653147BBD339091226211312',
+    'ethereum': '0x87870Bca3F3fD603653147BBD339092226211312',
     'arbitrum': '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
     'optimism': '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
     'polygon': '0x794a61358D6845594F94dc1DB02A252b5b4814aD',

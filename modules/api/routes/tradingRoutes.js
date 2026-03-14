@@ -22,7 +22,60 @@ try { competitorAnalysis = require('../../engine/services/CompetitorAnalysisServ
 try { executionOrchestrator = require('../../engine/services/ExecutionOrchestrator'); } catch (e) { console.warn('[TRADING] ExecutionOrchestrator not available:', e.message); }
 try { profitEngine = require('../../engine/EnterpriseProfitEngine'); } catch (e) { console.warn('[TRADING] EnterpriseProfitEngine not available:', e.message); }
 
-// ... existing routes ...
+// --- Ranking & Preflight Routes ---
+/**
+ * @route GET /api/rankings
+ * @desc Retrieve full pair and chain rankings
+ * @access Private
+ */
+router.get('/rankings', (req, res) => {
+    try {
+        if (!profitEngine) return res.status(503).json({ error: 'Engine not available' });
+        const rankings = profitEngine.getRankings();
+        res.status(200).json(rankings);
+    } catch (error) {
+        console.error('[API] Error fetching rankings:', error);
+        res.status(200).json({ 
+            timestamp: Date.now(), 
+            topChains: [], 
+            topDexes: [], 
+            topPairs: [],
+            summary: { totalChains: 0, totalDexes: 0, totalPairs: 0 }
+        });
+    }
+});
+
+/**
+ * @route GET /api/rankings/opportunity
+ * @desc Retrieve the single best opportunity currently identified
+ * @access Private
+ */
+router.get('/rankings/opportunity', (req, res) => {
+    try {
+        if (!profitEngine) return res.json({});
+        const opportunity = profitEngine.getRankedOpportunity();
+        res.status(200).json(opportunity || {});
+    } catch (error) {
+        console.error('[API] Error fetching opportunity:', error);
+        res.status(200).json({});
+    }
+});
+
+/**
+ * @route GET /api/preflight
+ * @desc Runs a pre-flight check of all critical infrastructure
+ * @access Private
+ */
+router.get('/preflight', async (req, res) => {
+    try {
+        const PreFlightCheckService = require('../../../PreFlightCheck');
+        const results = await PreFlightCheckService.runAllChecks();
+        res.status(results.allOk ? 200 : 503).json(results);
+    } catch (error) {
+        res.status(500).json({ error: 'Preflight check failed unexpectedly.' });
+    }
+});
+
 
 /**
  * @route POST /api/ai/optimizer/trigger

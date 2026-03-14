@@ -97,6 +97,7 @@ app.get('/metrics', async (req, res) => {
 const tradingRoutes = require('./routes/tradingRoutes');
 const metricsRoutes = require('./routes/metricsRoutes');
 
+
 console.log('[APP] Routes loaded');
 
 // --- Trading Routes (NO AUTH - Open Access) ---
@@ -142,16 +143,58 @@ if (process.env.NODE_ENV === 'production') {
 
     // For any other request, serve the index.html file.
     // This allows client-side routing (e.g., React Router) to take over.
-    app.get('*', (req, res) => {
+    app.get('*', (req, res, next) => {
+        // If the request is for an API route, it should have been handled already.
+        // If it reaches here, it's a 404. We send index.html only for non-API routes.
+        if (req.path.startsWith('/api/')) {
+            return res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.path}` });
+        }
         res.sendFile(path.join(clientDistPath, 'index.html'));
     });
 }
 
+// --- Process Level Error Handling (Production Safeguard) ---
+process.on('uncaughtException', (error) => {
+    console.error('[FATAL] Uncaught Exception:', error);
+    // In production, we might want to stay alive if possible, but for fatal errors, 
+    // it's often better to crash and let Docker/Render restart the service.
+    if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// --- Graceful Shutdown ---
+const gracefulShutdown = async (signal) => {
+    console.log(`[APP] ${signal} received. Starting graceful shutdown...`);
+    server.close(() => {
+        console.log('[APP] HTTP server closed.');
+        // Disconnect from database if needed
+        const { disconnect } = require('./utils/database');
+        disconnect().then(() => {
+            console.log('[APP] Database disconnected. Shutdown complete.');
+            process.exit(0);
+        });
+    });
+
+    // Force exit if shutdown takes too long
+    setTimeout(() => {
+        console.error('[APP] Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // Only start server if run directly (allows testing via supertest)
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
-    server.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`[APP] 🚀 Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     });
 }
 

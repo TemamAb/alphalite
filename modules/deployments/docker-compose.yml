@@ -1,6 +1,47 @@
 version: '3.8'
 
+networks:
+  alphapro-net:
+    driver: bridge
+
 services:
+  # --------------------------------------------------
+  # INFRASTRUCTURE SERVICES (PostgreSQL, Redis)
+  # --------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: alphapro_postgres
+    environment:
+      POSTGRES_USER: alphapro
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: alphapro
+    ports:
+      - "5432:5432"
+    volumes:
+      - alphapro-db-data:/var/lib/postgresql/data
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapro -d alphapro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - alphapro-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # 1. AI Optimization Engine (Python)
   brain:
     build:
@@ -8,12 +49,10 @@ services:
       dockerfile: modules/brain/Dockerfile
     container_name: alphapro_brain
     ports:
-      - "5001:5000"
+      - "5000:5000" # Port aligned with README
     environment:
       - PYTHONUNBUFFERED=1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    networks:
-      - alphapro-net
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -41,6 +80,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - alphapro-net
 
   # 2. API Gateway & Frontend (Node.js)
   api:
@@ -49,7 +90,7 @@ services:
       dockerfile: modules/api/Dockerfile
     container_name: alphapro_api
     ports:
-      - "3001:3000"
+      - "3000:3000" # Port aligned with prove-profit.js and README
     env_file:
       - ../../.env
     environment:
@@ -57,8 +98,13 @@ services:
       - PORT=3000
       - TRADING_MODE=LIVE
       - BRAIN_URL=http://brain:5000
+      # Connect to infrastructure services
+      - DATABASE_URL=postgresql://alphapro:password@postgres:5432/alphapro
+      - REDIS_URL=redis://redis:6379
     depends_on:
       brain:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - alphapro-net
@@ -97,11 +143,9 @@ services:
       dockerfile: modules/dashboard/Dockerfile
     container_name: alphapro_dashboard
     ports:
-      - "8080:80"
+      - "80:80" # Port aligned with README
     depends_on:
       - api
-    networks:
-      - alphapro-net
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -129,7 +173,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - alphapro-net
 
-networks:
-  alphapro-net:
-    driver: bridge
+volumes:
+  alphapro-db-data:

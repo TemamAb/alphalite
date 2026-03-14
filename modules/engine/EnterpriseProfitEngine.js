@@ -238,6 +238,12 @@ class EnterpriseProfitEngine extends EventEmitter {
         // Initialize Ranking Engine integration
         this.initializeRankingIntegration();
 
+        // CRITICAL FIX: Start the Ranking Engine to populate rankings
+        // This was missing - rankings were never populated!
+        console.log('[ENGINE] 🚀 Starting Ranking Engine...');
+        RankingEngine.start();
+        console.log('[ENGINE] ✅ Ranking Engine started successfully');
+
         // Initialize Data Fusion Engine
         this.dataFusionEngine = DataFusionEngine;
         this.dataFusionEngine.start().catch(err => {
@@ -583,8 +589,14 @@ class EnterpriseProfitEngine extends EventEmitter {
      */
     async handleMempoolEvent(event) {
         // Support both old format (tx) and new format (hash)
-        const txHash = event.tx || event.hash;
-        const { chain } = event;
+        // BLOCKER-FIX: Add verbose logging to confirm mempool events are being received.
+        // This is necessary for debugging as the subsequent logic is highly filtered and may not produce logs.
+        if (event && event.hash) {
+            // This log confirms the DataFusionEngine is emitting events and this handler is receiving them.
+            console.log(`[ENGINE] Mempool Scan: Received tx ${event.hash.substring(0, 10)}... on chain ${event.chain || 'N/A'}`);
+        }
+
+        const txHash = event.hash;
 
         // IA-6: Race Condition Mitigation. If we are already processing an opportunity for this pair, skip.
         // IA-11 FIX: Use the unique transaction hash as the lock key, not the non-unique pair name.

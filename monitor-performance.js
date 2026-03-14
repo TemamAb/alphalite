@@ -9,10 +9,10 @@ const path = require('path');
 
 // Configuration
 const CONFIG = {
-    instances: 10,
-    apiBasePort: 3001,
+    instances: 1,
+    apiBasePort: 3000,
     brainBasePort: 5001,
-    checkInterval: 10000, // 10 seconds
+    checkInterval: 1000, // Real-time (1 second)
     latencyTestInterval: 60000 // 60 seconds
 };
 
@@ -64,7 +64,7 @@ class AlphaProMonitor {
             
             try {
                 const healthRes = await axios.get(`http://localhost:${port}/api/health`, { timeout: 5000 });
-                const stateRes = await axios.get(`http://localhost:${port}/api/engine/state`, { timeout: 5000 });
+                const stateRes = await axios.get(`http://localhost:${port}/api/engine/status`, { timeout: 5000 });
                 const statsRes = await axios.get(`http://localhost:${port}/api/engine/stats`, { timeout: 5000 });
 
                 const isRunning = healthRes.data?.status === 'ok' || healthRes.data?.healthy;

@@ -1,106 +1,77 @@
+# AlphaPro Unified Docker Compose for Local Production
 version: '3.8'
 
 services:
-  # AlphaPro Engine API
-  alphapro:
+  # The main application service (API + Engine + Frontend)
+  alphapro-engine:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: alphapro_engine
+    container_name: alphapro-engine
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:3000" # Main app access
+    env_file:
+      - .env # Load environment variables from .env file
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://alphapro:alphapro_secure_pwd@postgres:5432/alphapro
+      - TRADING_MODE=LIVE
+      - DATABASE_URL=postgres://alphapro:password@postgres:5432/alphapro
       - REDIS_URL=redis://redis:6379
-      - PORT=3000
-    env_file:
-      - .env
-    volumes:
-      - ./config:/usr/src/app/config:ro
-      - ./logs:/usr/src/app/logs
-    networks:
-      - alphapro-net
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    # read_only: true  # Disabled for logs writing
-    tmpfs:
-      - /tmp
-    cap_drop:
-      - ALL
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      # Correct healthcheck endpoint from DOCKER_BLOCKERS_REPORT
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      retries: 5
+      start_period: 30s
+    networks:
+      - alphapro-net
 
-  # PostgreSQL Database
+  # PostgreSQL Database Service
   postgres:
     image: postgres:15-alpine
-    container_name: alphapro_postgres
+    container_name: alphapro-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=alphapro
-      - POSTGRES_PASSWORD=alphapro_secure_pwd
+      - POSTGRES_PASSWORD=password
       - POSTGRES_DB=alphapro
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - alphapro-net
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alphapro -d alphapro"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: alphapro_redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
     networks:
       - alphapro-net
+
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: alphapro-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
+    networks:
+      - alphapro-net
 
 networks:
   alphapro-net:
     driver: bridge
 
+volumes:
+  postgres_data:
