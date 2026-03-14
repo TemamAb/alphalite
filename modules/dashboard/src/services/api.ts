@@ -12,9 +12,6 @@ const RETRY_DELAY = 1000; // 1 second
 
 // Generic fetch wrapper with timeout and retry logic
 async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MAX_RETRIES): Promise<T> {
-  // Get token from zustand store for consistency
-  const token = useAuthStore.getState().token;
-  
   // Create abort controller for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
@@ -25,7 +22,6 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit, retries = MA
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
