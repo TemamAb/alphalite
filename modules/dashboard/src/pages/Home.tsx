@@ -65,7 +65,17 @@ const bribeColumns = [
 ];
 
 export default function Home() {
-  const { stats, engineStatus, wallets, isLoading, fetchStats, fetchWalletBalances } = useDashboardStore();
+  const { 
+    stats, 
+    engineStatus, 
+    wallets, 
+    isLoading, 
+    fetchStats, 
+    fetchWalletBalances, 
+    startEngine, 
+    stopEngine 
+  } = useDashboardStore();
+
   const [homeStats, setHomeStats] = useState<HomeStats>({
     profitPerTrade: 0,
     tradesPerHour: 0,
@@ -77,51 +87,24 @@ export default function Home() {
     winRate: 0,
   });
 
-  // Historical data for DataTable
-  const [profitData] = useState<any[]>([{
-    id: '1',
-    profitPerTrade: 45.2,
-    tradesPerHour: 12.5,
-    profitPerHour: 565,
-    todayProfit: 3450,
-    capitalVelocity: 12.5,
-    gasFees: 120
-  }]);
-  const [latencyData] = useState<any[]>([{
-    id: '1',
-    cacheLookup: 2,
-    apiHotPath: 15,
-    blockDetection: 8,
-    executionPath: 12,
-    externalFetch: 35
-  }]);
-  const [bribeData] = useState<any[]>([{
-    id: '1',
-    bribeAmount: 0.05,
-    successRate: 98.5,
-    roi: 450,
-    totalPaid: 1.25
-  }]);
-  
-  // Capital Velocity data
-  const [capitalVelocityData] = useState<any[]>([{
-    id: '1',
-    velocity: 15.4,
-    turnover: 250000,
-    efficiency: 92.5,
-    rotation: 5.2
-  }]);
+  // Data for tables - now deriving from real state or remaining empty until fetched
+  const [profitData, setProfitData] = useState<any[]>([]);
+  const [latencyData, setLatencyData] = useState<any[]>([]);
+  const [bribeData, setBribeData] = useState<any[]>([]);
+  const [capitalVelocityData, setCapitalVelocityData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
     fetchWalletBalances();
-    
+  }, [fetchStats, fetchWalletBalances]);
+
+  useEffect(() => {
     const totalTrades = stats?.totalRequests || 0;
     const totalProfit = engineStatus?.totalProfit || 0;
     const profitPerTrade = totalTrades > 0 ? totalProfit / totalTrades : 0;
-    const tradesPerHour = totalTrades / 24;
+    const tradesPerHour = totalTrades > 0 ? totalTrades / 24 : 0; // Simplified
     const profitPerHour = tradesPerHour * profitPerTrade;
-    const smartWalletBalance = wallets.reduce((sum, w) => sum + (parseFloat(w.balance) || 0), 0);
+    const smartWalletBalance = (wallets || []).reduce((sum, w) => sum + (parseFloat(w.balance) || 0), 0);
     
     setHomeStats({
       profitPerTrade,
@@ -131,27 +114,40 @@ export default function Home() {
       latency: stats.avgLatency || 0,
       totalProfit,
       totalTrades,
-      winRate: 65.5,
+      winRate: stats.winRate || 0,
     });
-  }, [stats, engineStatus, wallets, fetchStats, fetchWalletBalances]);
 
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  // Calculate totals for summary cards
-  const totalTodayProfit = profitData[0]?.todayProfit || 0;
-  const avgLatency = latencyData[0] ? 
-    (latencyData[0].apiHotPath + latencyData[0].executionPath) / 2 : 0;
-  const totalBribes = bribeData[0]?.totalPaid || 0;
+    // Sync table data with the single-row current stats if no history is loaded yet
+    if (profitData.length === 0 && totalTrades > 0) {
+      setProfitData([{
+        id: 'current',
+        profitPerTrade,
+        tradesPerHour,
+        profitPerHour,
+        todayProfit: totalProfit,
+        capitalVelocity: 0,
+        gasFees: 0
+      }]);
+    }
+  }, [stats, engineStatus, wallets, profitData.length]);
 
   const handleRefresh = () => {
     fetchStats();
     fetchWalletBalances();
   };
+
+  const handleStartStop = async () => {
+    if (engineStatus.isRunning) {
+      await stopEngine();
+    } else {
+      await startEngine('live');
+    }
+  };
+
+  // Calculate totals for summary cards
+  const totalTodayProfit = homeStats.totalProfit;
+  const avgLatency = homeStats.latency;
+  const totalBribes = 0; // To be linked to real metrics
 
   return (
     <div className="space-y-4">
@@ -159,18 +155,32 @@ export default function Home() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-100 font-mono">HOME</h2>
-          <p className="text-xs text-slate-500 font-mono">Dashboard Overview</p>
+          <p className="text-xs text-slate-500 font-mono">Real-time Performance Monitoring</p>
         </div>
-        <Tooltip content="Refresh all dashboard data from API endpoints">
+        <div className="flex gap-2">
           <button
-            onClick={handleRefresh}
+            onClick={handleStartStop}
             disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 text-slate-300 text-xs font-mono rounded hover:bg-slate-700 disabled:opacity-50"
+            className={`flex items-center gap-2 px-4 py-1.5 border font-mono text-xs rounded transition-all ${
+              engineStatus.isRunning 
+                ? 'bg-red-900/20 border-red-500 text-red-400 hover:bg-red-900/40' 
+                : 'bg-emerald-900/20 border-emerald-500 text-emerald-400 hover:bg-emerald-900/40'
+            }`}
           >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-            REFRESH
+            <Zap className={`w-3 h-3 ${engineStatus.isRunning ? 'fill-red-400' : 'fill-emerald-400'}`} />
+            {engineStatus.isRunning ? 'STOP ENGINE' : 'START ENGINE'}
           </button>
-        </Tooltip>
+          <Tooltip content="Refresh all dashboard data">
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 text-slate-300 text-xs font-mono rounded hover:bg-slate-700 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+              REFRESH
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Summary Cards - Enterprise Grade */}
@@ -178,7 +188,7 @@ export default function Home() {
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-emerald-400" />
-            <div className="text-xs text-slate-400">TODAY PROFIT</div>
+            <div className="text-xs text-slate-400">TOTAL PROFIT</div>
           </div>
           <div className="text-2xl font-bold text-emerald-400">{formatCurrency(totalTodayProfit)}</div>
         </div>
@@ -192,16 +202,16 @@ export default function Home() {
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-purple-400" />
-            <div className="text-xs text-slate-400">BRIBES TODAY</div>
+            <div className="text-xs text-slate-400">TOTAL TRADES</div>
           </div>
-          <div className="text-2xl font-bold text-purple-400">{formatEth(totalBribes)}</div>
+          <div className="text-2xl font-bold text-purple-400">{homeStats.totalTrades}</div>
         </div>
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="w-4 h-4 text-green-400" />
-            <div className="text-xs text-slate-400">ENGINE</div>
+            <div className="text-xs text-slate-400">WIN RATE</div>
           </div>
-          <div className="text-2xl font-bold text-green-400">{engineStatus.isRunning ? 'RUNNING' : 'STOPPED'}</div>
+          <div className="text-2xl font-bold text-green-400">{homeStats.winRate.toFixed(1)}%</div>
         </div>
       </div>
 
@@ -220,7 +230,7 @@ export default function Home() {
                   <span className={`px-2 py-0.5 rounded ${
                     engineStatus?.mode === 'live' 
                       ? 'bg-green-900/50 text-green-400' 
-                      : 'bg-green-900/50 text-green-400'
+                      : 'bg-blue-900/50 text-blue-400'
                   }`}>
                     {(engineStatus?.mode || 'IDLE').toUpperCase()}
                   </span>
@@ -228,11 +238,16 @@ export default function Home() {
               </tr>
               <tr className="border-b border-slate-700/30">
                 <td className="py-2 text-slate-400">STATUS</td>
-                <td className="py-2 text-slate-200">{engineStatus.isRunning ? 'RUNNING' : 'STOPPED'}</td>
+                <td className="py-2 text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${engineStatus.isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
+                    {engineStatus.isRunning ? 'RUNNING' : 'STOPPED'}
+                  </div>
+                </td>
               </tr>
               <tr>
-                <td className="py-2 text-slate-400">TOTAL PROFIT</td>
-                <td className="py-2 text-green-400">{formatCurrency(homeStats.totalProfit)}</td>
+                <td className="py-2 text-slate-400">NETWORK</td>
+                <td className="py-2 text-cyan-400">MAINNET (LIVE)</td>
               </tr>
             </tbody>
           </table>
@@ -246,15 +261,7 @@ export default function Home() {
         defaultExpanded={false}
         preview={
           <div className="p-3 bg-slate-800/30">
-            <table className="w-full text-xs font-mono"><tbody><tr>
-              <td className="py-1 text-slate-300 font-medium">Today</td>
-              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.profitPerTrade || 0)}</td>
-              <td className="py-1 text-right text-slate-200">{profitData[0]?.tradesPerHour?.toFixed(1) || '0.0'}</td>
-              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.profitPerHour || 0)}</td>
-              <td className="py-1 text-right text-emerald-400">{formatCurrency(profitData[0]?.todayProfit || 0)}</td>
-              <td className="py-1 text-right text-cyan-400">{profitData[0]?.capitalVelocity?.toFixed(2) || '0.00'}x</td>
-              <td className="py-1 text-right text-red-400">{formatCurrency(profitData[0]?.gasFees || 0)}</td>
-            </tr></tbody></table>
+            <div className="text-[10px] text-slate-500 font-mono">REAL-TIME DATA STREAM ACTIVE</div>
           </div>
         }
       >
@@ -262,12 +269,13 @@ export default function Home() {
           <DataTable 
             data={profitData} 
             columns={profitColumns}
-            firstColumnLabel="DAY"
+            firstColumnLabel="STATUS"
             defaultSort="desc"
-            showTotals={true}
+            showTotals={false}
           />
         </div>
       </CollapsiblePanel>
+
 
       {/* Capital Velocity Metrics with DataTable */}
       <CollapsiblePanel 

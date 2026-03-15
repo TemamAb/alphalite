@@ -785,6 +785,7 @@ class RankingEngine extends EventEmitter {
                 try {
                     const urlObj = new URL(`${this.dataSources.openOcean}/${apiSlug}/tokenList`);
                     const options = {
+                        protocol: urlObj.protocol,
                         hostname: urlObj.hostname,
                         path: urlObj.pathname + urlObj.search,
                         method: 'GET',
@@ -835,6 +836,7 @@ class RankingEngine extends EventEmitter {
             // Fetch top coins by volume to correlate with chain activity
             const baseUrl = new URL(this.dataSources.coinGecko);
             const options = {
+                protocol: baseUrl.protocol,
                 hostname: baseUrl.hostname,
                 path: `${baseUrl.pathname}/coins/markets?vs_currency=usd&order=volume_desc&per_page=50&page=1&sparkline=false`,
                 method: 'GET',

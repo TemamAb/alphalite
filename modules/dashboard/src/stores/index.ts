@@ -1,26 +1,28 @@
 import { create } from 'zustand';
+import { deploymentApi, walletApi, engineApi, metricsApi, checkHealth } from '@/services/api';
 
 // ==================== Auth Store ====================
 interface AuthState {
   isAuthenticated: boolean;
   user: null | { id: string; email: string };
+  token: string;
   checkAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  // Login system REMOVED - always authenticated
+  // Login system REMOVED - always authenticated for Sovereign Mode
   isAuthenticated: true,
   user: { id: '1', email: 'admin@alphapro.io' },
-  token: 'mock-token-not-used',
+  token: 'open-access-token',
   
   checkAuth: async () => {
     // Always authenticated - no login system
     set({ isAuthenticated: true, user: { id: '1', email: 'admin@alphapro.io' } });
   },
   
-  login: async (email: string, password: string) => {
+  login: async (email: string, _password: string) => {
     // No-op - login system removed
     set({ isAuthenticated: true, user: { id: '1', email } });
   },
@@ -60,8 +62,8 @@ interface DashboardStats {
 interface EngineStatus {
   isRunning: boolean;
   mode: string;
-  totalProfit?: number;
-  totalTrades?: number;
+  totalProfit: number;
+  totalTrades: number;
 }
 
 interface DashboardState {
@@ -75,9 +77,11 @@ interface DashboardState {
   fetchDeployments: () => Promise<void>;
   fetchWalletBalances: () => Promise<void>;
   setRefreshInterval: (interval: number) => void;
+  startEngine: (mode?: 'live') => Promise<void>;
+  stopEngine: () => Promise<void>;
 }
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   stats: {
     totalPnl: 0,
     activeStrategies: 0,
@@ -85,9 +89,9 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     winRate: 0,
     totalRequests: 0,
     avgLatency: 0,
-    healthyDeployments: 1,
-    totalDeployments: 1,
-    uptime: 100,
+    healthyDeployments: 0,
+    totalDeployments: 0,
+    uptime: 0,
   },
   deployments: [],
   wallets: [],
@@ -96,43 +100,85 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   isLoading: false,
   
   fetchStats: async () => {
-    // Mock data - replace with actual API calls
-    set({
-      stats: {
-        totalPnl: 12500,
-        activeStrategies: 5,
-        dailyVolume: 250000,
-        winRate: 72,
-        totalRequests: 1250,
-        avgLatency: 45,
-        healthyDeployments: 1,
-        totalDeployments: 1,
-        uptime: 99.9,
-      },
-    });
+    set({ isLoading: true });
+    try {
+      const [apiStats, engineStatus, health] = await Promise.all([
+        deploymentApi.getStats(),
+        engineApi.getStatus(),
+        deploymentApi.getHealth()
+      ]);
+      
+      set({
+        stats: {
+          totalPnl: engineStatus.totalProfit || 0,
+          activeStrategies: engineStatus.strategies?.length || 0,
+          dailyVolume: 0, // Placeholder
+          winRate: parseFloat(engineStatus.winRate) || 0,
+          totalRequests: engineStatus.totalTrades || 0,
+          avgLatency: engineStatus.avgLatency || 0,
+          healthyDeployments: health.deployments.healthy,
+          totalDeployments: health.deployments.total,
+          uptime: (health.uptime / (health.uptime + 1)) * 100, // Approximation
+        },
+        engineStatus: {
+          isRunning: engineStatus.isRunning,
+          mode: engineStatus.mode,
+          totalProfit: engineStatus.totalProfit || 0,
+          totalTrades: engineStatus.totalTrades || 0
+        }
+      });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch stats:', error);
+    } finally {
+      set({ isLoading: false });
+    }
   },
   
   fetchDeployments: async () => {
-    // Mock data
-    set({
-      deployments: [
-        { id: '1', name: 'Mainnet Alpha', status: 'active', lastDeployed: new Date().toISOString() },
-      ],
-    });
+    try {
+      const deployments = await deploymentApi.getAll();
+      set({ deployments });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch deployments:', error);
+    }
   },
   
   fetchWalletBalances: async () => {
-    // Mock data
-    set({
-      wallets: [
-        { address: '0x742d35Cc6634C0532925a3b844Bc9e7595f', balance: '2.5', chain: 'Ethereum' },
-      ],
-    });
+    try {
+      const wallets = await walletApi.getAll();
+      set({ wallets: wallets.map(w => ({ ...w, balance: w.balance.toString() })) });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch wallet balances:', error);
+    }
   },
   
   setRefreshInterval: (interval: number) => {
     set({ refreshInterval: interval });
   },
+
+  startEngine: async (mode = 'live') => {
+    set({ isLoading: true });
+    try {
+      await engineApi.start(mode);
+      await get().fetchStats();
+    } catch (error) {
+      console.error('[STORE] Failed to start engine:', error);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  stopEngine: async () => {
+    set({ isLoading: true });
+    try {
+      await engineApi.stop();
+      await get().fetchStats();
+    } catch (error) {
+      console.error('[STORE] Failed to stop engine:', error);
+    } finally {
+      set({ isLoading: false });
+    }
+  }
 }));
 
 // ==================== System Store ====================
@@ -141,6 +187,7 @@ interface SystemState {
   memoryUsage: number;
   networkLatency: number;
   uptime: number;
+  latestTrade: any | null;
   connect: () => void;
   fetchSystemMetrics: () => Promise<void>;
 }
@@ -150,18 +197,24 @@ export const useSystemStore = create<SystemState>((set) => ({
   memoryUsage: 0,
   networkLatency: 0,
   uptime: 0,
+  latestTrade: null,
   
   connect: () => {
-    console.log('[SYSTEM] Analytics link established');
+    console.log('[SYSTEM] Analytics link established via Sovereign Protocol');
+    // Real WebSocket initialization could go here if needed, 
+    // but the app uses createWebSocketConnection in specific components or layout
   },
   
   fetchSystemMetrics: async () => {
-    // Mock data
-    set({
-      cpuUsage: 45,
-      memoryUsage: 62,
-      networkLatency: 25,
-      uptime: Date.now(),
-    });
+    try {
+      const health = await metricsApi.getSystemMetrics();
+      set({
+        uptime: health.uptime,
+        // Map other metrics if available
+      });
+    } catch (error) {
+      console.error('[STORE] Failed to fetch system metrics:', error);
+    }
   },
 }));
+
